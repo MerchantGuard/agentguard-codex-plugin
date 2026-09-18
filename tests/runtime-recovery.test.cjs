@@ -38,6 +38,7 @@ test('Runtime restart restores signed per-window spend and preserves cap enforce
   const { data } = context(t, { toolRules: [{ pattern: '^Read$', unitCostCents: 6 }], caps: [{ window: 'per_day', amountCents: 10, action: 'block' }] });
   const first = await start();
   assert.equal(decision(await first.handle({ meta: meta('Read', 'first') })), 'allow');
+  await first.flush();
   const second = await start();
   assert.equal(decision(await second.handle({ meta: meta('Read', 'second') })), 'deny');
   const reader = createReader({ dataDir: data });
@@ -54,6 +55,7 @@ test('Runtime restart links a signed fail-open admission to its later outcome', 
   assert.equal(outcome.warning, true);
   const initial = rows(first)[0].decision;
   assert.equal(initial.plugin.event, 'fail_open');
+  await first.flush();
   const second = await start();
   await second.handle({ meta: meta('Read', 'recover-outcome', 'synthetic-session', 'receipt', { tool_response: { ok: true }, duration_ms: 7 }) });
   const entries = rows(second);
@@ -81,6 +83,7 @@ test('Runtime replays interrupted fail-open batches once before a fresh batch', 
   await engine.failure(prior, 'synthetic_failure');
   fs.writeFileSync(engine.loc.spool + '.recovering', [prior, recovering].map(item => JSON.stringify(item)).join('\n') + '\n');
   fs.writeFileSync(engine.loc.spool, JSON.stringify(fresh) + '\n');
+  await engine.flush();
   const restarted = await start();
   assert.equal(rows(restarted).filter(entry => entry.decision.plugin.event === 'fail_open').length, 2);
   await restarted.handle({ meta: meta('Read', 'ordinary-after-recovery') });
@@ -155,6 +158,7 @@ test('Runtime and read-only MCP use no network for normal calls or an uncached l
       const allowed = await engine.handle({ meta:pre });
       await engine.handle({ meta:metadata({ tool_name:'Read', tool_use_id:'offline-allow', session_id:'offline-session', tool_response:{ ok:true } }, 'receipt') });
       process.env.AGENTGUARD_LICENSE_KEY = 'synthetic-invalid-uncached-key';
+      await engine.flush();
       const restarted = new Engine(); await restarted.init();
       const offline = await restarted.handle({ meta:metadata({ tool_name:'Read', tool_use_id:'offline-uncached', session_id:'offline-session', tool_input:{} }, 'spend') });
       const verified = await reader.call('verify_chain');

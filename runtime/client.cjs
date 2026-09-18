@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const crypto = require('node:crypto');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const {warmBudget, COLD_MS} = require('./budget.cjs');
 const { locations, allow, metadata, spoolFailure, writeWorkerPid } = require('./common.cjs');
 
 function ensurePrivateIpc(loc) {
@@ -38,6 +39,7 @@ function workerReady(loc) {
 }
 async function request(message, options = {}) {
   const loc = locations(); ensurePrivateIpc(loc);
+  if (message.meta && !message.meta.requestId) message.meta.requestId = crypto.randomUUID();
   const warm = workerReady(loc);
   if (options.startWorker === false && !warm) return {};
   const id = `${Date.now().toString().padStart(16, '0')}-${process.hrtime.bigint()}-${crypto.randomUUID()}`;
@@ -46,7 +48,7 @@ async function request(message, options = {}) {
   writeMessage(input, message);
   return new Promise((resolve, reject) => {
     let finished = false, started = false, poll;
-    const deadline = setTimeout(() => done(new Error('worker_timeout')), options.timeoutMs ?? (warm ? 28 : 1500));
+    const deadline = setTimeout(() => done(new Error('worker_timeout')), options.timeoutMs ?? (warm ? warmBudget(loc.data) : COLD_MS));
     function done(error, value) {
       if (finished) return; finished = true; clearTimeout(deadline); clearTimeout(poll);
       try { fs.unlinkSync(input); } catch {}
@@ -104,15 +106,18 @@ function hookOutput(output, options = {}) {
   return normalized;
 }
 async function run(gate, options = {}) {
-  let meta = { schema: 'agentguard.codex.v1', gate, toolName: 'unknown', sessionId: 'unknown', toolUseId: require('node:crypto').randomUUID(), startedAt: new Date().toISOString() };
+  let meta = { schema: 'agentguard.codex.v1', requestId: crypto.randomUUID(), gate, toolName: 'unknown', sessionId: 'unknown', toolUseId: require('node:crypto').randomUUID(), startedAt: new Date().toISOString() };
   try {
     const raw = JSON.parse(fs.readFileSync(0, 'utf8'));
     meta = metadata(raw, gate);
     const result = await request({ meta, ...(gate === 'burn' && typeof raw.transcript_path === 'string' ? { transcriptPath: raw.transcript_path } : {}) });
-    if (result.warning) process.stderr.write('agentguard: internal error; allowed tool call; fail-open event recorded.\n');
+    if (result.warning) process.stderr.write('agentguard: internal error; allowed tool call; fail-open event recorded.'
+      + (result.healthWarning ? ' ' + result.healthWarning.replace(/^agentguard: /, '') : '') + '\n');
+    else if (result.healthWarning) process.stderr.write(result.healthWarning + '\n');
     process.stdout.write(JSON.stringify(hookOutput(result.output ?? (gate === 'receipt' ? {} : allow()), options)) + '\n');
-  } catch {
-    spoolFailure(meta, 'hook_internal_error');
+  } catch (error) {
+    const cause = ['worker_timeout', 'worker_start', 'worker_response', 'ipc_directory_not_private', 'ipc_file_not_private'].includes(error?.message) ? error.message : 'hook_internal_error';
+    spoolFailure(meta, cause);
     process.stderr.write('agentguard: internal error; allowed tool call; audit recovery queued when storage is writable.\n');
     process.stdout.write(JSON.stringify(hookOutput(gate === 'receipt' ? {} : allow(), options)) + '\n');
   }

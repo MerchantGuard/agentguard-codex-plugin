@@ -38,6 +38,7 @@ CHANGELOG.md
 scripts/build-compat.cjs
 scripts/provision-dependencies.cjs
 scripts/print-trust-state.cjs
+scripts/probe-hooks.cjs
 docs/ENTERPRISE_INSTALL.md
 scripts/sync-public.sh
 runtime/license.cjs
@@ -54,6 +55,8 @@ runtime/engine.cjs
 runtime/mcp.cjs
 runtime/mcp-legacy.cjs
 runtime/owned-log.cjs
+runtime/budget.cjs
+runtime/health.cjs
 hooks/hooks.json
 hooks/session-start.cjs
 hooks/burn-gate.cjs
@@ -70,6 +73,10 @@ assets/icon-32.png
 assets/icon-128.png
 assets/logo-256.png
 assets/logo-512.png
+tests/budget.test.cjs
+tests/durability.test.cjs
+tests/health.test.cjs
+tests/latency-probe.test.cjs
 tests/trust-state.test.cjs
 tests/helper-paid-license.cjs
 tests/license.test.cjs

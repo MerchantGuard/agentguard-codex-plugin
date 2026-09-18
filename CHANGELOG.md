@@ -1,3 +1,11 @@
+## 0.2.1
+
+- Reply after signing and writing each plugin ledger row, then sync asynchronously and reconcile unconfirmed tails with signed integrity events on restart.
+- Raise the warm response budget to 250 ms and accept `hookBudgetMs`, capped at 1900 ms below the host timeout; preserve the 1500 ms cold budget.
+- Keep the Burn gateway inside that budget because its public API combines decisions, reservations and receipt writes.
+- Report fail-open counts, rates and causes over the last hour and since worker start, with a warning above 5 percent.
+- Reject every unexpected fail-open in normal hook tests and add isolated warm probes with delayed disk operations.
+
 ## 0.2.0
 
 - Keep free sessions in signed shadow mode and license paid enforcement, team policies, and receipt export.

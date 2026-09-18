@@ -33,7 +33,7 @@ async function setup(t, policy = {}) {
   });
   const engine = new Engine(); await engine.init();
   const rows = () => fs.existsSync(path.join(data, 'ledger', 'decisions.ndjson')) ? fs.readFileSync(path.join(data, 'ledger', 'decisions.ndjson'), 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line)) : [];
-  return { data, engine, rows, handle: (raw, gate = 'spend') => engine.handle({ meta: metadata(raw, gate) }), policy: next => fs.writeFileSync(path.join(data, 'policy.json'), JSON.stringify({ ...base, ...next })) };
+  return { data, engine, rows, handle: async (raw, gate = 'spend', {expectedWarning = false} = {}) => { const result = await engine.handle({meta: metadata(raw, gate)}); if (!expectedWarning) assert.equal(result.warning, undefined, 'A normal decision must not fail open.'); return result; }, policy: next => fs.writeFileSync(path.join(data, 'policy.json'), JSON.stringify({ ...base, ...next })) };
 }
 
 test('recorded Codex fixture and synthetic MCP payloads retain the documented input shape', () => {
@@ -148,7 +148,7 @@ test('failed tool results produce a failed outcome with an estimated duration', 
 test('invalid policy fails open with a signed event and no raw error text', async t => {
   const f = await setup(t);
   fs.writeFileSync(path.join(f.data, 'policy.json'), 'SYNTHETIC_INVALID_POLICY_CONTENT');
-  const result = await f.handle(payload());
+  const result = await f.handle(payload(), 'spend', {expectedWarning: true});
   assert.equal(allowed(result.output), true); assert.equal(result.warning, true);
   assert.equal(f.rows()[0].decision.plugin.event, 'fail_open');
   assert.equal(JSON.stringify(f.rows()).includes('SYNTHETIC_INVALID_POLICY_CONTENT'), false);
@@ -157,7 +157,7 @@ test('invalid policy fails open with a signed event and no raw error text', asyn
 
 test('unmatched PostToolUse is a signed fail-open event instead of a fabricated joined outcome', async t => {
   const f = await setup(t);
-  const result = await f.handle(payload(), 'receipt');
+  const result = await f.handle(payload(), 'receipt', {expectedWarning: true});
   assert.equal(result.warning, true);
   assert.equal(f.rows()[0].decision.plugin.reasonCode, 'outcome_without_decision');
   assert.equal(f.rows()[0].decision.plugin.event, 'fail_open');
@@ -171,16 +171,17 @@ test('hook subprocesses return valid JSON, signed decisions, and a matching post
   const f = await setup(t, { deniedTools: ['^mcp__imanage__save_document$'] });
   const invoke = (script, raw) => spawnSync(process.execPath, [path.join(__dirname, '..', 'hooks', script)], { input: JSON.stringify(raw), encoding: 'utf8', env: process.env, timeout: 10000 });
   const denied = invoke('spend-gate.cjs', payload('mcp__imanage__save_document'));
-  assert.equal(denied.status, 0, denied.stderr); assert.equal(allowed(JSON.parse(denied.stdout)), false);
+  assert.equal(denied.status, 0, denied.stderr); assert.equal(denied.stderr, ''); assert.equal(allowed(JSON.parse(denied.stdout)), false);
   const raw = payload('mcp__imanage__get_document');
   const allow = invoke('spend-gate.cjs', raw); assert.equal(allow.status, 0, allow.stderr); assert.equal(allowed(JSON.parse(allow.stdout)), true); assert.equal(allow.stderr, '');
   const post = invoke('receipt.cjs', { ...raw, tool_response: { text: 'SYNTHETIC_TOOL_OUTPUT_MUST_NOT_APPEAR' }, duration_ms: 4 });
-  assert.equal(post.status, 0, post.stderr); assert.deepEqual(JSON.parse(post.stdout), {});
+  assert.equal(post.status, 0, post.stderr); assert.equal(post.stderr, ''); assert.deepEqual(JSON.parse(post.stdout), {});
   assert.equal(f.rows().length, 3); assert.equal((await sdk.verifyChain(f.rows(), f.engine.publicKey)).ok, true);
 });
 
-test('warm IPC measurements stay below 50ms and report subprocess startup separately', async t => {
-  const f = await setup(t); await request({ meta: metadata(payload(), 'spend') });
+test('warm IPC decisions meet the 250ms budget without fail-open and report subprocess startup separately', async t => {
+  const f = await setup(t); const warmup = await request({ meta: metadata(payload(), 'spend') });
+  assert.equal(warmup.warning, undefined); assert.equal(allowed(warmup.output), true);
   const timings = [];
   for (let i = 0; i < 15; i++) {
     const started = performance.now(); const result = await request({ meta: metadata(payload(), 'spend') });
@@ -190,9 +191,12 @@ test('warm IPC measurements stay below 50ms and report subprocess startup separa
   const processResult = spawnSync(process.execPath, [path.join(__dirname, '..', 'hooks', 'spend-gate.cjs')], { input: JSON.stringify(payload()), encoding: 'utf8', env: process.env, timeout: 10000 });
   const subprocessMs = performance.now() - subprocessStart;
   assert.equal(processResult.status, 0, processResult.stderr);
+  assert.equal(processResult.stderr, ''); assert.equal(allowed(JSON.parse(processResult.stdout)), true);
+  assert.equal(f.rows().length, 17);
+  assert.equal(f.rows().every(row => row.decision.plugin.event === 'decision'), true);
   const maximum = Math.max(...timings), sorted = timings.toSorted((a, b) => a - b), p95 = sorted[Math.ceil(sorted.length * .95) - 1];
   t.diagnostic(`Warm IPC ${timings.length} signed decisions: p95=${p95.toFixed(2)}ms max=${maximum.toFixed(2)}ms; separate Node subprocess total=${subprocessMs.toFixed(2)}ms.`);
-  assert.equal(maximum < 50, true, `warm IPC exceeded 50ms: ${maximum}`);
+  assert.equal(maximum < 250, true, `warm IPC exceeded 250ms: ${maximum}`);
   assert.equal((await sdk.verifyChain(f.rows(), f.engine.publicKey)).ok, true);
 });
 

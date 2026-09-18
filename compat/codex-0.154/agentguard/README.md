@@ -43,6 +43,18 @@ receipt is not evidence that a tool was never used. The host can continue after
 a hook failure or timeout. Do not use this plugin as the sole access control
 for a client document system or payment service.
 
+The warm worker deadline defaults to 250 ms. Set `hookBudgetMs` to a positive
+integer in `policy.json` to change it; values above 1900 ms are capped to leave
+100 ms before the host's two second hook timeout. Cold worker startup keeps
+its 1500 ms deadline. These are response budgets, not wall time guarantees:
+process startup, scheduling and a stalled operating system can add delay.
+
+Burn's published gateway combines its decision, reservation, receipt and
+ledger writes in one synchronous operation. That operation stays inside the
+same response budget so reservation and receipt behavior stay intact. The
+plugin does not defer or bypass Burn's own writes. Local probes exercise both
+gates, including delayed Burn appends, without retrying failed-open calls.
+
 For a law firm using Astra for Law in Codex or ChatGPT Work, the operator can
 assign per-matter budgets, limit a document-review session to selected tools,
 and deny tools across an ethical wall. The firm keeps the signed,
@@ -262,9 +274,21 @@ those receipts record `status: "unknown"` and `success: null`. The plugin never
 parses command output to guess success. See the
 [released hook response implementation](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/core/src/tools/context.rs#L404).
 
+Before replying, the worker signs and writes each complete plugin ledger row
+to the operating system; a later asynchronous sync confirms a durable chain
+head, so a crash or power loss can lose an unconfirmed tail. On restart it
+verifies surviving rows against that head, discards only an incomplete final
+row beyond it, and appends a signed integrity event when surviving evidence
+shows an unconfirmed tail or sync failure; complete invalid rows are never
+silently repaired.
+
+An existing ledger without a durability checkpoint receives one conservative
+integrity event on its first startup. Its original signed rows stay intact.
+Integrity events appear separately from tool decisions in status reports.
+
 The optional local MCP server exposes only:
 
-- `get_status`: report license tier, seats, expiry, effective mode and reason alongside today's decisions, configured spend, blocks, and fail-open events.
+- `get_status`: report license tier, seats, expiry, effective mode and reason alongside today's decisions, configured spend, blocks, integrity events, and fail-open health.
 - `list_decisions`: read a bounded page of signed entries.
 - `verify_chain`: verify chain hashes and signatures on every tier.
 - `export_receipts`: with a valid paid license, return a bounded JSON bundle for the caller to save.
@@ -282,6 +306,14 @@ Status reports signed UTC-day fail-open events separately from pending audit
 recovery. Pending counts cover all dates and can include duplicates from a
 partly recovered batch; they are unsigned/unverified, not an additional
 verified failure total.
+
+Status also reports fail-open count and rate over the last hour and since
+the worker started. Each pre-tool gate invocation counts once, including
+an allow when that gate does not govern the tool; post-tool calls are reported
+separately. A client timeout and a late worker response share one request ID.
+Either rate above 5 percent produces a one-line warning naming a known cause.
+These operational counters are unsigned and may lag the signed ledger; status
+labels an incomplete or truncated denominator instead of treating it as exact.
 
 Use `agentguard-status` for the UTC day summary and `agentguard-verify` for a
 custodian export. Preserve the verification public key through a trusted
@@ -342,6 +374,13 @@ timing is measured against the already-running local worker; process startup,
 the first dependency load, and disk failures are distinct from a warm
 decision. No hook performs network requests. Read the measured test output
 for the current machine rather than treating a timing target as a guarantee.
+
+Run `node scripts/probe-hooks.cjs 12` from a source checkout for a fresh,
+isolated warm probe of both gates. It prints wall timings, fail-open counts,
+load averages and signed chain verification without retrying calls. The test
+suite also runs 20 warm calls per gate while delaying disk operations by
+40 ms; zero fail-opens is required. Synthetic policies and license snapshots
+stay in scratch directories, and the probe makes no network requests.
 
 ### Publishing
 

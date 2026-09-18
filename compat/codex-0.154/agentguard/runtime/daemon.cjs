@@ -4,14 +4,27 @@ const path = require('node:path');
 const { locations, writeWorkerPid } = require('./common.cjs');
 const { ensurePrivateIpc, readPrivate, writeMessage } = require('./client.cjs');
 const loc = locations();
-let watcher, idle, rescan, draining = false, stopped = false;
+let watcher, idle, rescan, engine, health, stopPromise, draining = false, stopped = false;
 function ownsWorker() {
   try { return readPrivate(loc.lock) === String(process.pid); } catch { return false; }
 }
-function stop() {
+function stop(responsePath) {
+  if (stopPromise) return stopPromise;
   stopped = true; clearTimeout(idle); clearInterval(rescan); watcher?.close();
-  if (ownsWorker()) { try { fs.unlinkSync(loc.lock); } catch {} try { fs.unlinkSync(loc.ready); } catch {} }
-  process.exit(0);
+  stopPromise = (async () => {
+    let timer;
+    try {
+      await Promise.race([
+        Promise.all([engine?.flush(), health?.persist()]),
+        new Promise(resolve => { timer = setTimeout(resolve, 1500); }),
+      ]);
+    } catch { /* An unconfirmed tail is reconciled at the next startup. */ }
+    finally { clearTimeout(timer); }
+    if (responsePath) { try { writeMessage(responsePath, {}); } catch {} }
+    if (ownsWorker()) { try { fs.unlinkSync(loc.lock); } catch {} try { fs.unlinkSync(loc.ready); } catch {} }
+    process.exit(0);
+  })();
+  return stopPromise;
 }
 function touch() { clearTimeout(idle); idle = setTimeout(stop, 300000); }
 async function main() {
@@ -20,7 +33,10 @@ async function main() {
   if (owner !== process.pid && owner !== process.ppid) return;
   writeWorkerPid(loc.lock, process.pid);
   const { Engine } = require('./engine.cjs');
-  const engine = new Engine(); await engine.init();
+  const {HealthTracker} = require('./health.cjs');
+  health = new HealthTracker({data: loc.data});
+  health.recordPending();
+  engine = new Engine(); await engine.init();
   async function drain() {
     if (draining || stopped) return;
     draining = true;
@@ -35,9 +51,24 @@ async function main() {
         catch { try { fs.unlinkSync(input); } catch {} continue; }
         try { fs.unlinkSync(input); } catch (error) { if (error.code === 'ENOENT') continue; throw error; }
         touch();
-        if (message.control === 'stop') { writeMessage(output, {}); return stop(); }
-        try { writeMessage(output, await engine.handle(message)); }
-        catch { writeMessage(output, { transportError: 'worker_request' }); }
+        if (message.control === 'stop') return stop(output);
+        try {
+          health.recordPending();
+          const result = await engine.handle(message);
+          const snapshot = health.record({requestId: message.meta?.requestId, gate: message.meta?.gate,
+            startedAt: message.meta?.startedAt, failOpen: result.warning === true,
+            cause: result.cause || (result.warning ? 'policy_or_runtime_error' : undefined)});
+          if (snapshot.warning) result.healthWarning = snapshot.warning;
+          writeMessage(output, result);
+        } catch {
+          health.record({requestId: message.meta?.requestId, gate: message.meta?.gate,
+            startedAt: message.meta?.startedAt, failOpen: true, cause: 'worker_request'});
+          writeMessage(output, {transportError: 'worker_request'});
+        } finally {
+          // Publish the reply before scheduling durability or metric storage.
+          engine.afterReply();
+          void health.persist().catch(() => {});
+        }
       }
     } catch { stop(); }
     finally { draining = false; }
@@ -67,7 +98,7 @@ async function main() {
     rescan = setInterval(() => { cleanup(); void drain(); }, 1000);
   } catch { pollingFallback(); }
   writeMessage(loc.ready, { pid: process.pid, transport: 'files-v1' });
-  touch(); void drain();
-  process.on('SIGTERM', stop); process.on('SIGINT', stop);
+  touch(); engine.afterReply(); void health.persist().catch(() => {}); void drain();
+  process.on('SIGTERM', () => { void stop(); }); process.on('SIGINT', () => { void stop(); });
 }
-main().catch(stop);
+main().catch(() => { void stop(); });

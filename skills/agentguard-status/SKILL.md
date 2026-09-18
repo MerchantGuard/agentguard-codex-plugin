@@ -1,6 +1,6 @@
 ---
 name: agentguard-status
-description: Read AgentGuard license tier, seats, expiry, effective mode, and today's signed decisions, configured spend, blocks, and fail-open events without changing policy or tools.
+description: Read AgentGuard license tier, seats, expiry, effective mode, today's signed decisions, configured spend, blocks, and rolling fail-open counts and rates without changing policy or tools.
 ---
 
 # AgentGuard status
@@ -54,3 +54,22 @@ document bodies to enrich the report.
 Report only local hook coverage. Hosted tools, skipped/untrusted hooks,
 specialized paths, and logging failures can leave activity outside the
 ledger. No records is not proof that no tool ran.
+
+Report `health.lastHour` and `health.sinceStart`: fail-open count, total gate
+hook invocations, rate as a percentage, and known cause counts. Name the worker
+start time. The denominator includes each PreToolUse gate invocation, including
+a gate that passes the tool through to the other gate. PostToolUse receipt
+observations are reported separately under `health.postToolUse`. A timeout
+and its late worker response share one observation; a timeout wins.
+
+If either rate exceeds 5 percent, print `health.warning` as one plain
+line, including the known cause. These counters are unsigned operational
+observations. They supplement the signed audit chain and must not be presented
+as signed decisions. Pending timeout observations may be visible before the
+worker recovers their signed audit rows. Do not add them again to these rates.
+
+When `health.denominatorComplete` is false, describe the denominator as partial.
+The ledger fallback cannot count pass-through hook invocations that had no
+decision row. A missing worker start is unknown, not the start of the day.
+If `health.truncated` is true, state that the bounded rolling record limit was
+reached. Report `integrityEvents` separately from tool decisions and spend.

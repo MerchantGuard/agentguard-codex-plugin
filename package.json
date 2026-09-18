@@ -1,6 +1,6 @@
 {
   "name": "@agentguard-run/codex-plugin",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Local tool policy hooks and content-free signed records for Codex and ChatGPT Work.",
   "license": "SEE LICENSE IN LICENSE",
   "type": "commonjs",

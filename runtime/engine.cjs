@@ -49,6 +49,7 @@ function validatePolicy(policy) {
 class Engine {
   constructor(options = {}) {
     this.licenseReader = options.licenseReader ?? readSessionLicense;
+    this.logOptions = options.logOptions ?? {};
     this.loc = locations(); this.spendStore = new sdk.InMemorySpendStore(); this.pending = new Map(); this.completed = new Map(); this.failures = new Set();
     this.outcomes = new sdk.SpendGuard({ policy: basePolicy, spendStore: this.spendStore, licensePostJson: offline });
     this.guards = new Map();
@@ -68,12 +69,8 @@ class Engine {
       decision: this.basic({ toolName: 'signer-warmup', sessionId: 'local', toolUseId: 'warmup', gate: 'spend' }, 'allow', 'signer_warmup'),
       privateKey: this.privateKey, publicKey: this.publicKey });
     fs.writeFileSync(path.join(this.loc.data, 'public-key.hex'), this.publicKey.toString('hex') + '\n', { mode: 0o600 });
-    this.logStore = new OwnedLogStore('ledger', { home: this.loc.data, publicKeyHex: this.publicKey.toString('hex') });
-    const file = path.join(this.loc.data, 'ledger', 'decisions.ndjson');
-    let entries = [];
-    try { entries = fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line)); } catch (e) { if (e.code !== 'ENOENT') throw e; }
-    if (!(await sdk.verifyChain(entries, this.publicKey)).ok) throw new Error('invalid_existing_chain');
-    this.logStore.initializeHead(entries, this.publicKey.toString('hex'));
+    this.logStore = new OwnedLogStore('ledger', { ...this.logOptions, home: this.loc.data, publicKeyHex: this.publicKey.toString('hex') });
+    const {entries, integrity} = await this.logStore.recover(this.publicKey.toString('hex'));
     this.sequence = entries.length; this.previousHash = entries.at(-1)?.entryHash ?? sdk.GENESIS_PREVIOUS_HASH;
     for (const entry of entries) {
       const decision = entry.decision, meta = decision.plugin;
@@ -89,6 +86,14 @@ class Engine {
         if (governs(meta)) { this.pending.set(callKey(meta), decision); this.completed.set(`${meta.gate}:${callKey(meta)}`, decision); }
       }
       else if (meta.event === 'outcome') this.pending.delete(callKey(meta));
+    }
+    if (integrity) {
+      const decision = this.basic({toolName: 'ledger_integrity', sessionId: 'worker', toolUseId: crypto.randomUUID(), gate: 'spend'}, 'allow', integrity.reason);
+      decision.enforcementMode = 'shadow';
+      decision.plugin.event = 'integrity';
+      decision.plugin.integrity = integrity;
+      await this.append(decision);
+      this.logStore.clearRecoveredFailureAfter(this.sequence - 1);
     }
     // Import deferred events only after validating the existing chain.
     await this.drainSpool();
@@ -130,16 +135,19 @@ class Engine {
     await this.logStore.append(entry); this.sequence++; this.previousHash = entry.entryHash;
     return decision;
   }
+  afterReply() { this.logStore.afterReply(); }
+  async flush() { return this.logStore.flush(); }
+  async close() { return this.logStore.close(); }
   async failure(meta, reasonCode) {
     const key = `${meta.gate}:${callKey(meta)}`;
-    if (this.failures.has(key)) return { output: meta.gate === 'receipt' ? {} : allow(), warning: true };
+    if (this.failures.has(key)) return { output: meta.gate === 'receipt' ? {} : allow(), warning: true, cause: reasonCode };
     const decision = this.basic(meta, 'allow', reasonCode);
     decision.plugin.event = 'fail_open';
     this.failureLicense(decision, meta);
     await this.append(decision);
     this.failures.add(key);
     if (governs(meta)) { this.pending.set(callKey(meta), decision); this.completed.set(key, decision); }
-    return { output: meta.gate === 'receipt' ? {} : allow(), warning: true };
+    return { output: meta.gate === 'receipt' ? {} : allow(), warning: true, cause: reasonCode };
   }
   async drainSpool() {
     const batch = this.loc.spool + '.recovering';

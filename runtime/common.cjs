@@ -38,7 +38,7 @@ function metadata(raw, gate) {
   const response = raw.tool_response;
   const output = JSON.stringify(response ?? null);
   const toolName = identifier(raw.tool_name);
-  return { schema: 'agentguard.codex.v1', gate, toolName,
+  return { schema: 'agentguard.codex.v1', requestId: crypto.randomUUID(), gate, toolName,
     toolUseId: identifier(raw.tool_use_id, crypto.randomUUID()), sessionId: identifier(raw.session_id),
     ...(raw.agent_id ? { agentId: identifier(raw.agent_id) } : {}),
     inputSha256: crypto.createHash('sha256').update(input).digest('hex'),

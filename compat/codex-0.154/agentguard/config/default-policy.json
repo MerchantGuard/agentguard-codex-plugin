@@ -8,5 +8,6 @@
   "caps": [],
   "deniedTools": [],
   "ethicalWall": [],
-  "sessions": {}
+  "sessions": {},
+  "hookBudgetMs": 250
 }

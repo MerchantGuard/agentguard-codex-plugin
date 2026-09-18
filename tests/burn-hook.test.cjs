@@ -32,9 +32,10 @@ function setup(t, thresholds = {}) {
     fs.rmSync(data, { recursive: true, force: true });
     fs.rmSync(ipc, { recursive: true, force: true });
   });
-  const invoke = (name, raw) => {
+  const invoke = (name, raw, { expectedWarning = false } = {}) => {
     const child = spawnSync(process.execPath, [path.join(__dirname, '..', 'hooks', name + '.cjs')], { env, input: JSON.stringify(raw), encoding: 'utf8', timeout: 10000 });
     assert.equal(child.status, 0, child.stderr);
+    if (!expectedWarning) assert.equal(child.stderr, '', 'A normal hook call must not fail open.');
     return { output: JSON.parse(child.stdout), stderr: child.stderr };
   };
   const read = filename => fs.existsSync(filename) ? fs.readFileSync(filename, 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line)) : [];
@@ -53,9 +54,8 @@ const verify = async f => assert.equal((await sdk.verifyChain(f.rows(), Buffer.f
 
 async function recoverTimeout(f, result, raw, gate) {
   if (!result.stderr) return false;
-  // Burn performs synchronous filesystem work. A slow disk must exercise the
-  // production fail-open contract, not make a deadline-induced allow look like
-  // a successful policy decision. Every retry uses a new tool ID.
+  // Only the deliberately busy-worker test invokes this recovery helper.
+  // Normal admission and denial tests never retry an unexpected fail-open.
   assert.match(result.stderr, /^agentguard: internal error; allowed tool call; audit recovery queued when storage is writable\.\n$/);
   if (gate === 'receipt') assert.deepEqual(result.output, {});
   else assert.equal(permission(result), 'allow');
@@ -67,7 +67,10 @@ async function recoverTimeout(f, result, raw, gate) {
     // A spend-side spawn bypass wakes the worker without creating a new Burn
     // reservation or an unrelated charged decision.
     const wake = { ...raw, tool_name: 'spawn_agent', tool_use_id: `synthetic-recovery-${f.timeouts}-${i}` };
-    f.invoke('spend-gate', wake);
+    const recovery = f.invoke('spend-gate', wake, {expectedWarning: true});
+    assert.equal(permission(recovery), 'allow');
+    if (recovery.stderr) assert.match(recovery.stderr,
+      /^agentguard: fail-open rate [0-9.]+% in the last hour \(\d+\/\d+ gate calls\); cause: worker_timeout\.\n$/);
     if (f.rows().some(row => row.decision.plugin.event === 'fail_open' && row.decision.plugin.toolUseId === raw.tool_use_id && row.decision.plugin.gate === gate)) {
       await verify(f);
       return true;
@@ -78,43 +81,29 @@ async function recoverTimeout(f, result, raw, gate) {
 
 test('Burn hook subprocess observes the recorded Bash shape and admits then denies spawns at the existing cap', async t => {
   const f = setup(t);
-  let allowed, admitted, deniedDecision;
-  for (let attempt = 0; attempt < 4 && !allowed; attempt++) {
-    // A timed-out spawn may already have consumed its reservation. Retry on a
-    // new scratch session so the normal first-admission assertion stays real.
-    const { spawn, bash } = payloads(f, 15, attempt);
-    const bypass = f.invoke('spend-gate', spawn);
-    if (await recoverTimeout(f, bypass, spawn, 'spend')) continue;
-    assert.equal(permission(bypass), 'allow');
-    assert.equal(f.rows().some(row => row.decision.plugin.gate === 'spend' && row.decision.plugin.toolUseId === spawn.tool_use_id), false);
-    const observation = f.invoke('burn-gate', bash);
-    if (await recoverTimeout(f, observation, bash, 'burn')) continue;
-    assert.equal(permission(observation), 'allow');
-    const first = f.invoke('burn-gate', spawn);
-    if (await recoverTimeout(f, first, spawn, 'burn')) continue;
-    assert.equal(permission(first), 'allow');
-    allowed = f.rows().find(row => row.decision.plugin.gate === 'burn' && row.decision.plugin.event === 'decision' && row.decision.plugin.toolUseId === spawn.tool_use_id).decision;
-    admitted = spawn;
-  }
-  assert.ok(allowed, 'A normal signed Burn admission must be observed; all fail-opens cannot pass this test.');
-  assert.equal(allowed.plugin.gate, 'burn');
+  const { spawn: admitted, bash } = payloads(f, 15);
+  const bypass = f.invoke('spend-gate', admitted);
+  assert.equal(permission(bypass), 'allow');
+  assert.equal(f.rows().length, 0);
+  assert.equal(permission(f.invoke('burn-gate', bash)), 'allow');
+  assert.equal(permission(f.invoke('burn-gate', admitted)), 'allow');
+  const allowed = f.rows().find(row => row.decision.plugin.gate === 'burn' && row.decision.plugin.toolUseId === admitted.tool_use_id)?.decision;
+  assert.ok(allowed, 'The first call must produce its normal signed Burn decision.');
+  assert.equal(allowed.plugin.event, 'decision');
   assert.equal(allowed.action, 'allow');
   const postRaw = { ...admitted, hook_event_name: 'PostToolUse', duration_ms: 9, tool_response: { agent_id: 'synthetic-child', text: 'SYNTHETIC_OUTPUT_MUST_NOT_APPEAR' } };
-  const post = f.invoke('receipt', postRaw);
-  assert.deepEqual(post.output, {});
-  await recoverTimeout(f, post, postRaw, 'receipt');
+  assert.deepEqual(f.invoke('receipt', postRaw).output, {});
   assert.equal(f.rows().some(row => row.decision.entryType === 'outcome' && row.decision.originalDecisionId === allowed.decisionId), true);
-  for (let attempt = 0; attempt < 4 && !deniedDecision; attempt++) {
-    const deniedRaw = { ...admitted, tool_use_id: `call_SYNTHETIC_DENIED_SPAWN_${attempt}` };
-    const denied = f.invoke('burn-gate', deniedRaw);
-    if (await recoverTimeout(f, denied, deniedRaw, 'burn')) continue;
-    assert.equal(permission(denied), 'deny');
-    assert.equal(denied.output.hookSpecificOutput.permissionDecisionReason.includes('\n'), false);
-    deniedDecision = f.rows().find(row => row.decision.plugin.event === 'decision' && row.decision.plugin.toolUseId === deniedRaw.tool_use_id).decision;
-  }
-  assert.ok(deniedDecision, 'A normal Burn deny must be observed; all fail-opens cannot pass this test.');
+  const deniedRaw = { ...admitted, tool_use_id: 'call_SYNTHETIC_DENIED_SPAWN' };
+  const denied = f.invoke('burn-gate', deniedRaw);
+  assert.equal(permission(denied), 'deny');
+  assert.equal(denied.output.hookSpecificOutput.permissionDecisionReason.includes('\n'), false);
+  const deniedDecision = f.rows().find(row => row.decision.plugin.toolUseId === deniedRaw.tool_use_id)?.decision;
+  assert.ok(deniedDecision, 'The capped call must produce its normal signed denial.');
+  assert.equal(deniedDecision.plugin.event, 'decision');
   assert.equal(deniedDecision.action, 'block');
   const receipts = f.receipts();
+  assert.equal(receipts.length, 2);
   assert.equal(receipts.every(receipt => burn.verifyReceipt(receipt)), true);
   const tips = new Map();
   for (const receipt of receipts) {
@@ -126,40 +115,38 @@ test('Burn hook subprocess observes the recorded Bash shape and admits then deni
   const gateway = new burn.Gateway(f.home, { sign: false });
   assert.equal(gateway.sessions().find(session => session.sessionId === admitted.session_id).state.totalTokens, 15);
   const rows = f.rows();
+  assert.equal(rows.length, 3);
+  assert.equal(rows.some(row => row.decision.plugin.event === 'fail_open'), false);
   await verify(f);
   assert.equal(JSON.stringify(rows).includes('SYNTHETIC_OUTPUT_MUST_NOT_APPEAR'), false);
   assert.equal(JSON.stringify(rows).includes('SYNTHETIC_TRANSCRIPT_CONTENT_MUST_NOT_APPEAR'), false);
-  t.diagnostic(`Normal Burn allow and deny observed; ${f.timeouts} timed fail-open events recovered and verified.`);
+  t.diagnostic('Burn allow, outcome and deny: 3 signed rows, 0 fail-open events, no retries.');
 });
 
 test('Burn hook subprocess preserves sustained-burn enforcement from observed transcript usage', async t => {
   const f = setup(t, { fanout: { warn: 24, stop: 40, maxDepth: 2 }, sustained: { warnTokens: 100, stopTokens: 200 } });
-  let selected;
-  for (let attempt = 0; attempt < 4 && !selected; attempt++) {
-    const { spawn, bash } = payloads(f, 201, attempt);
-    const observed = f.invoke('burn-gate', bash);
-    if (await recoverTimeout(f, observed, bash, 'burn')) continue;
-    assert.equal(permission(observed), 'allow');
-    const denied = f.invoke('burn-gate', spawn);
-    if (await recoverTimeout(f, denied, spawn, 'burn')) continue;
-    assert.equal(permission(denied), 'deny');
-    selected = f.rows().find(row => row.decision.plugin.event === 'decision' && row.decision.plugin.toolUseId === spawn.tool_use_id).decision;
-  }
-  assert.ok(selected, 'A normal sustained-burn deny must be observed.');
+  const { spawn, bash } = payloads(f, 201);
+  assert.equal(permission(f.invoke('burn-gate', bash)), 'allow');
+  assert.equal(permission(f.invoke('burn-gate', spawn)), 'deny');
+  const selected = f.rows().find(row => row.decision.plugin.toolUseId === spawn.tool_use_id)?.decision;
+  assert.ok(selected, 'The sustained-burn call must deny on its first attempt.');
+  assert.equal(selected.plugin.event, 'decision');
   const receipt = f.receipts().find(value => value.payload.decisionId === selected.plugin.burnReceiptId);
   assert.equal(receipt.payload.blocked, true);
   assert.equal(receipt.payload.measured.sessionTokens, 201);
   assert.equal(receipt.payload.reasons.some(reason => /sustained/i.test(reason)), true);
   assert.equal(burn.verifyReceipt(receipt), true);
+  assert.equal(f.rows().length, 1);
+  assert.equal(f.rows().some(row => row.decision.plugin.event === 'fail_open'), false);
   await verify(f);
-  t.diagnostic(`Normal sustained-burn deny observed; ${f.timeouts} timed fail-open events recovered and verified.`);
+  t.diagnostic('Sustained-burn deny: 1 signed row, 0 fail-open events, no retries.');
 });
 
 test('Corrupted spend policy through the subprocess exits zero, allows, warns once, and signs fail-open', async t => {
   const f = setup(t);
   fs.writeFileSync(path.join(f.data, 'policy.json'), 'SYNTHETIC_BROKEN_POLICY_MUST_NOT_APPEAR');
   const raw = { ...recorded.find(item => item.tool_name === 'Bash'), transcript_path: path.join(f.data, 'absent.jsonl'), cwd: f.data };
-  const result = f.invoke('spend-gate', raw);
+  const result = f.invoke('spend-gate', raw, { expectedWarning: true });
   assert.equal(permission(result), 'allow');
   assert.equal(result.stderr.trim().split('\n').length, 1);
   assert.match(result.stderr, /fail-open event recorded/);
@@ -216,6 +203,7 @@ test('Observation-only Burn failure cannot replace an ordinary tool admission or
   await engine.failure(metadata(raw, 'burn'), 'synthetic_observation_error');
   // Replay the same signed history to cover worker restart as well as the
   // live pending-map behavior.
+  await engine.flush();
   const restarted = new Engine(); await restarted.init();
   await restarted.handle({ meta: metadata({ ...raw, tool_response: { ok: true }, duration_ms: 3 }, 'receipt') });
   const rows = f.rows();
