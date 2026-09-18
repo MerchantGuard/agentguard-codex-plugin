@@ -160,7 +160,7 @@ async function handleRpc(request, reader) {
   if (request.id === undefined) return null;
   const respond = result => ({ jsonrpc: '2.0', id: request.id, result });
   switch (request.method) {
-    case 'initialize': return respond({ protocolVersion: ['2024-11-05', '2025-03-26', '2025-06-18'].includes(request.params?.protocolVersion) ? request.params.protocolVersion : '2025-03-26', capabilities: { tools: {} }, serverInfo: { name: 'agentguard', version: '0.1.0' } });
+    case 'initialize': return respond({ protocolVersion: ['2024-11-05', '2025-03-26', '2025-06-18'].includes(request.params?.protocolVersion) ? request.params.protocolVersion : '2025-03-26', capabilities: { tools: {} }, serverInfo: { name: 'agentguard', version: require('../package.json').version } });
     case 'ping': return respond({});
     case 'tools/list': return respond({ tools: TOOLS });
     case 'tools/call': {

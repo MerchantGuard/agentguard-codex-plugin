@@ -49,18 +49,31 @@ async function request(message) {
     connect();
   });
 }
-async function run(gate) {
+function hookOutput(output, options = {}) {
+  const specific = output?.hookSpecificOutput;
+  if (!options.legacyAllow || specific?.hookEventName !== 'PreToolUse' ||
+      specific.permissionDecision !== 'allow' || specific.updatedInput != null) return output;
+  // Codex 0.154 accepts an empty successful response for an unmodified input;
+  // its explicit allow envelope is supported only when updatedInput is set.
+  // Preserve advisory context, including Burn shadow-mode warnings.
+  const normalized = {...output, hookSpecificOutput: {...specific}};
+  delete normalized.hookSpecificOutput.permissionDecision;
+  delete normalized.hookSpecificOutput.permissionDecisionReason;
+  if (Object.keys(normalized.hookSpecificOutput).every(key => key === 'hookEventName')) delete normalized.hookSpecificOutput;
+  return normalized;
+}
+async function run(gate, options = {}) {
   let meta = { schema: 'agentguard.codex.v1', gate, toolName: 'unknown', sessionId: 'unknown', toolUseId: require('node:crypto').randomUUID(), startedAt: new Date().toISOString() };
   try {
     const raw = JSON.parse(fs.readFileSync(0, 'utf8'));
     meta = metadata(raw, gate);
     const result = await request({ meta, ...(gate === 'burn' && typeof raw.transcript_path === 'string' ? { transcriptPath: raw.transcript_path } : {}) });
     if (result.warning) process.stderr.write('agentguard: internal error; allowed tool call; fail-open event recorded.\n');
-    process.stdout.write(JSON.stringify(result.output ?? (gate === 'receipt' ? {} : allow())) + '\n');
+    process.stdout.write(JSON.stringify(hookOutput(result.output ?? (gate === 'receipt' ? {} : allow()), options)) + '\n');
   } catch {
     spoolFailure(meta, 'hook_internal_error');
     process.stderr.write('agentguard: internal error; allowed tool call; audit recovery queued when storage is writable.\n');
-    process.stdout.write(JSON.stringify(gate === 'receipt' ? {} : allow()) + '\n');
+    process.stdout.write(JSON.stringify(hookOutput(gate === 'receipt' ? {} : allow(), options)) + '\n');
   }
 }
-module.exports = { request, run };
+module.exports = { request, run, hookOutput };

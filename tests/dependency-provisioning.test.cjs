@@ -83,6 +83,7 @@ test('explicit provisioning keeps locked dependencies and signed hooks working a
   assert.equal(mcp.stderr, '');
   const messages = mcp.stdout.trim().split('\n').map(line => JSON.parse(line));
   assert.equal(messages[0].result.serverInfo.name, 'agentguard');
+  assert.equal(messages[0].result.serverInfo.version, require('../package.json').version);
   assert.equal(messages[1].result.structuredContent.ok, true);
   assert.equal(messages[1].result.structuredContent.entries, 3);
 });

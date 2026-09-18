@@ -95,6 +95,13 @@ The public marketplace selects the generated installation at
 the portable root manifest because adding a legacy overlay alongside that
 manifest would not change the loader's behavior.
 
+For unchanged inputs, Codex 0.154's
+[hook response parser](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/hooks/src/engine/output_parser.rs#L441)
+accepts an empty success object but rejects an explicit allow without rewritten
+input. Generated compatibility hooks use that empty response for allowed calls.
+Denials and signed ledger decisions retain their original values. The portable
+hooks retain the documented explicit allow response.
+
 The legacy MCP entry uses a relative working directory because the
 [released parser](https://github.com/openai/codex/blob/rust-v0.154.0/codex-rs/codex-mcp/src/plugin_config.rs)
 does not expand plugin environment variables. Its read-only launcher derives

@@ -24,6 +24,11 @@ function expectedFiles() {
   for (const directory of copiedDirectories) {
     for (const name of collect(path.join(root, directory), directory)) expected.set(name, fs.readFileSync(path.join(root, name)));
   }
+  // Keep the portable hooks' explicit allow envelope. This release accepts
+  // an empty response for allow unless the hook also supplies updatedInput.
+  for (const [name, gate] of [['spend-gate', 'spend'], ['burn-gate', 'burn']]) {
+    expected.set(`hooks/${name}.cjs`, Buffer.from(`#!/usr/bin/env node\n'use strict';\nrequire('../runtime/client.cjs').run('${gate}', {legacyAllow: true});\n`));
+  }
   const portable = JSON.parse(fs.readFileSync(path.join(root, 'plugin.json'), 'utf8'));
   const extension = portable.extensions['com.openai'];
   const legacy = {

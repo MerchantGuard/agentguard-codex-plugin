@@ -62,6 +62,7 @@ assets/icon-128.png
 assets/logo-256.png
 assets/logo-512.png
 tests/burn-hook.test.cjs
+tests/compat-output.test.cjs
 tests/dependency-provisioning.test.cjs
 tests/hooks.test.cjs
 tests/mcp.test.cjs

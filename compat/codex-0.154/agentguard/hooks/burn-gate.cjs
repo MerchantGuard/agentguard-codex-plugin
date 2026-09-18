@@ -1,3 +1,3 @@
 #!/usr/bin/env node
 'use strict';
-require('../runtime/client.cjs').run('burn');
+require('../runtime/client.cjs').run('burn', {legacyAllow: true});

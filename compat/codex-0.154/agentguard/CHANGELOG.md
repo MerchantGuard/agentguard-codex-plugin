@@ -1,3 +1,8 @@
+## 0.1.1
+
+- Adapt allowed hook responses to Codex 0.154 without changing signed decisions.
+- Refresh the plugin version so existing installs can receive the compatibility fix.
+
 ## 0.1.0
 
 - Preserve explicitly provisioned registry dependencies across Codex cache refreshes.

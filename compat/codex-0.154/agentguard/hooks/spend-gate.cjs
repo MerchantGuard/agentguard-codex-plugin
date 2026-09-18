@@ -1,3 +1,3 @@
 #!/usr/bin/env node
 'use strict';
-require('../runtime/client.cjs').run('spend');
+require('../runtime/client.cjs').run('spend', {legacyAllow: true});
