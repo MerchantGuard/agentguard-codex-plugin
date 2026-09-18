@@ -37,6 +37,8 @@ LICENSE
 CHANGELOG.md
 scripts/build-compat.cjs
 scripts/provision-dependencies.cjs
+scripts/print-trust-state.cjs
+docs/ENTERPRISE_INSTALL.md
 scripts/sync-public.sh
 runtime/license.cjs
 runtime/policy-file.cjs
@@ -67,6 +69,7 @@ assets/icon-32.png
 assets/icon-128.png
 assets/logo-256.png
 assets/logo-512.png
+tests/trust-state.test.cjs
 tests/helper-paid-license.cjs
 tests/license.test.cjs
 tests/lifecycle.test.cjs
@@ -84,7 +87,7 @@ tests/fixtures/codex-0.151.0-pretooluse.json
 tests/fixtures/codex-plugin-pretooluse.json
 FILES
 while IFS= read -r relative; do
-  case "$relative" in runtime/*|hooks/*|config/*|skills/*|assets/*|scripts/provision-dependencies.cjs)
+  case "$relative" in runtime/*|hooks/*|config/*|skills/*|assets/*|docs/*|scripts/provision-dependencies.cjs|scripts/print-trust-state.cjs)
     printf 'compat/codex-0.154/agentguard/%s\n' "$relative" >> "$sync_tmp/compat-files.txt" ;;
   esac
 done < "$sync_tmp/files.txt"
@@ -138,7 +141,7 @@ rsync -a --files-from="$sync_tmp/files.txt" "$source_root/" "$sync_tmp/package/"
 
 # Only these package-owned directories are replaced. The repository .git,
 # root node_modules, and unrelated root files are outside every deletion scope.
-for directory in runtime hooks config skills assets scripts tests compat; do
+for directory in runtime hooks config skills assets scripts tests compat docs; do
   mkdir -p -- "$destination/$directory"
   rsync -a --delete "$sync_tmp/package/$directory/" "$destination/$directory/"
 done

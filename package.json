@@ -32,7 +32,8 @@
     "CHANGELOG.md",
     "scripts",
     "compat",
-    ".agents/plugins/marketplace.json"
+    ".agents/plugins/marketplace.json",
+    "docs"
   ],
   "repository": {
     "type": "git",

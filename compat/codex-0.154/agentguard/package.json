@@ -24,7 +24,9 @@
     "config",
     "skills",
     "assets",
+    "docs",
     "scripts/provision-dependencies.cjs",
+    "scripts/print-trust-state.cjs",
     "README.md",
     "LICENSE",
     "CHANGELOG.md"
