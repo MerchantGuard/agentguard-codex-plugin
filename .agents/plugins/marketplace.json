@@ -1,0 +1,20 @@
+{
+  "name": "agentguard",
+  "interface": {
+    "displayName": "AgentGuard"
+  },
+  "plugins": [
+    {
+      "name": "agentguard",
+      "source": {
+        "source": "local",
+        "path": "./compat/codex-0.154/agentguard"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

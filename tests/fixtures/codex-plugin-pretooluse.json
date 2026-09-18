@@ -1,0 +1,63 @@
+{
+  "captured_from": "Synthetic payloads based on the recorded Codex 0.151.0 fixture and current documented hook schema.",
+  "payloads": [
+    {
+      "session_id": "00000000-0000-7000-8000-000000000001",
+      "turn_id": "00000000-0000-7000-8000-000000000011",
+      "transcript_path": "synthetic-transcripts/rollout-example.jsonl",
+      "cwd": "synthetic-project",
+      "hook_event_name": "PreToolUse",
+      "model": "gpt-5.4-mini",
+      "permission_mode": "bypassPermissions",
+      "tool_name": "mcp__imanage__save_document",
+      "tool_input": {
+        "document_id": "synthetic-document",
+        "content": "SYNTHETIC_TOOL_INPUT_MUST_NOT_APPEAR"
+      },
+      "tool_use_id": "call_SYNTHETIC_CANARY_000"
+    },
+    {
+      "session_id": "00000000-0000-7000-8000-000000000001",
+      "turn_id": "00000000-0000-7000-8000-000000000011",
+      "transcript_path": "synthetic-transcripts/rollout-example.jsonl",
+      "cwd": "synthetic-project",
+      "hook_event_name": "PreToolUse",
+      "model": "gpt-5.4-mini",
+      "permission_mode": "bypassPermissions",
+      "tool_name": "mcp__imanage__get_document",
+      "tool_input": {
+        "document_id": "synthetic-document"
+      },
+      "tool_use_id": "call_SYNTHETIC_CANARY_001"
+    },
+    {
+      "session_id": "00000000-0000-7000-8000-000000000001",
+      "turn_id": "00000000-0000-7000-8000-000000000011",
+      "transcript_path": "synthetic-transcripts/rollout-example.jsonl",
+      "cwd": "synthetic-project",
+      "hook_event_name": "PreToolUse",
+      "model": "gpt-5.4-mini",
+      "permission_mode": "bypassPermissions",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo SYNTHETIC_TOOL_INPUT_MUST_NOT_APPEAR"
+      },
+      "tool_use_id": "call_SYNTHETIC_CANARY_002"
+    },
+    {
+      "session_id": "00000000-0000-7000-8000-000000000001",
+      "turn_id": "00000000-0000-7000-8000-000000000011",
+      "transcript_path": "synthetic-transcripts/rollout-example.jsonl",
+      "cwd": "synthetic-project",
+      "hook_event_name": "PreToolUse",
+      "model": "gpt-5.4-mini",
+      "permission_mode": "bypassPermissions",
+      "tool_name": "spawn_agent",
+      "tool_input": {
+        "message": "SYNTHETIC_TOOL_INPUT_MUST_NOT_APPEAR",
+        "fork_context": false
+      },
+      "tool_use_id": "call_SYNTHETIC_CANARY_003"
+    }
+  ]
+}

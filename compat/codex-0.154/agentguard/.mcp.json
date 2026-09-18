@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "agentguard": {
+      "command": "node",
+      "args": [
+        "runtime/mcp-legacy.cjs"
+      ],
+      "cwd": "."
+    }
+  }
+}

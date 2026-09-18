@@ -1,0 +1,11 @@
+node_modules/
+coverage/
+dist-test/
+.cache/
+scratch/
+*.tgz
+*.log
+*.tmp
+.DS_Store
+.env
+.env.*

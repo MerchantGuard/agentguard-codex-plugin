@@ -1,0 +1,35 @@
+{
+  "name": "@agentguard-run/codex-plugin",
+  "version": "0.1.0",
+  "description": "Local tool policy hooks and content-free signed records for Codex and ChatGPT Work.",
+  "license": "SEE LICENSE IN LICENSE",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node runtime/mcp.cjs"
+  },
+  "dependencies": {
+    "@agentguard-run/spend": "^0.20.0",
+    "@agentguard-run/burn": "^0.2.3"
+  },
+  "files": [
+    ".codex-plugin",
+    ".mcp.json",
+    ".app.json",
+    "runtime",
+    "hooks",
+    "config",
+    "skills",
+    "assets",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MerchantGuard/agentguard-codex-plugin.git"
+  },
+  "homepage": "https://agentguard.run"
+}

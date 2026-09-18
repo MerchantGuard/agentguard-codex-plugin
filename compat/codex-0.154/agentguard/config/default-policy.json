@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "tenantId": "local",
+  "mode": "enforce",
+  "maxCapability": "payment_execute",
+  "paymentPattern": "payment|pay_|charge|transfer|checkout|purchase",
+  "toolRules": [],
+  "caps": [],
+  "deniedTools": [],
+  "ethicalWall": [],
+  "sessions": {}
+}

@@ -1,0 +1,49 @@
+{
+  "captured_from": "Synthetic identifiers; payload shape based on codex-cli 0.151.0 PreToolUse, 2026-09-03",
+  "payloads": [
+    {
+      "session_id": "00000000-0000-7000-8000-000000000001",
+      "turn_id": "00000000-0000-7000-8000-000000000011",
+      "transcript_path": "synthetic-transcripts/rollout-example.jsonl",
+      "cwd": "synthetic-project",
+      "hook_event_name": "PreToolUse",
+      "model": "gpt-5.4-mini",
+      "permission_mode": "bypassPermissions",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "echo CANARY_OK"
+      },
+      "tool_use_id": "call_SYNTHETIC000000000000001"
+    },
+    {
+      "session_id": "00000000-0000-7000-8000-000000000002",
+      "turn_id": "00000000-0000-7000-8000-000000000012",
+      "transcript_path": "synthetic-transcripts/rollout-example.jsonl",
+      "cwd": "synthetic-project",
+      "hook_event_name": "PreToolUse",
+      "model": "gpt-5.4-mini",
+      "permission_mode": "bypassPermissions",
+      "tool_name": "spawn_agent",
+      "tool_input": {
+        "message": "<redacted>",
+        "fork_context": "<redacted>"
+      },
+      "tool_use_id": "call_SYNTHETIC000000000000002"
+    },
+    {
+      "session_id": "00000000-0000-7000-8000-000000000002",
+      "turn_id": "00000000-0000-7000-8000-000000000012",
+      "transcript_path": "synthetic-transcripts/rollout-example.jsonl",
+      "cwd": "synthetic-project",
+      "hook_event_name": "PreToolUse",
+      "model": "gpt-5.4-mini",
+      "permission_mode": "bypassPermissions",
+      "tool_name": "multi_agent_v1wait_agent",
+      "tool_input": {
+        "targets": "<redacted>",
+        "timeout_ms": "<redacted>"
+      },
+      "tool_use_id": "call_SYNTHETIC000000000000003"
+    }
+  ]
+}
