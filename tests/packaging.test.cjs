@@ -86,15 +86,27 @@ test('package-local marketplace selects the compatibility plugin and dependencie
   assert.match(lock.packages['node_modules/@agentguard-run/spend'].version, /^0\.20\./);
 });
 
-test('public README uses the public install and contains no private checkout references or prose dash pairs', () => {
+test('public README opens with three public install commands and keeps details below them', () => {
   const text = read('README.md');
-  assert.match(text, /codex plugin marketplace add MerchantGuard\/agentguard-codex-plugin --ref main/);
-  assert.match(text, /codex plugin add agentguard@agentguard --json/);
-  assert.match(text, /## Publishing/);
-  assert.doesNotMatch(text, /\u2014|\u2122|\u00ae|(?<![A-Za-z0-9])\/(?:Users|absolute|enterprise)\//);
-  // Required CLI options remain executable; prose and Markdown separators do
-  // not use double dashes.
-  assert.equal(text.replace('--ref main', '').replace('--json', '').includes('--'), false);
+  const intro = text.split('\n## Details\n')[0];
+  const commands = intro.match(/```sh\n([\s\S]*?)\n```/)?.[1].split('\n').filter(line => line && !line.startsWith('#'));
+  assert.deepEqual(commands, [
+    'codex plugin marketplace add MerchantGuard/agentguard-codex-plugin',
+    'codex plugin add agentguard@agentguard',
+    'npm ci',
+  ]);
+  assert.match(intro, /installed plugin root reported by Codex/);
+  const clip = intro.match(/\]\((assets\/[^)]+\.mp4)\)/)?.[1];
+  assert.ok(clip, 'the install section needs a packaged clip');
+  const bytes = fs.readFileSync(path.join(root, clip));
+  assert.equal(bytes.subarray(4, 8).toString(), 'ftyp', 'the clip must be an MP4');
+  for (const heading of ['Coverage and limits', 'Free and paid modes', 'Install', 'Configure policy', 'Publishing']) {
+    assert.ok(text.indexOf(`### ${heading}`) > text.indexOf('\n## Details\n'), heading);
+  }
+  assert.match(text, /docs\/ENTERPRISE_INSTALL\.md/);
+  for (const file of ['README.md', 'CHANGELOG.md', 'assets/README.md']) {
+    assert.doesNotMatch(read(file), /\u2014|--|\u2122|\u00ae|Agent Guard|(?<![A-Za-z0-9])\/(?:Users|absolute|enterprise)\//, file);
+  }
 });
 
 

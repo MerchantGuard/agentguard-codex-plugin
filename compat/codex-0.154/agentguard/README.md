@@ -1,5 +1,18 @@
 # AgentGuard for Codex and ChatGPT Work
 
+```sh
+codex plugin marketplace add MerchantGuard/agentguard-codex-plugin
+codex plugin add agentguard@agentguard
+# In the installed plugin root reported by Codex:
+npm ci
+```
+
+AgentGuard records signed tool decisions in Codex and ChatGPT Work, with free shadow mode and licensed policy enforcement.
+
+[Watch the Burn 0.2.5 usage clip](assets/burn-usage-preview.mp4).
+
+## Details
+
 AgentGuard applies tool policies to **every local tool call that Codex or
 ChatGPT Work sends through its hook path**, including plugin MCP tools. It
 records signed decisions and outcomes locally without retaining tool input
@@ -9,7 +22,7 @@ operator-configured unit costs. These unit costs use the Spend SDK pricing
 path with a synthetic accounting unit; token counts in these decisions are
 not observed model usage.
 
-## Coverage and limits
+### Coverage and limits
 
 The two `PreToolUse` hooks and the `PostToolUse` hook use matcher `.*`.
 Supported paths include Bash, `apply_patch`/Edit/Write, MCP tools,
@@ -38,7 +51,7 @@ authorization and recorded activity; they make no claim about legal analysis
 or model accuracy. Tool names and actor identifiers can still be sensitive
 metadata, so the firm controls access to the policy, signing key, and records.
 
-## Free and paid modes
+### Free and paid modes
 
 Free mode signs and records every decision in shadow mode, blocks no tool
 calls, and includes Burn why and pace. Any valid Solo, Startup or Growth
@@ -49,8 +62,8 @@ plugin has no separate plan. A paid policy can still choose shadow mode.
 At session start, a detached runtime process resolves the license through
 the Spend SDK. It makes one refresh attempt for that session, with a two
 second deadline covering validation and seat registration. Hook processes
-read only the local result and never open a socket. They remain in shadow
-until startup resolution finishes. A previously valid cached license is
+read only the local result and never open a socket. Without a usable cached
+license, they remain in shadow until startup resolution finishes. A previously valid cached license is
 honored offline for seven days after `expiresAt`; a server rejection does
 not receive that grace. After the grace period, enforcement returns to
 shadow. Unknown seat usage remains unknown during an outage.
@@ -67,6 +80,11 @@ engine forces shadow regardless of the requested mode. Seat registration
 uses the existing license seat endpoint once per session. An exceeded seat
 limit forces shadow with `seat_limit`. Licensing never denies a tool call.
 
+Seats used is the last response at session start. The existing service uses a
+five minute registration lifetime; this client does not renew it. When that
+service uses its KV backend, the response currently counts registrations on
+the requesting machine. Cross-machine seat enforcement needs a service fix.
+
 Use `agentguard-status` or the read-only MCP `get_status` tool to see the
 tier, seats used and limit, expiry, effective mode, and reason. Signature
 verification stays free. Paid users can ask `agentguard-verify` for an export,
@@ -74,24 +92,15 @@ call `export_receipts`, or run
 `node "${PLUGIN_ROOT}/runtime/verify.cjs" export RECEIPTS_FILE` to write the
 signed bundle locally. Set the destination to a path the operator authorized.
 
-## Install
+### Install
 
 Use Node.js 22 and Codex CLI on macOS or Linux. Hooks communicate with the
 worker through a private filesystem mailbox. Windows support is not verified.
 
-Install from the [public repository](https://github.com/MerchantGuard/agentguard-codex-plugin):
-
-```sh
-codex plugin marketplace add MerchantGuard/agentguard-codex-plugin --ref main
-codex plugin add agentguard@agentguard --json
-```
-
-The JSON result includes `installedPath`. Change into that directory and
-install the locked registry dependencies:
-
-```sh
-npm ci
-```
+Use the commands at the top to install from the
+[public repository](https://github.com/MerchantGuard/agentguard-codex-plugin).
+After adding the plugin, change into its installed root before running
+`npm ci` to provision the locked registry dependencies.
 
 The plugin depends on published `@agentguard-run/spend ^0.20.0` and
 `@agentguard-run/burn ^0.2.3`. It uses no sibling links. Codex's Git
@@ -107,7 +116,7 @@ Source checkouts keep their usual local dependencies. For a managed or custom
 installation, set `PLUGIN_DATA` to the runtime's private data directory when
 provisioning. No dependency downloads happen during a tool call.
 
-### Trust the hooks
+#### Trust the hooks
 
 Start a new session, open **`/hooks`**, inspect the session startup command,
 both pre-tool gates and the post-tool receipt command, and trust their
@@ -119,7 +128,7 @@ matching hooks run alongside these hooks.
 
 See [hook review and trust](https://learn.chatgpt.com/docs/hooks#review-and-trust-hooks).
 
-### Codex 0.154 compatibility
+#### Codex 0.154 compatibility
 
 The canonical package follows the portable manifest documentation. Codex
 CLI 0.154.0, however, skips hook sources for portable manifests in its
@@ -152,7 +161,7 @@ copies. Do not install the canonical portable directory directly into this
 CLI release when you expect hooks to run. Future host versions and ChatGPT
 Work require their own end-to-end validation.
 
-### Private workspace marketplace
+#### Private workspace marketplace
 
 A firm can use its own marketplace to distribute a reviewed copy internally.
 Use `.agents/plugins/marketplace.json` with an `agentguard` entry pointing to
@@ -170,7 +179,7 @@ Making a repository public does not submit the plugin to the universal
 directory. Workspace-wide publication through the administrative Plugins
 interface is also a separate administrator action.
 
-## Configure policy
+### Configure policy
 
 The runtime reads `${PLUGIN_DATA}/policy.json`; the host supplies
 `PLUGIN_DATA` to plugin hooks (the legacy MCP launcher derives the same path).
@@ -239,7 +248,7 @@ or provider credentials into them. The activation helper's `licenseKey` is
 the sole credential exception and is never copied into the ledger. Protect policy files from agent modification when
 they serve as firm controls.
 
-## Records and optional MCP server
+### Records and optional MCP server
 
 The signed decision chain is stored at
 `${PLUGIN_DATA}/ledger/decisions.ndjson`. Records include the tool name,
@@ -280,7 +289,10 @@ channel separate from the bundle. A self-contained key proves consistency
 with that key, not who controlled it. Exporting the chain does not export the
 signing private key.
 
-## Managed installation and fail-closed firms
+### Managed installation and fail-closed firms
+
+See [Enterprise installation](docs/ENTERPRISE_INSTALL.md) for reviewed config
+trust and managed hook delivery examples.
 
 OpenAI supports administrator-managed hook configuration in
 `requirements.toml`, with `features.hooks = true`,
@@ -314,7 +326,7 @@ another control outside the agent hook, with their device administrator
 managing delivery and availability. Copying this plugin into MDM alone is
 insufficient. No managed configuration is installed by this package.
 
-## Validate locally
+### Validate locally
 
 From a source checkout:
 
@@ -331,7 +343,7 @@ the first dependency load, and disk failures are distinct from a warm
 decision. No hook performs network requests. Read the measured test output
 for the current machine rather than treating a timing target as a guarantee.
 
-## Publishing
+### Publishing
 
 The maintainer source checkout is the source of truth. Make changes there,
 regenerate the compatibility installation, and run the tests before syncing.
@@ -350,7 +362,7 @@ separate signed commit and push to
 Do not edit generated compatibility copies directly. Repository distribution
 does not run npm publish, deploy a service, or submit a directory listing.
 
-## Packaging choices
+### Packaging choices
 
 The canonical `plugin.json` uses the portable Agent Plugins schema with OpenAI settings in
 `extensions.com.openai`. `mcp.json` declares a local stdio transport. The
