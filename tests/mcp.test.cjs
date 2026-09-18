@@ -1,4 +1,5 @@
 'use strict';
+const {LICENSE_KEY, seedPaidLicense} = require('./helper-paid-license.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -9,9 +10,24 @@ const { spawnSync } = require('node:child_process');
 const sdk = require('@agentguard-run/spend');
 const { createReader, handleRpc, TOOLS } = require('../runtime/mcp.cjs');
 
+const licenseHomes = new WeakMap();
 async function fixture(t, specs = [{ action: 'allow', projectedCents: 5 }]) {
+  if (!licenseHomes.has(t)) {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'agentguard-mcp-license-'));
+    const prior = {AGENTGUARD_HOME: process.env.AGENTGUARD_HOME, AGENTGUARD_LICENSE_KEY: process.env.AGENTGUARD_LICENSE_KEY, AGENTGUARD_PLUGIN_POLICY: process.env.AGENTGUARD_PLUGIN_POLICY};
+    process.env.AGENTGUARD_HOME = home;
+    process.env.AGENTGUARD_LICENSE_KEY = '';
+    delete process.env.AGENTGUARD_PLUGIN_POLICY;
+    seedPaidLicense(home);
+    licenseHomes.set(t, home);
+    t.after(() => {
+      for (const [key, value] of Object.entries(prior)) value === undefined ? delete process.env[key] : process.env[key] = value;
+      fs.rmSync(home, {recursive: true, force: true});
+    });
+  }
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentguard-mcp-reader-'));
   t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(dataDir, 'policy.json'), JSON.stringify({version: 1, mode: 'enforce', licenseKey: LICENSE_KEY}));
   const keys = generateKeyPairSync('ed25519');
   const privateKey = keys.privateKey.export({ format: 'der', type: 'pkcs8' }).subarray(-32);
   const publicKey = keys.publicKey.export({ format: 'der', type: 'spki' }).subarray(-32);

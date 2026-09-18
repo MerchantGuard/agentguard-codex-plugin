@@ -1,4 +1,5 @@
 'use strict';
+const {LICENSE_KEY, seedPaidLicense} = require('./helper-paid-license.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -19,8 +20,9 @@ function fixture(t) {
     fs.cpSync(path.join(sourceRoot, name), path.join(root, name), { recursive: true, verbatimSymlinks: true });
   }
   fs.mkdirSync(data, { recursive: true, mode: 0o700 });
-  fs.writeFileSync(path.join(data, 'policy.json'), JSON.stringify({ version: 1, tenantId: 'synthetic-provisioning', mode: 'enforce', maxCapability: 'data_write', ethicalWall: ['^mcp__imanage__save_document$'], caps: [], toolRules: [], sessions: {} }));
+  fs.writeFileSync(path.join(data, 'policy.json'), JSON.stringify({ licenseKey: LICENSE_KEY, version: 1, tenantId: 'synthetic-provisioning', mode: 'enforce', maxCapability: 'data_write', ethicalWall: ['^mcp__imanage__save_document$'], caps: [], toolRules: [], sessions: {} }));
   const env = { ...process.env, PLUGIN_DATA: data, AGENTGUARD_HOME: path.join(temporary, 'burn'), AGENTGUARD_LICENSE_KEY: '', AGENTGUARD_NO_BEACON: '1', AGENTGUARD_TELEMETRY: '0' };
+  seedPaidLicense(env.AGENTGUARD_HOME);
   delete env.NODE_PATH;
   delete env.AGENTGUARD_PLUGIN_POLICY;
   const execute = (script, input, extraEnv = {}) => spawnSync(process.execPath, [path.join(root, script)], { cwd: root, env: { ...env, ...extraEnv }, input, encoding: 'utf8', timeout: 10000 });

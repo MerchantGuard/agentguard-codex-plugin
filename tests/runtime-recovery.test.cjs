@@ -1,4 +1,5 @@
 'use strict';
+const {LICENSE_KEY, seedPaidLicense} = require('./helper-paid-license.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -18,7 +19,8 @@ function context(t, policy = {}) {
   const values = { PLUGIN_DATA: data, AGENTGUARD_HOME: path.join(data, 'burn-and-license'), AGENTGUARD_PLUGIN_POLICY: path.join(data, 'policy.json'), AGENTGUARD_LICENSE_KEY: '', AGENTGUARD_NO_BEACON: '1', AGENTGUARD_TELEMETRY: '0' };
   const previous = Object.fromEntries(Object.keys(values).map(key => [key, process.env[key]]));
   Object.assign(process.env, values);
-  fs.writeFileSync(values.AGENTGUARD_PLUGIN_POLICY, JSON.stringify({ version: 1, tenantId: 'local', mode: 'enforce', maxCapability: 'payment_execute', caps: [], ...policy }));
+  seedPaidLicense(values.AGENTGUARD_HOME);
+  fs.writeFileSync(values.AGENTGUARD_PLUGIN_POLICY, JSON.stringify({ licenseKey: LICENSE_KEY, version: 1, tenantId: 'local', mode: 'enforce', maxCapability: 'payment_execute', caps: [], ...policy }));
   t.after(() => {
     for (const [key, value] of Object.entries(previous)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
     fs.rmSync(data, { recursive: true, force: true });
@@ -157,12 +159,12 @@ test('Runtime and read-only MCP use no network for normal calls or an uncached l
       const offline = await restarted.handle({ meta:metadata({ tool_name:'Read', tool_use_id:'offline-uncached', session_id:'offline-session', tool_input:{} }, 'spend') });
       const verified = await reader.call('verify_chain');
       const status = await reader.call('get_status');
-      process.stdout.write(JSON.stringify({ attempts, allowed:allowed.output.hookSpecificOutput.permissionDecision, offline:offline.output.hookSpecificOutput.permissionDecision, warning:offline.warning, verified:verified.ok, failOpenEvents:status.failOpenEvents }));
+      process.stdout.write(JSON.stringify({ attempts, allowed:allowed.output.hookSpecificOutput.permissionDecision, offline:offline.output.hookSpecificOutput.permissionDecision, warning:offline.warning === true, reason:JSON.parse(require('node:fs').readFileSync(restarted.logStore.filePath, 'utf8').trim().split('\\n').at(-1)).decision.reasons[0], verified:verified.ok, failOpenEvents:status.failOpenEvents }));
     })().catch(() => { process.exitCode = 1; });
   `;
   const child = spawnSync(process.execPath, ['-e', code], { cwd: path.join(__dirname, '..'), env: process.env, encoding: 'utf8', timeout: 10000 });
   assert.equal(child.status, 0, child.stderr);
-  assert.deepEqual(JSON.parse(child.stdout), { attempts: 0, allowed: 'allow', offline: 'allow', warning: true, verified: true, failOpenEvents: 1 });
+  assert.deepEqual(JSON.parse(child.stdout), { attempts: 0, allowed: 'allow', offline: 'allow', warning: false, reason: 'license_required', verified: true, failOpenEvents: 0 });
 });
 
 test('Runtime records only digests and sizes for large tool input and output', async t => {

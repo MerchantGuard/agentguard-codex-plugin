@@ -38,6 +38,11 @@ CHANGELOG.md
 scripts/build-compat.cjs
 scripts/provision-dependencies.cjs
 scripts/sync-public.sh
+runtime/license.cjs
+runtime/policy-file.cjs
+runtime/session-start.cjs
+runtime/activate.cjs
+runtime/verify.cjs
 runtime/client.cjs
 runtime/dependencies.cjs
 runtime/common.cjs
@@ -48,6 +53,7 @@ runtime/mcp.cjs
 runtime/mcp-legacy.cjs
 runtime/owned-log.cjs
 hooks/hooks.json
+hooks/session-start.cjs
 hooks/burn-gate.cjs
 hooks/spend-gate.cjs
 hooks/receipt.cjs
@@ -61,6 +67,11 @@ assets/icon-32.png
 assets/icon-128.png
 assets/logo-256.png
 assets/logo-512.png
+tests/helper-paid-license.cjs
+tests/license.test.cjs
+tests/lifecycle.test.cjs
+tests/engine-license.test.cjs
+tests/offline-hooks.test.cjs
 tests/burn-hook.test.cjs
 tests/compat-output.test.cjs
 tests/dependency-provisioning.test.cjs

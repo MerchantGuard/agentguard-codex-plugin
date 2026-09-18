@@ -1,4 +1,5 @@
 'use strict';
+const {LICENSE_KEY, seedPaidLicense} = require('./helper-paid-license.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -10,15 +11,17 @@ const { Engine, validatePolicy } = require('../runtime/engine.cjs');
 const { metadata, locations } = require('../runtime/common.cjs');
 const { request } = require('../runtime/client.cjs');
 const fixtures = require('./fixtures/codex-plugin-pretooluse.json').payloads;
-const base = { version: 1, tenantId: 'synthetic-tenant', mode: 'enforce', maxCapability: 'payment_execute', caps: [], toolRules: [], sessions: {} };
+const base = { licenseKey: LICENSE_KEY, version: 1, tenantId: 'synthetic-tenant', mode: 'enforce', maxCapability: 'payment_execute', caps: [], toolRules: [], sessions: {} };
 let sequence = 0;
 const payload = (name = 'Bash', extra = {}) => ({ ...fixtures.find(p => p.tool_name === 'Bash'), tool_name: name, tool_use_id: `call_SYNTHETIC_TEST_${sequence++}`, ...extra });
 const allowed = output => output.hookSpecificOutput.permissionDecision === 'allow';
 async function setup(t, policy = {}) {
   const data = fs.mkdtempSync(path.join(os.tmpdir(), 'agentguard-hook-test-'));
-  const old = { PLUGIN_DATA: process.env.PLUGIN_DATA, AGENTGUARD_HOME: process.env.AGENTGUARD_HOME, AGENTGUARD_PLUGIN_POLICY: process.env.AGENTGUARD_PLUGIN_POLICY };
+  const old = { PLUGIN_DATA: process.env.PLUGIN_DATA, AGENTGUARD_HOME: process.env.AGENTGUARD_HOME, AGENTGUARD_PLUGIN_POLICY: process.env.AGENTGUARD_PLUGIN_POLICY, AGENTGUARD_LICENSE_KEY: process.env.AGENTGUARD_LICENSE_KEY };
   process.env.PLUGIN_DATA = data;
   process.env.AGENTGUARD_HOME = path.join(data, 'burn');
+  process.env.AGENTGUARD_LICENSE_KEY = '';
+  seedPaidLicense(process.env.AGENTGUARD_HOME);
   delete process.env.AGENTGUARD_PLUGIN_POLICY;
   fs.writeFileSync(path.join(data, 'policy.json'), JSON.stringify({ ...base, ...policy }));
   const loc = locations();
@@ -191,4 +194,24 @@ test('warm IPC measurements stay below 50ms and report subprocess startup separa
   t.diagnostic(`Warm IPC ${timings.length} signed decisions: p95=${p95.toFixed(2)}ms max=${maximum.toFixed(2)}ms; separate Node subprocess total=${subprocessMs.toFixed(2)}ms.`);
   assert.equal(maximum < 50, true, `warm IPC exceeded 50ms: ${maximum}`);
   assert.equal((await sdk.verifyChain(f.rows(), f.engine.publicKey)).ok, true);
+});
+
+
+test('free shadow decisions and their signed outcomes both retain license_required without blocking', async t => {
+  const f = await setup(t, {licenseKey: null, deniedTools: ['^mcp__imanage__save_document$']});
+  const raw = payload('mcp__imanage__save_document');
+  const result = await f.handle(raw);
+  assert.equal(allowed(result.output), true);
+  assert.equal(result.warning, undefined);
+  await f.handle({...raw, tool_response: {isError: false}, duration_ms: 5}, 'receipt');
+  const rows = f.rows();
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].decision.action, 'shadow');
+  assert.equal(rows[1].decision.entryType, 'outcome');
+  for (const row of rows) {
+    assert.equal(row.decision.enforcementMode, 'shadow');
+    assert.ok(row.decision.reasons.includes('license_required'));
+    assert.equal(row.decision.plugin.license.reason, 'license_required');
+  }
+  assert.equal((await sdk.verifyChain(rows, f.engine.publicKey)).ok, true);
 });

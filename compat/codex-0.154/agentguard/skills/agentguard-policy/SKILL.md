@@ -1,19 +1,50 @@
 ---
 name: agentguard-policy
-description: Author or edit AgentGuard tool policies for matter budgets, session allowlists, and ethical-wall denies when the operator requests a policy change.
+description: Activate an AgentGuard license or edit tool policies for matter budgets, session allowlists, and ethical-wall denies when the operator requests it.
 ---
 
 # AgentGuard policy
 
 Use this skill for an operator-requested policy change. A blocked tool request
-is not authorization to loosen its policy. Read the active policy first:
-`AGENTGUARD_PLUGIN_POLICY`, otherwise `${PLUGIN_DATA}/policy.json`, otherwise
-the plugin's `config/default-policy.json`. Do not modify Burn's policy unless
-the user separately requests it.
+is not authorization to loosen its policy. Read `${PLUGIN_DATA}/policy.json`
+first, or the packaged default when it is absent. A paid session can also
+load a team file from `AGENTGUARD_PLUGIN_POLICY` or the local `teamPolicyFile`
+field; relative paths resolve from `PLUGIN_DATA`. Preserve the local license
+key while editing shared rules. Do not modify Burn's policy unless the user
+separately requests it.
+
+## Activate a license
+
+For the operator request `activate license <KEY>`, invoke
+`node "${PLUGIN_ROOT}/runtime/activate.cjs"` and supply the key through standard
+input. Never place it in command arguments, print it, or add it to a ledger
+entry. The helper writes `licenseKey` into `${PLUGIN_DATA}/policy.json`,
+preserves unrelated fields, and resolves the license again outside the hook
+process. Do not reproduce the key in the completion message.
+
+When the host session ID is known, pass that ID as the helper's optional
+positional argument so activation re-resolves the current session. Otherwise
+the helper uses `CODEX_THREAD_ID` when available. Do not invent a session ID
+or pass the license key as that argument.
+
+`AGENTGUARD_LICENSE_KEY` takes precedence over the policy field. If that
+environment variable selects a different key, explain the precedence without
+revealing either key. Report the returned tier, seats used and limit, expiry,
+effective mode, and reason. An unavailable value is unknown, not zero.
+
+A valid Solo, Startup or Growth license, including Pro variants, permits
+enforce mode, team policy files, receipt export and seat metering. A policy
+that requests shadow mode remains shadow. Missing or unusable licenses force
+shadow with `license_required`; an exceeded seat limit forces shadow with
+`seat_limit`. Licensing never denies a tool call. Free mode still signs and
+records every decision, blocks nothing, and includes Burn why and pace.
+
+## Edit policy
 
 1. Identify the requested matter/session/agent identifiers from the operator's
    instructions. Use identifiers only; do not copy document contents,
-   credentials, client names, prompts, or tool inputs into policy.
+   provider credentials, client names, prompts, or tool inputs into policy.
+   The activation helper's `licenseKey` field is the sole credential exception.
 2. Preserve existing policy fields and unrelated sessions. Patterns are
    JavaScript regular expressions; anchor exact names. Denies and ethical
    walls are explicit restrictions, independent of monetary caps.
@@ -23,6 +54,13 @@ the user separately requests it.
 4. Explain that unpriced tools cost zero in this ledger and that hook coverage
    excludes hosted tools and specialized paths. Recommend protecting policy
    files from agent writes when the firm uses them as controls.
+
+Use `get_status` to check the effective mode before describing an edited rule
+as enforced. Set `teamPolicyFile` to share a policy file across paid sessions;
+relative paths resolve from `PLUGIN_DATA`. Free sessions use the local policy
+instead. In free shadow mode,
+the operator can review signed decisions, but an allowlist, cap or ethical
+wall does not block a tool call.
 
 ## Per-matter budget example
 

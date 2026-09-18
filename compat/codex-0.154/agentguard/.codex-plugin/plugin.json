@@ -1,6 +1,6 @@
 {
   "name": "agentguard",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Local tool policy gates and signed, content-free decision records for Codex and ChatGPT Work.",
   "author": {
     "name": "MerchantGuardOps",
@@ -27,6 +27,7 @@
     "developerName": "MerchantGuardOps",
     "category": "Productivity",
     "capabilities": [
+      "SessionStart license resolution",
       "PreToolUse hooks",
       "PostToolUse hooks",
       "Read-only MCP"

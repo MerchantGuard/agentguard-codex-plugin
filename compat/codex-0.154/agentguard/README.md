@@ -38,10 +38,46 @@ authorization and recorded activity; they make no claim about legal analysis
 or model accuracy. Tool names and actor identifiers can still be sensitive
 metadata, so the firm controls access to the policy, signing key, and records.
 
+## Free and paid modes
+
+Free mode signs and records every decision in shadow mode, blocks no tool
+calls, and includes Burn why and pace. Any valid Solo, Startup or Growth
+license, including Pro variants, enables enforce mode, team policy files,
+receipts export and seat metering. These are the existing licenses; the
+plugin has no separate plan. A paid policy can still choose shadow mode.
+
+At session start, a detached runtime process resolves the license through
+the Spend SDK. It makes one refresh attempt for that session, with a two
+second deadline covering validation and seat registration. Hook processes
+read only the local result and never open a socket. They remain in shadow
+until startup resolution finishes. A previously valid cached license is
+honored offline for seven days after `expiresAt`; a server rejection does
+not receive that grace. After the grace period, enforcement returns to
+shadow. Unknown seat usage remains unknown during an outage.
+
+The key comes from `AGENTGUARD_LICENSE_KEY`, otherwise the policy's
+`licenseKey` field. Ask the `agentguard-policy` skill to
+`activate license <KEY>` to save it in `${PLUGIN_DATA}/policy.json` and resolve
+again. The activation helper receives the key on standard input, never in
+command arguments or ledger entries. The environment variable takes
+precedence over the saved key.
+
+Without a usable license, each decision records `license_required` and the
+engine forces shadow regardless of the requested mode. Seat registration
+uses the existing license seat endpoint once per session. An exceeded seat
+limit forces shadow with `seat_limit`. Licensing never denies a tool call.
+
+Use `agentguard-status` or the read-only MCP `get_status` tool to see the
+tier, seats used and limit, expiry, effective mode, and reason. Signature
+verification stays free. Paid users can ask `agentguard-verify` for an export,
+call `export_receipts`, or run
+`node "${PLUGIN_ROOT}/runtime/verify.cjs" export RECEIPTS_FILE` to write the
+signed bundle locally. Set the destination to a path the operator authorized.
+
 ## Install
 
-Use Node.js 22 and Codex CLI on macOS or Linux. The worker uses a private
-POSIX Unix socket; Windows support is not implemented or verified.
+Use Node.js 22 and Codex CLI on macOS or Linux. Hooks communicate with the
+worker through a private filesystem mailbox. Windows support is not verified.
 
 Install from the [public repository](https://github.com/MerchantGuard/agentguard-codex-plugin):
 
@@ -73,8 +109,9 @@ provisioning. No dependency downloads happen during a tool call.
 
 ### Trust the hooks
 
-Start a new session, open **`/hooks`**, inspect both pre-tool gates and the
-post-tool receipt command, and trust their definitions. Installing or
+Start a new session, open **`/hooks`**, inspect the session startup command,
+both pre-tool gates and the post-tool receipt command, and trust their
+definitions. Installing or
 enabling the plugin does not perform this review. Trust is pinned to each
 definition's current hash, so changed definitions require review again.
 User hooks can take precedence over conflicting plugin decisions, and other
@@ -136,13 +173,16 @@ interface is also a separate administrator action.
 ## Configure policy
 
 The runtime reads `${PLUGIN_DATA}/policy.json`; the host supplies
-`PLUGIN_DATA` to plugin hooks (the legacy MCP launcher derives the same path). An operator can instead launch Codex with
-`AGENTGUARD_PLUGIN_POLICY` set to the policy file's absolute path. A missing policy
+`PLUGIN_DATA` to plugin hooks (the legacy MCP launcher derives the same path).
+A paid operator can set `teamPolicyFile` in that file, or launch Codex with
+`AGENTGUARD_PLUGIN_POLICY`, to load a shared team policy. Relative team file
+paths resolve from `PLUGIN_DATA`. The local license key remains local;
+free sessions use the local policy without the shared rules. A missing policy
 uses the packaged default: local decisions with no configured monetary charge
-or cap. The offline hook never refreshes a Spend license over the network; an
-existing license that requires an uncached refresh can cause a recorded
-fail-open. Existing license/cache files remain under the user's configured
-AgentGuard home. A corrupt policy causes a recorded fail-open, not a guessed policy.
+or cap. The license gate controls whether enforcement is available; hook
+processes only read its local snapshot. Existing license/cache files remain
+under the user's configured AgentGuard home. A corrupt policy causes a
+recorded fail-open, not a guessed policy.
 Burn continues using its existing user policy and ledger under
 `AGENTGUARD_HOME` or `~/.agentguard`; this plugin does not run Burn init or
 enforce commands.
@@ -195,7 +235,8 @@ For `mcp__imanage__save_document`, the call's provider is `imanage` and model is
 ID. A host that provides no subagent identity cannot produce independent
 per-subagent accounting without an operator mapping. Policies contain
 identifiers and patterns only; never paste documents, prompts, client names,
-or credentials into them. Protect policy files from agent modification when
+or provider credentials into them. The activation helper's `licenseKey` is
+the sole credential exception and is never copied into the ledger. Protect policy files from agent modification when
 they serve as firm controls.
 
 ## Records and optional MCP server
@@ -214,10 +255,10 @@ parses command output to guess success. See the
 
 The optional local MCP server exposes only:
 
-- `get_status`: summarize today's decisions, configured spend, blocks, and fail-open events.
+- `get_status`: report license tier, seats, expiry, effective mode and reason alongside today's decisions, configured spend, blocks, and fail-open events.
 - `list_decisions`: read a bounded page of signed entries.
-- `verify_chain`: verify chain hashes and signatures.
-- `export_receipts`: return a bounded JSON bundle for the caller to save.
+- `verify_chain`: verify chain hashes and signatures on every tier.
+- `export_receipts`: with a valid paid license, return a bounded JSON bundle for the caller to save.
 
 The server does not change policies, write exports, or operate tools on your
 behalf. To disable it while retaining the hooks, use the plugin-scoped setting
@@ -260,6 +301,11 @@ set `PLUGIN_ROOT` plus a private per-user `PLUGIN_DATA` directory for each
 command. Managed commands do not inherit plugin-specific paths simply
 because they invoke these scripts. The reviewed commands are
 `hooks/burn-gate.cjs`, `hooks/spend-gate.cjs`, and `hooks/receipt.cjs`.
+
+License resolution also needs the reviewed session startup command. It
+launches the detached resolver, which performs the bounded license refresh
+outside the hook process. Include that startup entry when delivering managed
+hooks; the tool gates only consume its saved result.
 
 Managed delivery does **not** change these scripts' fail-open contract or
 make the host fail closed on crashes or timeouts. Firms requiring fail-closed

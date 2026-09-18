@@ -9,6 +9,7 @@ const crypto = require('node:crypto');
 const sdk = require('./dependencies.cjs').loadDependency('@agentguard-run/spend');
 const burn = require('./dependencies.cjs').loadDependency('@agentguard-run/burn');
 const { OwnedLogStore } = require('./owned-log.cjs');
+const { readSessionLicense } = require('./license.cjs');
 const { locations, allow, deny, SPAWN } = require('./common.cjs');
 const tiers = ['read_only', 'data_write', 'payment_initiate', 'payment_execute'];
 const durations = { per_minute: 60000, per_hour: 3600000, per_day: 86400000, per_month: 2592000000 };
@@ -46,7 +47,8 @@ function validatePolicy(policy) {
 }
 
 class Engine {
-  constructor() {
+  constructor(options = {}) {
+    this.licenseReader = options.licenseReader ?? readSessionLicense;
     this.loc = locations(); this.spendStore = new sdk.InMemorySpendStore(); this.pending = new Map(); this.completed = new Map(); this.failures = new Set();
     this.outcomes = new sdk.SpendGuard({ policy: basePolicy, spendStore: this.spendStore, licensePostJson: offline });
     this.guards = new Map();
@@ -91,13 +93,31 @@ class Engine {
     // Import deferred events only after validating the existing chain.
     await this.drainSpool();
   }
-  policy() {
-    const filename = process.env.AGENTGUARD_PLUGIN_POLICY || path.join(this.loc.data, 'policy.json');
-    let text;
-    try { text = fs.readFileSync(filename, 'utf8'); }
-    catch (e) { if (e.code !== 'ENOENT' || process.env.AGENTGUARD_PLUGIN_POLICY) throw e; text = fs.readFileSync(path.join(__dirname, '..', 'config', 'default-policy.json'), 'utf8'); }
-    if (text !== this.policyText) { this.policyValue = validatePolicy(JSON.parse(text)); this.policyText = text; this.guards.clear(); }
-    return this.policyValue;
+  context(meta) {
+    const source = require('./policy-file.cjs').readPolicy(this.loc.data);
+    const license = this.licenseReader({data: this.loc.data, sessionId: meta.sessionId, policy: source.policy});
+    const selected = license.paid || !source.team ? source.policy : source.personal;
+    const text = JSON.stringify(selected);
+    if (text !== this.policyText) { this.policyValue = validatePolicy(selected); this.policyText = text; this.guards.clear(); }
+    return {config: this.policyValue, license, mode: license.paid ? (this.policyValue.mode ?? 'enforce') : 'shadow'};
+  }
+  licenseMetadata(decision, license, mode) {
+    const reason = license.paid ? null : license.reason === 'seat_limit' ? 'seat_limit' : 'license_required';
+    decision.enforcementMode = mode;
+    decision.plugin.license = {paid: license.paid === true, tier: license.tier ?? 'free',
+      seatsUsed: license.seatsUsed ?? null, seatLimit: license.seatLimit ?? null,
+      expiresAt: license.expiresAt ?? null, mode, reason, offlineGrace: license.offlineGrace === true};
+    if (reason) {
+      decision.reasons = [reason, ...decision.reasons.filter(value => value !== reason)];
+      if (decision.plugin.reasonCode && decision.plugin.reasonCode !== reason) decision.plugin.policyReasonCode = decision.plugin.reasonCode;
+      decision.plugin.reasonCode = reason;
+    }
+    return decision;
+  }
+  failureLicense(decision, meta) {
+    try { const {license, mode} = this.context(meta); this.licenseMetadata(decision, license, mode); }
+    catch { this.licenseMetadata(decision, {paid: false, reason: 'license_required', tier: 'free'}, 'shadow'); }
+    return decision;
   }
   basic(meta, action, reasonCode, actor = { tenantId: 'local', sessionId: meta.sessionId, agentId: meta.agentId ?? meta.sessionId }) {
     return { decisionId: crypto.randomUUID(), timestamp: new Date().toISOString(), action, actor,
@@ -115,6 +135,7 @@ class Engine {
     if (this.failures.has(key)) return { output: meta.gate === 'receipt' ? {} : allow(), warning: true };
     const decision = this.basic(meta, 'allow', reasonCode);
     decision.plugin.event = 'fail_open';
+    this.failureLicense(decision, meta);
     await this.append(decision);
     this.failures.add(key);
     if (governs(meta)) { this.pending.set(callKey(meta), decision); this.completed.set(key, decision); }
@@ -138,27 +159,45 @@ class Engine {
       if (meta.gate === 'receipt') return await this.receipt(meta);
       if (meta.gate === 'spend' && SPAWN.has(meta.toolName)) return { output: allow() };
       const previous = this.completed.get(`${meta.gate}:${callKey(meta)}`);
-      if (previous) return { output: previous.action === 'block' ? deny(previous.reasons.join('; ')) : allow() };
+      if (previous) {
+        if (previous.action !== 'block') return {output: allow()};
+        // A prior denial must not survive a downgrade to free shadow mode.
+        const {mode} = this.context(meta);
+        if (mode === 'enforce') return {output: deny(previous.reasons.join('; '))};
+      }
       if (meta.gate === 'burn') return await this.burn(meta, message.transcriptPath);
       return await this.spend(meta);
     } catch { return await this.failure(meta, 'policy_or_runtime_error'); }
   }
   async burn(meta, transcriptPath) {
+    const {license, mode} = this.context(meta);
     if (!this.gateway) this.gateway = new burn.Gateway(process.env.AGENTGUARD_HOME || path.join(os.homedir(), '.agentguard'));
     let decision;
     const original = this.gateway.beforeSpawn;
-    this.gateway.beforeSpawn = (...args) => { decision = original.apply(this.gateway, args); return decision; };
     let output, observationFailed = false;
+    // Burn 0.2.3 has no policy override parameter. Its synchronous gateway
+    // reads this CommonJS export before reserving or signing. Temporarily
+    // adapting that read keeps its real home, ledger and receipt semantics,
+    // including shadow mode, without rewriting the user's policy file.
+    const policyModule = Object.values(require.cache).find(module => {
+      const descriptor = Object.getOwnPropertyDescriptor(module.exports ?? {}, 'loadPolicy');
+      return descriptor?.writable === true && descriptor.value === burn.loadPolicy;
+    });
+    if (mode === 'shadow' && !policyModule) throw new Error('burn_policy_adapter_unavailable');
+    const loadPolicy = policyModule?.exports.loadPolicy;
+    this.gateway.beforeSpawn = (...args) => { decision = original.apply(this.gateway, args); return decision; };
+    if (mode === 'shadow') policyModule.exports.loadPolicy = (...args) => ({...loadPolicy(...args), mode: 'shadow'});
     const stderrWrite = process.stderr.write;
     process.stderr.write = () => { observationFailed = true; return true; };
     try { output = burn.handleCodexHook({ session_id: meta.sessionId, tool_name: meta.toolName,
       tool_use_id: meta.toolUseId, hook_event_name: 'PreToolUse', transcript_path: transcriptPath }, this.gateway); }
-    finally { this.gateway.beforeSpawn = original; process.stderr.write = stderrWrite; }
+    finally { this.gateway.beforeSpawn = original; process.stderr.write = stderrWrite; if (mode === 'shadow') policyModule.exports.loadPolicy = loadPolicy; }
     if (decision?.failedClosed || observationFailed) throw new Error('burn_internal_error');
     if (decision) {
-      const mirror = this.basic(meta, decision.blocked ? 'block' : 'allow', `burn_${decision.verdict.toLowerCase()}`);
+      const mirror = this.basic(meta, license.paid ? (decision.blocked ? 'block' : decision.wouldBlock ? 'shadow' : 'allow') : 'shadow', `burn_${decision.verdict.toLowerCase()}`);
       mirror.enforcementMode = decision.mode;
       mirror.plugin.burnReceiptId = decision.receipt?.receiptId ?? decision.decisionId;
+      this.licenseMetadata(mirror, license, decision.mode);
       await this.append(mirror); this.completed.set(`burn:${callKey(meta)}`, mirror);
       if (!decision.blocked) this.pending.set(callKey(meta), mirror);
     }
@@ -166,7 +205,7 @@ class Engine {
     return { output: { ...allow(), ...(output.systemMessage ? { systemMessage: output.systemMessage.replace(/[\r\n]+/g, ' ') } : {}) } };
   }
   async spend(meta) {
-    const config = this.policy(), session = config.sessions?.[meta.sessionId] ?? {};
+    const {config, license, mode} = this.context(meta), session = config.sessions?.[meta.sessionId] ?? {};
     const match = /^mcp__(.+?)__(.+)$/.exec(meta.toolName);
     const provider = match?.[1] ?? 'codex', model = match?.[2] ?? meta.toolName;
     const actor = { tenantId: config.tenantId ?? 'local', sessionId: meta.sessionId, agentId: meta.agentId ?? session.agentId ?? meta.sessionId,
@@ -191,16 +230,27 @@ class Engine {
     let decision;
     const caps = [...(config.caps ?? []), ...(session.caps ?? []).map(cap => ({ ...cap, selector: { ...cap.selector, sessionId: meta.sessionId } }))]
       .map(cap => ({ ...cap, action: cap.action ?? 'block' }));
-    const policy = { ...basePolicy, scope: { tenantId: actor.tenantId }, mode: config.mode ?? 'enforce', caps, ...(requiredCapability ? { requiredCapability } : {}) };
-    if (reason) decision = this.basic(meta, 'block', reason, actor);
+    const policy = { ...basePolicy, scope: { tenantId: actor.tenantId }, mode, caps, ...(requiredCapability ? { requiredCapability } : {}) };
+    const call = {scope: actor, provider, model, inputTokens: 1000, outputTokens: 0, capabilityClaim: capability};
+    if (reason && mode === 'enforce') decision = this.basic(meta, 'block', reason, actor);
     else {
-      sdk.setCostOverride(model, { inputCentsPerKtok: unitCostCents, outputCentsPerKtok: 0 });
-      const cacheKey = JSON.stringify(policy);
-      let guard = this.guards.get(cacheKey);
-      if (!guard) { guard = new sdk.SpendGuard({ policy, spendStore: this.spendStore, licensePostJson: offline }); this.guards.set(cacheKey, guard); }
-      ({ decision } = await guard.decide({ scope: actor, provider, model, inputTokens: 1000, outputTokens: 0, capabilityClaim: capability }));
-      // Only operator identifiers and numeric pricing metadata reach the ledger.
-      decision.reasons = [decision.action === 'block' ? 'spend_or_capability_policy_blocked' : decision.action === 'shadow' ? 'shadow_policy_would_block' : 'tool_policy_allowed'];
+      sdk.setCostOverride(model, {inputCentsPerKtok: unitCostCents, outputCentsPerKtok: 0});
+      // The public policy evaluator is local and already handles scoped caps.
+      // Session startup owns license resolution; no SDK license request belongs
+      // inside this hook's decision path.
+      decision = await sdk.evaluatePolicy(policy, call, this.spendStore);
+      const basis = sdk.costBasisFor(decision.modelResolved);
+      if (basis) decision.costBasis = basis;
+      decision.reasons = [reason ?? (decision.action === 'block' ? 'spend_or_capability_policy_blocked' : decision.action === 'shadow' ? 'shadow_policy_would_block' : 'tool_policy_allowed')];
+      if (mode === 'shadow' && decision.action === 'block') {
+        // Capability gates normally fail closed even in the SDK's shadow mode.
+        // The free plugin observes every tool, including these calls, and keeps
+        // their actual configured unit cost in its shared window accounting.
+        await sdk.adjustPolicyWindowSpend(policy, this.spendStore, unitCostCents, call);
+        decision.projectedCents = unitCostCents;
+        decision.action = 'shadow';
+      }
+      if (!license.paid || (reason && mode === 'shadow')) decision.action = 'shadow';
     }
     const windows = new Map();
     if (decision.action !== 'block') for (const cap of caps) {
@@ -211,6 +261,7 @@ class Engine {
     decision.plugin = { ...meta, event: 'decision', capabilityTier: capability, unitCostCents,
       chargedCents: decision.action === 'block' ? 0 : unitCostCents, chargedWindows: [...windows.values()],
       ...(reason ? { reasonCode: reason } : {}) };
+    this.licenseMetadata(decision, license, mode);
     await this.append(decision); this.completed.set(`spend:${callKey(meta)}`, decision);
     if (decision.action !== 'block') this.pending.set(callKey(meta), decision);
     return { output: decision.action === 'block' ? deny(decision.reasons.join('; ')) : allow() };
@@ -224,6 +275,7 @@ class Engine {
       totalCostCents: original.plugin.unitCostCents ?? 0 });
     decision.originalDecisionId = original.decisionId; decision.actor = original.actor;
     decision.plugin = { ...meta, event: 'outcome', decisionId: original.decisionId, durationMs, durationSource: meta.durationSource ?? 'elapsed_since_decision' };
+    this.failureLicense(decision, meta);
     await this.append(decision); this.pending.delete(callKey(meta));
     return { output: {} };
   }

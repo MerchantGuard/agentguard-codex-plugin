@@ -7,9 +7,9 @@ const SPAWN = new Set(['spawn_agent', 'Agent', 'Task']);
 function locations() {
   const data = path.resolve(process.env.PLUGIN_DATA || path.join(os.homedir(), '.agentguard', 'codex-plugin'));
   const tag = crypto.createHash('sha256').update(data).digest('hex').slice(0, 24);
-  // macOS Unix sockets have a short path limit. The directory is private to this uid.
+  // Hook IPC uses files only. The directory is private to this uid.
   const ipc = path.join('/tmp', `ag-plugin-${process.getuid?.() ?? 'local'}-${tag}`);
-  return { data, ipc, socket: path.join(ipc, 'worker.sock'), lock: path.join(ipc, 'worker.lock'),
+  return { data, ipc, ready: path.join(ipc, 'worker.ready'), socket: path.join(ipc, 'worker.ready'), lock: path.join(ipc, 'worker.lock'),
     spool: path.join(data, 'fail-open-pending.ndjson') };
 }
 function allow() { return { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'allow' } }; }

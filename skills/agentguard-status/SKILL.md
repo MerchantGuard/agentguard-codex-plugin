@@ -1,6 +1,6 @@
 ---
 name: agentguard-status
-description: Read today's AgentGuard decisions, configured spend, blocks, and fail-open events from the local signed ledger without changing policy or tools.
+description: Read AgentGuard license tier, seats, expiry, effective mode, and today's signed decisions, configured spend, blocks, and fail-open events without changing policy or tools.
 ---
 
 # AgentGuard status
@@ -9,6 +9,23 @@ Use the optional AgentGuard MCP server's `get_status` tool with `{}` for the
 current UTC date, or `{"day":"YYYY-MM-DD"}` for a requested date. Identify
 the timezone in the summary. The server reads the same Spend decision store
 used by the hooks at `${PLUGIN_DATA}/ledger/decisions.ndjson`.
+
+Include the known host `sessionId` in the tool arguments when available so
+the returned license state belongs to that session. Do not invent an ID.
+
+Report the license tier, seats used and seat limit, expiry, effective mode,
+and reason from the returned `license` object. Include offline grace or unavailable seat
+registration when reported. Do not show the license key. Unknown seats or
+expiry must stay unknown; do not infer them from ledger activity. A paid
+license permits enforcement but does not override a policy set to shadow.
+
+Explain `license_required` as free shadow mode: decisions are signed and
+recorded, but no tool call is blocked. Explain `seat_limit` as shadow mode
+because the license's active seat limit was exceeded. These reason codes
+are not tool denials. License refresh happens once per session outside the
+hooks, with a two second timeout. Previously valid cached status can remain
+usable offline for seven days after its expiry. Status reads do not refresh
+the license or register a seat.
 
 Use `list_decisions` with `fromSequence` and `limit` to inspect the relevant
 entries when a total or failure needs explanation. Follow the returned

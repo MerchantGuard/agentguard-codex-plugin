@@ -8,28 +8,30 @@ const readline = require('node:readline');
 const { createHash } = require('node:crypto');
 const sdk = require('./dependencies.cjs').loadDependency('@agentguard-run/spend');
 const { locations } = require('./common.cjs');
+const {readPolicy} = require('./policy-file.cjs');
+const {readSessionLicense, readLatestLicenseStatus} = require('./license.cjs');
 
 const MAX_LEDGER_BYTES = 64 * 1024 * 1024;
 const MAX_ROWS = 100000;
 const PAGE_LIMIT = 200;
 const schemas = {
-  get_status: { type: 'object', properties: { day: { type: 'string', description: 'UTC day, YYYY-MM-DD. Defaults to today.' } }, additionalProperties: false },
+  get_status: { type: 'object', properties: { day: { type: 'string', description: 'UTC day, YYYY-MM-DD. Defaults to today.' }, sessionId: {type: 'string', description: 'Current host session identifier.'} }, additionalProperties: false },
   list_decisions: { type: 'object', properties: { fromSequence: { type: 'integer', minimum: 0 }, limit: { type: 'integer', minimum: 1, maximum: PAGE_LIMIT } }, additionalProperties: false },
   verify_chain: { type: 'object', properties: {}, additionalProperties: false },
-  export_receipts: { type: 'object', properties: { fromSequence: { type: 'integer', minimum: 0 }, limit: { type: 'integer', minimum: 1, maximum: PAGE_LIMIT } }, additionalProperties: false },
+  export_receipts: { type: 'object', properties: { sessionId: {type: 'string', description: 'Current host session identifier.'}, fromSequence: { type: 'integer', minimum: 0 }, limit: { type: 'integer', minimum: 1, maximum: PAGE_LIMIT } }, additionalProperties: false },
 };
 const descriptions = {
-  get_status: 'Read daily tool decisions, configured-unit spend, blocks, outcomes, and fail-open events from the local signed ledger.',
+  get_status: 'Read license tier, seats, expiry, effective mode, shadow reason, and daily signed decision totals. License reads are offline.',
   list_decisions: 'Read a bounded page of content-free tool decision summaries from the local ledger.',
   verify_chain: 'Verify every local ledger signature and hash link against the local public verification key; never accesses private keys.',
-  export_receipts: 'Return a page of signed content-free receipts and the public verification key for a records custodian. No files are written. Concatenate pages to verify the complete chain.',
+  export_receipts: 'With a valid paid license, return a page of signed content-free receipts and the public verification key for a records custodian. No files are written. Concatenate pages to verify the complete chain.',
 };
 const TOOLS = Object.keys(schemas).map(name => ({ name, description: descriptions[name], inputSchema: schemas[name], annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } }));
 
 const ENTRY_KEYS = new Set(['sequence', 'decision', 'previousHash', 'entryHash', 'signature', 'signerFingerprint', 'builderCode', 'publicKeyHex']);
 const DECISION_KEYS = new Set(['decisionId', 'timestamp', 'action', 'triggeredCap', 'triggeredScopeKey', 'projectedCents', 'windowSpendBefore', 'windowSpendAfter', 'provider', 'modelRequested', 'modelResolved', 'policyId', 'policyVersion', 'enforcementMode', 'reasons', 'entryType', 'originalDecisionId', 'actor', 'costBasis', 'provenance', 'outcomeReceipt', 'governanceReceipt', 'estimatedInputTokens', 'estimatedOutputTokens', 'actualInputTokens', 'actualOutputTokens', 'actualCents', 'deltaCents', 'partial', 'plugin']);
-const PLUGIN_KEYS = new Set(['schema', 'event', 'toolName', 'inputSha256', 'inputBytes', 'inputKeys', 'toolUseId', 'sessionId', 'agentId', 'capabilityTier', 'unitCostCents', 'chargedCents', 'chargedWindows', 'startedAt', 'durationMs', 'durationSource', 'outputBytes', 'success', 'decisionId', 'gate', 'reasonCode', 'burnReceiptId']);
-const FORBIDDEN_KEY = /^(?:tool_input|tool_response|tool_output|input|output|prompt|completion|content|messages|text|body|raw|privateKey|private_key|signingKey|signing_key|secret|secretKey|secret_key|accessToken|access_token|authorization|apiKey|api_key)$/i;
+const PLUGIN_KEYS = new Set(['schema', 'event', 'toolName', 'inputSha256', 'inputBytes', 'inputKeys', 'toolUseId', 'sessionId', 'agentId', 'capabilityTier', 'unitCostCents', 'chargedCents', 'chargedWindows', 'startedAt', 'durationMs', 'durationSource', 'outputBytes', 'success', 'decisionId', 'gate', 'reasonCode', 'burnReceiptId', 'license', 'policyReasonCode']);
+const FORBIDDEN_KEY = /^(?:tool_input|tool_response|tool_output|input|output|prompt|completion|content|messages|text|body|raw|privateKey|private_key|signingKey|signing_key|secret|secretKey|secret_key|accessToken|access_token|authorization|apiKey|api_key|licenseKey|license_key)$/i;
 
 function metadataOnly(value, depth = 0) {
   if (depth > 12) throw new Error('Ledger metadata nesting is invalid.');
@@ -59,6 +61,7 @@ function assertArgs(name, args) {
   if (!schema) throw new Error('Unknown read-only tool.');
   if (!args || typeof args !== 'object' || Array.isArray(args)) throw new Error('Arguments must be an object.');
   if (Object.keys(args).some(key => !Object.hasOwn(schema.properties, key))) throw new Error('Unexpected argument.');
+  if (args.sessionId !== undefined && (typeof args.sessionId !== 'string' || !args.sessionId || args.sessionId.length > 512)) throw new Error('sessionId must be a host session identifier.');
   if (args.fromSequence !== undefined && (!Number.isSafeInteger(args.fromSequence) || args.fromSequence < 0)) throw new Error('fromSequence must be a non-negative integer.');
   if (args.limit !== undefined && (!Number.isSafeInteger(args.limit) || args.limit < 1 || args.limit > PAGE_LIMIT)) throw new Error('limit must be an integer from 1 to 200.');
   if (args.day !== undefined && (typeof args.day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(args.day) || !Number.isFinite(Date.parse(args.day)) || new Date(args.day).toISOString().slice(0, 10) !== args.day)) throw new Error('day must be a valid UTC date.');
@@ -132,6 +135,18 @@ function createReader(options = {}) {
     return { pendingAuditRecovery: count > 0, pendingFailOpenEvents: count, pendingRecoveryStatus: count ? 'unsigned_unverified' : 'none' };
   }
 
+  function license(args, entries) {
+    let config;
+    try { config = readPolicy(dataDir); }
+    catch { return {tier: 'free', mode: 'shadow', reason: 'license_required', paid: false, seatsUsed: null, seatLimit: null, expiresAt: null, source: 'policy_unavailable'}; }
+    const sessionId = args.sessionId || process.env.CODEX_THREAD_ID || entries.at(-1)?.decision.plugin?.sessionId || 'local';
+    const parameters = {data: dataDir, sessionId, policy: config.policy};
+    const status = !args.sessionId && !process.env.CODEX_THREAD_ID && !entries.length && args.displayOnly
+      ? readLatestLicenseStatus(parameters) : readSessionLicense(parameters);
+    const effectivePolicy = status.paid ? config.policy : config.personal;
+    return {...status, mode: status.paid ? effectivePolicy.mode || 'enforce' : 'shadow'};
+  }
+
   async function call(name, args = {}) {
     assertArgs(name, args);
     const entries = await snapshot();
@@ -140,7 +155,7 @@ function createReader(options = {}) {
       const day = args.day || new Date().toISOString().slice(0, 10);
       const today = entries.filter(entry => entry.decision.timestamp.slice(0, 10) === day);
       const decisions = today.filter(entry => !['outcome', 'settlement'].includes(entry.decision.entryType));
-      return { day, timezone: 'UTC', decisions: decisions.length, spendCents: decisions.filter(entry => entry.decision.action !== 'block').reduce((total, entry) => total + (entry.decision.plugin?.chargedCents ?? entry.decision.projectedCents), 0), blocks: decisions.filter(entry => entry.decision.action === 'block').length, failOpenEvents: today.filter(entry => failOpen(entry.decision)).length, outcomes: today.filter(entry => entry.decision.entryType === 'outcome').length, totalEntries: entries.length, ...pendingRecovery() };
+      return { license: license({...args, displayOnly: true}, entries), day, timezone: 'UTC', decisions: decisions.length, spendCents: decisions.filter(entry => entry.decision.action !== 'block').reduce((total, entry) => total + (entry.decision.plugin?.chargedCents ?? entry.decision.projectedCents), 0), blocks: decisions.filter(entry => entry.decision.action === 'block').length, failOpenEvents: today.filter(entry => failOpen(entry.decision)).length, outcomes: today.filter(entry => entry.decision.entryType === 'outcome').length, totalEntries: entries.length, ...pendingRecovery() };
     }
     const from = args.fromSequence || 0;
     const limit = args.limit || 100;
@@ -148,6 +163,12 @@ function createReader(options = {}) {
     const page = eligible.slice(0, limit);
     const nextSequence = eligible.length > page.length ? page.at(-1).sequence + 1 : null;
     if (name === 'list_decisions') return { entries: page.map(summary), nextSequence, totalEntries: entries.length };
+    const entitlement = license(args, entries);
+    if (!entitlement.paid) {
+      const error = new Error('Receipt export requires a paid license.');
+      error.code = entitlement.reason || 'license_required';
+      throw error;
+    }
     const verification = await verify(entries);
     if (!verification.ok) throw new Error('Ledger verification failed; export refused.');
     return { format: 'agentguard-signed-receipts-v1', publicKeyHex: verification.publicKeyHex, verified: true, complete: from === 0 && nextSequence === null, entries: page, nextSequence, totalEntries: entries.length, lastEntryHash: verification.lastEntryHash };
@@ -167,7 +188,8 @@ async function handleRpc(request, reader) {
       try {
         const result = await reader.call(request.params?.name, request.params?.arguments || {});
         return respond({ content: [{ type: 'text', text: JSON.stringify(result) }], structuredContent: result });
-      } catch {
+      } catch (error) {
+        if (['license_required', 'seat_limit'].includes(error.code)) return respond({isError: true, content: [{type: 'text', text: `${error.code}: verification is free; receipt export requires a valid paid license and an available seat.`}]});
         // Never return raw filesystem/SDK errors, which could contain contents.
         return respond({ isError: true, content: [{ type: 'text', text: 'Read-only audit request failed: check arguments, ledger integrity, and the public verification key locally.' }] });
       }

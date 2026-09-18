@@ -1,10 +1,10 @@
 'use strict';
+const {LICENSE_KEY, seedPaidLicense} = require('./helper-paid-license.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const net = require('node:net');
 const { createHash } = require('node:crypto');
 const { spawn, spawnSync } = require('node:child_process');
 const sdk = require('@agentguard-run/spend');
@@ -17,9 +17,10 @@ function setup(t, thresholds = {}) {
   const data = fs.mkdtempSync(path.join(os.tmpdir(), 'agentguard-burn-hook-'));
   const home = path.join(data, 'burn');
   fs.mkdirSync(home);
+  seedPaidLicense(home);
   const env = { ...process.env, PLUGIN_DATA: data, AGENTGUARD_HOME: home, AGENTGUARD_LICENSE_KEY: '', AGENTGUARD_NO_BEACON: '1', AGENTGUARD_TELEMETRY: '0' };
   delete env.AGENTGUARD_PLUGIN_POLICY;
-  fs.writeFileSync(path.join(data, 'policy.json'), JSON.stringify({ version: 1, tenantId: 'synthetic-local', mode: 'enforce', maxCapability: 'payment_execute', deniedTools: ['^spawn_agent$'], caps: [] }));
+  fs.writeFileSync(path.join(data, 'policy.json'), JSON.stringify({ licenseKey: LICENSE_KEY, version: 1, tenantId: 'synthetic-local', mode: 'enforce', maxCapability: 'payment_execute', deniedTools: ['^spawn_agent$'], caps: [] }));
   const policy = structuredClone(burn.DEFAULT_POLICY);
   policy.mode = 'enforce';
   policy.thresholds.fanout = { warn: 1, stop: 1, maxDepth: 2 };
@@ -172,11 +173,9 @@ test('Corrupted spend policy through the subprocess exits zero, allows, warns on
 test('An intentionally busy worker times out safely and its queued event becomes a verified signed record', async t => {
   const f = setup(t);
   fs.mkdirSync(f.ipc, { recursive: true, mode: 0o700 });
-  const sockets = new Set();
-  // This test-only server accepts IPC and deliberately never replies. There is
-  // no production delay switch and the production 28 ms deadline is unchanged.
-  const server = net.createServer(socket => { sockets.add(socket); socket.on('error', () => {}); socket.on('close', () => sockets.delete(socket)); });
-  await new Promise((resolve, reject) => { server.once('error', reject); server.listen(path.join(f.ipc, 'worker.sock'), resolve); });
+  // An inert owner represents a busy worker. No test or hook needs a socket.
+  fs.writeFileSync(path.join(f.ipc, 'worker.lock'), String(process.pid), { mode: 0o600 });
+  fs.writeFileSync(path.join(f.ipc, 'worker.ready'), JSON.stringify({ pid: process.pid, transport: 'files-v1' }), { mode: 0o600 });
   const raw = { ...recorded.find(item => item.tool_name === 'Bash'), tool_use_id: 'synthetic-busy-worker-call', transcript_path: path.join(f.data, 'absent.jsonl'), cwd: f.data };
   let childResult;
   try {
@@ -191,8 +190,8 @@ test('An intentionally busy worker times out safely and its queued event becomes
       child.stdin.end(JSON.stringify(raw));
     });
   } finally {
-    for (const socket of sockets) socket.destroy();
-    await new Promise(resolve => server.close(resolve));
+    fs.unlinkSync(path.join(f.ipc, 'worker.lock'));
+    fs.unlinkSync(path.join(f.ipc, 'worker.ready'));
   }
   assert.equal(childResult.code, 0);
   const result = { output: JSON.parse(childResult.stdout), stderr: childResult.stderr };

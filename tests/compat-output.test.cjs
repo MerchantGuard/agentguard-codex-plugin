@@ -1,4 +1,5 @@
 'use strict';
+const {LICENSE_KEY, seedPaidLicense} = require('./helper-paid-license.cjs');
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -50,6 +51,7 @@ function fixture(t) {
     if (relative.startsWith('hooks/')) fs.writeFileSync(path.join(legacy, relative), bytes);
   }
   const env = {...process.env, PLUGIN_DATA: data, AGENTGUARD_HOME: path.join(temporary, 'burn'), AGENTGUARD_LICENSE_KEY: '', AGENTGUARD_NO_BEACON: '1', AGENTGUARD_TELEMETRY: '0'};
+  seedPaidLicense(env.AGENTGUARD_HOME);
   delete env.NODE_PATH;
   delete env.AGENTGUARD_PLUGIN_POLICY;
   const invoke = (legacyHook, name, raw) => spawnSync(process.execPath, [path.join(legacyHook ? legacy : root, 'hooks', `${name}.cjs`)],
@@ -68,7 +70,7 @@ function fixture(t) {
 
 test('portable and legacy subprocesses share one signed charge, retain deny and link outcomes', async t => {
   const f = fixture(t);
-  fs.writeFileSync(path.join(f.data, 'policy.json'), JSON.stringify({version: 1, tenantId: 'synthetic-compat', mode: 'enforce',
+  fs.writeFileSync(path.join(f.data, 'policy.json'), JSON.stringify({licenseKey: LICENSE_KEY, version: 1, tenantId: 'synthetic-compat', mode: 'enforce',
     maxCapability: 'data_write', caps: [{window: 'per_day', amountCents: 1}], toolRules: [{pattern: '.*', unitCostCents: 1}]}));
   const first = f.raw('synthetic-allowed');
   const portable = f.invoke(false, 'spend-gate', first);

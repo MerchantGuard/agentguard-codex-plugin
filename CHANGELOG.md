@@ -1,3 +1,10 @@
+## 0.2.0
+
+- Keep free sessions in signed shadow mode and license paid enforcement, team policies, and receipt export.
+- Resolve licenses outside tool hooks with a two second deadline, cached offline grace, and existing seat metering.
+- Report license tier, seats, expiry, effective mode, and shadow reasons in status tools.
+- Replace local socket IPC with private files while retaining bounded fail-open hooks and signed recovery events.
+
 ## 0.1.1
 
 - Adapt allowed hook responses to Codex 0.154 without changing signed decisions.
