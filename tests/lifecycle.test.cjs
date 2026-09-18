@@ -71,3 +71,16 @@ test('local activation identity overrides a team file key while team policy rema
   assert.equal(read.team, true); assert.equal(read.policy.licenseKey, 'ag_local_synthetic');
   assert.equal(read.policy.mode, 'enforce'); assert.equal(read.personal.mode, 'shadow');
 });
+
+
+test('paid activation preserves and reports an intentionally shadow policy', async t => {
+  const data = fixture(t);
+  fs.writeFileSync(path.join(data, 'policy.json'), JSON.stringify({version: 1, mode: 'shadow', tenantId: 'synthetic-shadow'}));
+  const status = await activate('ag_synthetic_shadow_activation', {data, sessionId: 'shadow-session',
+    postJson: async url => url.endsWith('/validate') ? paid : {ok: true, activeSeats: 1, maxActiveSeats: 1}});
+  assert.equal(status.tier, 'solo');
+  assert.equal(status.reason, null);
+  assert.equal(status.mode, 'shadow');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(data, 'policy.json'), 'utf8')).mode, 'shadow');
+  assert.equal((await createReader({dataDir: data}).call('get_status', {sessionId: 'shadow-session'})).license.mode, status.mode);
+});

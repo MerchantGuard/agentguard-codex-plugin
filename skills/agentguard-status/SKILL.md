@@ -15,7 +15,11 @@ the returned license state belongs to that session. Do not invent an ID.
 
 Report the license tier, seats used and seat limit, expiry, effective mode,
 and reason from the returned `license` object. Include offline grace or unavailable seat
-registration when reported. Do not show the license key. Unknown seats or
+registration when reported. Report seats as the last observed startup count,
+with `refreshedAt` when available, not a live concurrency total. The existing
+service registration expires after five minutes and is not renewed by this
+client; its KV backend counts the requesting machine, so do not claim
+cross-machine seat enforcement. Do not show the license key. Unknown seats or
 expiry must stay unknown; do not infer them from ledger activity. A paid
 license permits enforcement but does not override a policy set to shadow.
 

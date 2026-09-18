@@ -18,7 +18,7 @@ async function activate(key, options = {}) {
   const {policy} = readPolicy(data);
   const status = await resolveSessionLicense({data, sessionId: options.sessionId || process.env.CODEX_THREAD_ID || 'local',
     policy, forceActivation: true, postJson: options.postJson, now: options.now});
-  return {tier: status.tier, mode: status.mode, reason: status.reason, seatsUsed: status.seatsUsed,
+  return {tier: status.tier, mode: status.paid ? (policy.mode || 'enforce') : 'shadow', reason: status.reason, seatsUsed: status.seatsUsed,
     seatLimit: status.seatLimit, expiresAt: status.expiresAt, offlineGrace: status.offlineGrace};
 }
 module.exports = {activate};
