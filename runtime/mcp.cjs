@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const readline = require('node:readline');
 const { createHash } = require('node:crypto');
-const sdk = require('@agentguard-run/spend');
+const sdk = require('./dependencies.cjs').loadDependency('@agentguard-run/spend');
 const { locations } = require('./common.cjs');
 
 const MAX_LEDGER_BYTES = 64 * 1024 * 1024;

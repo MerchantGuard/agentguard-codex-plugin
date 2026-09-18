@@ -8,7 +8,8 @@
     "node": ">=22"
   },
   "scripts": {
-    "start": "node runtime/mcp.cjs"
+    "start": "node runtime/mcp.cjs",
+    "postinstall": "node scripts/provision-dependencies.cjs"
   },
   "dependencies": {
     "@agentguard-run/spend": "^0.20.0",
@@ -23,6 +24,7 @@
     "config",
     "skills",
     "assets",
+    "scripts/provision-dependencies.cjs",
     "README.md",
     "LICENSE",
     "CHANGELOG.md"

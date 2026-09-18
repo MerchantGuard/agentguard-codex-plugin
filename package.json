@@ -11,7 +11,8 @@
     "test": "node --test --test-concurrency=1 tests/*.test.cjs",
     "start": "node runtime/mcp.cjs",
     "build:compat": "node scripts/build-compat.cjs",
-    "check:compat": "node scripts/build-compat.cjs --check"
+    "check:compat": "node scripts/build-compat.cjs --check",
+    "postinstall": "node scripts/provision-dependencies.cjs"
   },
   "dependencies": {
     "@agentguard-run/spend": "^0.20.0",

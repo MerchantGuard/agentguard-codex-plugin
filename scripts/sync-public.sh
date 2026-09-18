@@ -36,8 +36,10 @@ README.md
 LICENSE
 CHANGELOG.md
 scripts/build-compat.cjs
+scripts/provision-dependencies.cjs
 scripts/sync-public.sh
 runtime/client.cjs
+runtime/dependencies.cjs
 runtime/common.cjs
 runtime/control.cjs
 runtime/daemon.cjs
@@ -60,6 +62,7 @@ assets/icon-128.png
 assets/logo-256.png
 assets/logo-512.png
 tests/burn-hook.test.cjs
+tests/dependency-provisioning.test.cjs
 tests/hooks.test.cjs
 tests/mcp.test.cjs
 tests/runtime-recovery.test.cjs
@@ -69,7 +72,7 @@ tests/fixtures/codex-0.151.0-pretooluse.json
 tests/fixtures/codex-plugin-pretooluse.json
 FILES
 while IFS= read -r relative; do
-  case "$relative" in runtime/*|hooks/*|config/*|skills/*|assets/*)
+  case "$relative" in runtime/*|hooks/*|config/*|skills/*|assets/*|scripts/provision-dependencies.cjs)
     printf 'compat/codex-0.154/agentguard/%s\n' "$relative" >> "$sync_tmp/compat-files.txt" ;;
   esac
 done < "$sync_tmp/files.txt"

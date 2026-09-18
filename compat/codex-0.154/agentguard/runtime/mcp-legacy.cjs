@@ -25,7 +25,7 @@ function start() {
 module.exports = {legacyDataDirectory, start};
 if (require.main === module) {
   try { start(); } catch {
-    process.stderr.write('agentguard: legacy MCP requires a Codex cache installation or explicit PLUGIN_DATA.\n');
+    process.stderr.write('agentguard: legacy MCP requires valid cache/data configuration and provisioned dependencies.\n');
     process.exitCode = 1;
   }
 }

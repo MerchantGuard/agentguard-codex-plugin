@@ -1,7 +1,7 @@
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
-const { NdjsonDecisionLogStore, SequenceConflictError, GENESIS_PREVIOUS_HASH, computeSignerFingerprint } = require('@agentguard-run/spend');
+const { NdjsonDecisionLogStore, SequenceConflictError, GENESIS_PREVIOUS_HASH, computeSignerFingerprint } = require('./dependencies.cjs').loadDependency('@agentguard-run/spend');
 
 // The private worker lease gives this adapter one writer. Read APIs and the
 // physical format remain the SDK's NDJSON store. Its default append re-reads

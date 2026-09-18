@@ -62,6 +62,15 @@ The plugin depends on published `@agentguard-run/spend ^0.20.0` and
 marketplace installation does not install Node dependencies automatically.
 Dependency setup may access npm; the hooks make no network requests.
 
+Keep npm lifecycle scripts enabled for this step. In a Codex cache installation,
+the postinstall script also provisions the locked dependencies in the plugin's
+persistent data directory. Codex 0.154 can replace its installation cache when
+a session starts; the runtime uses this persistent copy if the cache no longer
+contains dependencies. A changed lockfile requires running `npm ci` again.
+Source checkouts keep their usual local dependencies. For a managed or custom
+installation, set `PLUGIN_DATA` to the runtime's private data directory when
+provisioning. No dependency downloads happen during a tool call.
+
 ### Trust the hooks
 
 Start a new session, open **`/hooks`**, inspect both pre-tool gates and the

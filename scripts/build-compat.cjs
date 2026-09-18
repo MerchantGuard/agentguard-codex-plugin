@@ -5,7 +5,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const destination = path.join(root, 'compat', 'codex-0.154', 'agentguard');
 const copiedDirectories = ['runtime', 'hooks', 'config', 'skills', 'assets'];
-const copiedFiles = ['.app.json', 'LICENSE', 'README.md', 'CHANGELOG.md'];
+const copiedFiles = ['.app.json', 'LICENSE', 'README.md', 'CHANGELOG.md', 'scripts/provision-dependencies.cjs'];
 const jsonBytes = value => Buffer.from(JSON.stringify(value, null, 2) + '\n');
 
 function collect(directory, prefix = '') {
@@ -42,8 +42,8 @@ function expectedFiles() {
   }));
   expected.set('.mcp.json', jsonBytes({mcpServers}));
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  pkg.scripts = {start: 'node runtime/mcp.cjs'};
-  pkg.files = ['.codex-plugin', '.mcp.json', '.app.json', ...copiedDirectories, 'README.md', 'LICENSE', 'CHANGELOG.md'];
+  pkg.scripts = {start: 'node runtime/mcp.cjs', postinstall: 'node scripts/provision-dependencies.cjs'};
+  pkg.files = ['.codex-plugin', '.mcp.json', '.app.json', ...copiedDirectories, 'scripts/provision-dependencies.cjs', 'README.md', 'LICENSE', 'CHANGELOG.md'];
   expected.set('package.json', jsonBytes(pkg));
   const lock = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
   expected.set('package-lock.json', jsonBytes(lock));

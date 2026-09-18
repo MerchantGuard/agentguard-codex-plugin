@@ -72,9 +72,11 @@ test('synced standalone checkout passes the same packaging tests without ancesto
   const f = fixture(t);
   const result = sync(f);
   assert.equal(result.status, 0, result.stdout + result.stderr);
-  // Resolve the already-installed registry dependencies for this temporary
-  // test checkout. No package manifest contains a local dependency link.
-  const env = {...process.env, NODE_PATH: [path.join(root, 'node_modules'), process.env.NODE_PATH].filter(Boolean).join(path.delimiter), AGENTGUARD_HOME: path.join(f.temporary, 'sdk-home')};
+  // Provision the existing registry packages into the isolated test checkout.
+  // Runtime resolution must not depend on ancestor or global packages.
+  fs.cpSync(path.join(root, 'node_modules'), path.join(f.destination, 'node_modules'), {recursive: true, verbatimSymlinks: true});
+  const env = {...process.env, AGENTGUARD_HOME: path.join(f.temporary, 'sdk-home')};
+  delete env.NODE_PATH;
   delete env.NODE_TEST_CONTEXT;
   const child = spawnSync(process.execPath, ['--test', 'tests/packaging.test.cjs'], {
     cwd: f.destination, encoding: 'utf8', timeout: 30000,
