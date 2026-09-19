@@ -68,14 +68,28 @@ decision, receipt or policy mode. The plugin never disables another hook.
 
 ## Trust and test evidence
 
-The live scratch workspace displayed “Quick safety check: Is this a project
-you created or one you trust?” and offered “Yes, I trust this folder”. No
-permission bypass was used. This observation concerns workspace trust; it
-is not a claim that a marketplace installation was reviewed at that point.
-Claude's `/hooks` menu is read-only and has no Codex-style per-hook hash trust
-action. Review the source and use the normal marketplace installation flow.
+Claude Code 2.1.275 installed the public marketplace at commit
+`b889b5fc830dae16250c40a6b867e5b90457c28d`. Marketplace addition printed
+`Successfully added marketplace: agentguard (declared in user settings)`.
+The CLI installation in JSON output mode returned `outcome: ok`,
+`plugin: agentguard@agentguard` and `scope: user`, with no separate plugin
+trust or permission prompt. This observation does not describe an untested
+interactive marketplace selection screen.
+
+The first interactive session displayed “Quick safety check: Is this a
+project you created or one you trust?” and offered “Yes, I trust this folder”.
+After that normal confirmation, `/hooks` showed “6 hooks configured” and
+“This menu is read-only”. The six entries were the two PreToolUse gates,
+one PostToolUse receipt, one PostToolUseFailure receipt, SessionStart and
+SessionEnd. No permission bypass or trust-file injection was used.
+
+Claude's `/hooks` menu has no Codex-style per-hook hash trust action. Review
+the public source before installation and complete the normal workspace
+trust prompt. Installing the plugin permits its local commands to run once
+the workspace is trusted and the hooks are enabled.
 [Installation](https://code.claude.com/docs/en/discover-plugins),
-[Hooks menu](https://code.claude.com/docs/en/hooks#the-hooks-menu).
+[Hooks menu](https://code.claude.com/docs/en/hooks#the-hooks-menu),
+[Workspace trust](https://code.claude.com/docs/en/hooks#workspace-trust).
 
 From a provisioned public source checkout, `npm run test:hosts` runs the full
 suite twice. The host-facing hook, Burn, lifecycle, offline and recovery
