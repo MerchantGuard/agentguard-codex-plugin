@@ -1,6 +1,6 @@
 ---
 name: agentguard-status
-description: Read AgentGuard license tier, seat counts and verification status, expiry, effective mode, today's signed decisions, configured spend, blocks, and rolling fail-open counts and rates without changing policy or tools.
+description: Read AgentGuard recorded host, license tier, seat counts and verification status, expiry, effective mode, today's signed decisions, configured spend, blocks, and rolling fail-open counts and rates without changing policy or tools.
 ---
 
 # AgentGuard status
@@ -8,7 +8,9 @@ description: Read AgentGuard license tier, seat counts and verification status, 
 Use the optional AgentGuard MCP server's `get_status` tool with `{}` for the
 current UTC date, or `{"day":"YYYY-MM-DD"}` for a requested date. Identify
 the timezone in the summary. The server reads the same Spend decision store
-used by the hooks at `${PLUGIN_DATA}/ledger/decisions.ndjson`.
+used by the hooks: `${PLUGIN_DATA}/ledger/decisions.ndjson` in Codex, or
+`${CLAUDE_PLUGIN_DATA}/ledger/decisions.ndjson` in Claude Code. These are
+host-specific paths, not interchangeable fallbacks.
 
 Include the known host `sessionId` in the tool arguments when available so
 the returned license state belongs to that session. Do not invent an ID.
@@ -70,9 +72,9 @@ input/output contents. Tool names, hashes, byte counts, actor identifiers,
 and decision metadata are sufficient. Do not read tool transcripts or
 document bodies to enrich the report.
 
-Report only local hook coverage. Hosted tools, skipped/untrusted hooks,
-specialized paths, and logging failures can leave activity outside the
-ledger. No records is not proof that no tool ran.
+Report only the current host's hook coverage. Codex hosted tools, skipped
+or untrusted hooks, specialized paths, and logging failures can leave
+activity outside the ledger. No records is not proof that no tool ran.
 
 Report `health.lastHour` and `health.sinceStart`: fail-open count, total gate
 hook invocations, rate as a percentage, and known cause counts. Name the worker
@@ -92,3 +94,15 @@ The ledger fallback cannot count pass-through hook invocations that had no
 decision row. A missing worker start is unknown, not the start of the day.
 If `health.truncated` is true, state that the bounded rolling record limit was
 reached. Report `integrityEvents` separately from tool decisions and spend.
+
+Report `host` and the daily `hosts` counts from signed metadata. A legacy row
+without a host stays unknown; do not infer its host from the provider name.
+Use the current session ID when available so another session's license or
+seat state is not reported as this one. In Claude Code skill text,
+`${CLAUDE_SESSION_ID}` supplies that session identifier; pass it explicitly
+to get_status. Codex can supply CODEX_THREAD_ID, or the operator can choose a
+recorded session. If no session can be identified, label the aggregate view.
+
+Claude Code routes WebFetch and WebSearch through tool hooks. Codex hosted
+tools do not use the same coverage. Report the actual host's documented
+coverage and keep unknown host rows qualified.

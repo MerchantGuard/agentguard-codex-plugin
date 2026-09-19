@@ -1,5 +1,5 @@
 'use strict';
-// The worker is local-only, including when a configured licence needs refreshing.
+// Gate decisions are offline. Session startup and seat renewal own licensing I/O.
 process.env.AGENTGUARD_NO_BEACON = '1';
 process.env.AGENTGUARD_TELEMETRY = '0';
 const fs = require('node:fs');
@@ -10,7 +10,7 @@ const sdk = require('./dependencies.cjs').loadDependency('@agentguard-run/spend'
 const burn = require('./dependencies.cjs').loadDependency('@agentguard-run/burn');
 const { OwnedLogStore } = require('./owned-log.cjs');
 const { readSessionLicense } = require('./license.cjs');
-const { locations, allow, deny, SPAWN } = require('./common.cjs');
+const { locations, allow, deny, SPAWN, hostContext, runBurnHook, matchingExternalBurn, outcomeFlow, minimumCapability } = require('./common.cjs');
 const tiers = ['read_only', 'data_write', 'payment_initiate', 'payment_execute'];
 const durations = { per_minute: 60000, per_hour: 3600000, per_day: 86400000, per_month: 2592000000 };
 const startWindow = (window, now = Date.now()) => Math.floor(now / durations[window]) * durations[window];
@@ -127,8 +127,8 @@ class Engine {
   basic(meta, action, reasonCode, actor = { tenantId: 'local', sessionId: meta.sessionId, agentId: meta.agentId ?? meta.sessionId }) {
     return { decisionId: crypto.randomUUID(), timestamp: new Date().toISOString(), action, actor,
       triggeredCap: null, triggeredScopeKey: null, projectedCents: 0, windowSpendBefore: 0, windowSpendAfter: 0,
-      provider: 'codex', modelRequested: meta.toolName, modelResolved: meta.toolName, policyId: basePolicy.id,
-      policyVersion: 1, enforcementMode: 'enforce', reasons: [reasonCode], plugin: { ...meta, event: 'decision', reasonCode } };
+      provider: meta.host ?? hostContext().host, modelRequested: meta.toolName, modelResolved: meta.toolName, policyId: basePolicy.id,
+      policyVersion: 1, enforcementMode: 'enforce', reasons: [reasonCode], plugin: { host: hostContext().host, ...meta, event: 'decision', reasonCode } };
   }
   async append(decision) {
     const entry = await sdk.signDecision({ sequence: this.sequence, decision, previousHash: this.previousHash, privateKey: this.privateKey, publicKey: this.publicKey });
@@ -161,7 +161,7 @@ class Engine {
     fs.unlinkSync(batch);
   }
   async handle(message) {
-    const meta = message.meta;
+    const meta = {host: hostContext().host, ...message.meta};
     try {
       await this.drainSpool();
       if (meta.gate === 'receipt') return await this.receipt(meta);
@@ -173,12 +173,21 @@ class Engine {
         const {mode} = this.context(meta);
         if (mode === 'enforce') return {output: deny(previous.reasons.join('; '))};
       }
-      if (meta.gate === 'burn') return await this.burn(meta, message.transcriptPath);
+      if (meta.gate === 'burn') return await this.burn(meta, message.transcriptPath, message.workingDirectory);
       return await this.spend(meta);
     } catch { return await this.failure(meta, 'policy_or_runtime_error'); }
   }
-  async burn(meta, transcriptPath) {
+  async burn(meta, transcriptPath, workingDirectory) {
     const {license, mode} = this.context(meta);
+    if (matchingExternalBurn(meta, workingDirectory)) {
+      if (SPAWN.has(meta.toolName)) {
+        const mirror = this.basic(meta, 'shadow', 'burn_external_hook');
+        this.licenseMetadata(mirror, license, mode);
+        await this.append(mirror); this.completed.set(`burn:${callKey(meta)}`, mirror);
+        this.pending.set(callKey(meta), mirror);
+      }
+      return {output: allow()};
+    }
     if (!this.gateway) this.gateway = new burn.Gateway(process.env.AGENTGUARD_HOME || path.join(os.homedir(), '.agentguard'));
     let decision;
     const original = this.gateway.beforeSpawn;
@@ -197,8 +206,7 @@ class Engine {
     if (mode === 'shadow') policyModule.exports.loadPolicy = (...args) => ({...loadPolicy(...args), mode: 'shadow'});
     const stderrWrite = process.stderr.write;
     process.stderr.write = () => { observationFailed = true; return true; };
-    try { output = burn.handleCodexHook({ session_id: meta.sessionId, tool_name: meta.toolName,
-      tool_use_id: meta.toolUseId, hook_event_name: 'PreToolUse', transcript_path: transcriptPath }, this.gateway); }
+    try { output = runBurnHook(burn, this.gateway, meta, transcriptPath); }
     finally { this.gateway.beforeSpawn = original; process.stderr.write = stderrWrite; if (mode === 'shadow') policyModule.exports.loadPolicy = loadPolicy; }
     if (decision?.failedClosed || observationFailed) throw new Error('burn_internal_error');
     if (decision) {
@@ -215,10 +223,10 @@ class Engine {
   async spend(meta) {
     const {config, license, mode} = this.context(meta), session = config.sessions?.[meta.sessionId] ?? {};
     const match = /^mcp__(.+?)__(.+)$/.exec(meta.toolName);
-    const provider = match?.[1] ?? 'codex', model = match?.[2] ?? meta.toolName;
+    const provider = match?.[1] ?? meta.host ?? hostContext().host, model = match?.[2] ?? meta.toolName;
     const actor = { tenantId: config.tenantId ?? 'local', sessionId: meta.sessionId, agentId: meta.agentId ?? session.agentId ?? meta.sessionId,
       ...((session.matterId ?? config.defaultMatterId) ? { taskId: session.matterId ?? config.defaultMatterId } : {}), provider };
-    let capability = /^(Bash|apply_patch|Edit|Write)$/i.test(meta.toolName) ? 'data_write' : 'read_only';
+    let capability = minimumCapability(meta.toolName);
     const payment = new RegExp(config.paymentPattern ?? 'payment|pay_|charge|transfer|checkout|purchase', 'i').test(`${provider} ${model}`);
     if (payment) capability = 'payment_initiate';
     const minimumClassification = capability;
@@ -278,7 +286,7 @@ class Engine {
     const original = this.pending.get(callKey(meta));
     if (!original) return this.failure(meta, 'outcome_without_decision');
     const durationMs = meta.durationMs ?? Math.max(0, Date.now() - Date.parse(original.timestamp));
-    const { decision } = await this.outcomes.recordOutcomeReceipt({ flow: 'codex-tool', decisionId: original.decisionId,
+    const { decision } = await this.outcomes.recordOutcomeReceipt({ flow: outcomeFlow(meta), decisionId: original.decisionId,
       status: meta.success === null ? 'unknown' : meta.success ? 'completed' : 'failed', durationMs, outputBytes: meta.outputBytes,
       totalCostCents: original.plugin.unitCostCents ?? 0 });
     decision.originalDecisionId = original.decisionId; decision.actor = original.actor;

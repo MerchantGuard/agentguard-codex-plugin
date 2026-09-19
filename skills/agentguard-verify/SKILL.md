@@ -5,6 +5,11 @@ description: Verify the AgentGuard signed chain on any tier and, with a valid pa
 
 # AgentGuard verify
 
+Prefer the read-only MCP tools. For `get_status` and `export_receipts`,
+include the known host session ID on every call, including each export page.
+Claude Code supplies `${CLAUDE_SESSION_ID}` in this skill; Codex may supply
+`CODEX_THREAD_ID`. Do not use another session's entitlement or invent an ID.
+
 1. Call the optional AgentGuard MCP server's `verify_chain` tool with `{}`.
    Report signature and chain failures exactly; never repair or truncate a
    ledger to produce a passing verification. Verification remains free.
@@ -29,12 +34,33 @@ description: Verify the AgentGuard signed chain on any tier and, with a valid pa
    separately through a trusted channel. Never export the signing private
    key, tool inputs, output text, transcripts, or document bodies.
 
-If MCP is disabled, run `node "${PLUGIN_ROOT}/runtime/verify.cjs"` for local
-verification. For an authorized paid export, run
-`node "${PLUGIN_ROOT}/runtime/verify.cjs" export RECEIPTS_FILE`, replacing
-`RECEIPTS_FILE` with the operator's destination. The helper checks the same
-local license state and writes the signed bundle only when eligible. Neither
-verification path refreshes the license over the network.
+## Local helper when MCP is disabled
+
+Choose the current host's command. Verification stays free. For an authorized
+paid export, append `export RECEIPTS_FILE`, replacing `RECEIPTS_FILE` with the
+operator's destination. The helper checks that session's local license state
+and writes the signed bundle only when eligible. Neither verification path
+refreshes the license over the network.
+
+### Codex verification
+
+```sh
+PLUGIN_ROOT="${PLUGIN_ROOT}" PLUGIN_DATA="${PLUGIN_DATA}" node "${PLUGIN_ROOT}/runtime/verify.cjs"
+```
+
+Preserve `CODEX_THREAD_ID` when available. If it is unavailable, obtain the
+current session ID before exporting and pass it as that environment variable.
+
+### Claude Code verification
+
+```sh
+CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}" CLAUDE_PLUGIN_DATA="${CLAUDE_PLUGIN_DATA}" CLAUDE_SESSION_ID="${CLAUDE_SESSION_ID}" node "${CLAUDE_PLUGIN_ROOT}/runtime/verify.cjs"
+```
+
+Claude Code substitutes those exact placeholders when loading this skill.
+Bash does not inherit the plugin variables; retain the explicit assignments.
+Do not run either host's command with empty or unresolved paths. Identify the
+installed plugin root, data directory and current session before an export.
 
 The bundle can be checked independently with the published Spend SDK's
 `verifyChain`. A valid signature proves the records match the retained key;

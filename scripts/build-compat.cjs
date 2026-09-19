@@ -8,6 +8,15 @@ const copiedDirectories = ['runtime', 'hooks', 'config', 'skills', 'assets', 'do
 const copiedFiles = ['.app.json', 'LICENSE', 'README.md', 'CHANGELOG.md', 'scripts/provision-dependencies.cjs', 'scripts/print-trust-state.cjs'];
 const jsonBytes = value => Buffer.from(JSON.stringify(value, null, 2) + '\n');
 
+function codexHooks() {
+  const source = JSON.parse(fs.readFileSync(path.join(root, 'hooks/hooks.json'), 'utf8'));
+  delete source.hooks.PostToolUseFailure;
+  for (const groups of Object.values(source.hooks)) for (const group of groups) {
+    for (const hook of group.hooks) hook.command = hook.command.replaceAll('${CLAUDE_PLUGIN_ROOT}', '${PLUGIN_ROOT}');
+  }
+  return jsonBytes(source);
+}
+
 function collect(directory, prefix = '') {
   return fs.readdirSync(directory, {withFileTypes: true}).flatMap(entry => {
     if (entry.name === 'node_modules') return [];
@@ -24,6 +33,10 @@ function expectedFiles() {
   for (const directory of copiedDirectories) {
     for (const name of collect(path.join(root, directory), directory)) expected.set(name, fs.readFileSync(path.join(root, name)));
   }
+  // Preserve the installed Codex hook source path and its trust identities.
+  // Claude's additional failure event is outside this released Codex schema.
+  expected.set('hooks/hooks.json', codexHooks());
+  expected.set('hooks/codex-hooks.json', codexHooks());
   // Keep the portable hooks' explicit allow envelope. This release accepts
   // an empty response for allow unless the hook also supplies updatedInput.
   for (const [name, gate] of [['spend-gate', 'spend'], ['burn-gate', 'burn']]) {
@@ -36,7 +49,7 @@ function expectedFiles() {
     author: portable.author, homepage: portable.homepage, repository: portable.repository,
     license: portable.license, keywords: portable.keywords,
     skills: './skills/', mcpServers: './.mcp.json', apps: extension.apps,
-    hooks: extension.hooks, interface: extension.interface,
+    hooks: './hooks/hooks.json', interface: extension.interface,
   };
   expected.set('.codex-plugin/plugin.json', jsonBytes(legacy));
   const portableMcp = JSON.parse(fs.readFileSync(path.join(root, 'mcp.json'), 'utf8'));
@@ -57,6 +70,7 @@ function expectedFiles() {
 }
 
 function check() {
+  if (!fs.readFileSync(path.join(root, 'hooks/codex-hooks.json')).equals(codexHooks())) throw new Error('Codex hook adapter is stale; run npm run build:compat.');
   const expected = expectedFiles();
   const missingOrChanged = [...expected].filter(([name, bytes]) => {
     try { return !fs.readFileSync(path.join(destination, name)).equals(bytes); } catch { return true; }
@@ -69,6 +83,7 @@ function check() {
 }
 
 function build() {
+  fs.writeFileSync(path.join(root, 'hooks/codex-hooks.json'), codexHooks());
   const expected = expectedFiles();
   for (const [name, bytes] of expected) {
     const target = path.join(destination, name);
@@ -78,7 +93,7 @@ function build() {
   return check();
 }
 
-module.exports = {build, check, expectedFiles, destination};
+module.exports = {build, check, expectedFiles, destination, codexHooks};
 if (require.main === module) {
   try {
     const count = process.argv.includes('--check') ? check() : build();

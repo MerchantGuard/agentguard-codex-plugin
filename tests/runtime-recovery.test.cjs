@@ -1,4 +1,5 @@
 'use strict';
+const matrix = require('./helper-host-matrix.cjs');
 const {LICENSE_KEY, seedPaidLicense} = require('./helper-paid-license.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -17,8 +18,9 @@ const { createReader } = require('../runtime/mcp.cjs');
 function context(t, policy = {}) {
   const data = fs.mkdtempSync(path.join(os.tmpdir(), 'agentguard-runtime-recovery-'));
   const values = { PLUGIN_DATA: data, AGENTGUARD_HOME: path.join(data, 'burn-and-license'), AGENTGUARD_PLUGIN_POLICY: path.join(data, 'policy.json'), AGENTGUARD_LICENSE_KEY: '', AGENTGUARD_NO_BEACON: '1', AGENTGUARD_TELEMETRY: '0' };
-  const previous = Object.fromEntries(Object.keys(values).map(key => [key, process.env[key]]));
+  const previous = Object.fromEntries([...new Set([...Object.keys(values), ...matrix.envKeys])].map(key => [key, process.env[key]]));
   Object.assign(process.env, values);
+  matrix.environment(process.env, data);
   seedPaidLicense(values.AGENTGUARD_HOME);
   fs.writeFileSync(values.AGENTGUARD_PLUGIN_POLICY, JSON.stringify({ licenseKey: LICENSE_KEY, version: 1, tenantId: 'local', mode: 'enforce', maxCapability: 'payment_execute', caps: [], ...policy }));
   t.after(() => {
@@ -32,7 +34,7 @@ function meta(toolName, toolUseId, sessionId = 'synthetic-session', gate = 'spen
 }
 async function start() { const engine = new Engine(); await engine.init(); return engine; }
 function rows(engine) { return fs.readFileSync(engine.logStore.filePath, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line)); }
-function decision(result) { return result.output.hookSpecificOutput.permissionDecision; }
+function decision(result) { return matrix.permission(result.output); }
 
 test('Runtime restart restores signed per-window spend and preserves cap enforcement', async t => {
   const { data } = context(t, { toolRules: [{ pattern: '^Read$', unitCostCents: 6 }], caps: [{ window: 'per_day', amountCents: 10, action: 'block' }] });
@@ -151,10 +153,11 @@ test('Runtime and read-only MCP use no network for normal calls or an uncached l
     const { createReader } = require('./runtime/mcp.cjs');
     const { Engine } = require('./runtime/engine.cjs');
     const { metadata } = require('./runtime/common.cjs');
+    const matrix = require('./tests/helper-host-matrix.cjs');
     (async () => {
       const reader = createReader(); await reader.call('get_status');
       const engine = new Engine(); await engine.init();
-      const pre = metadata({ tool_name:'Read', tool_use_id:'offline-allow', session_id:'offline-session', tool_input:{} }, 'spend');
+      const pre = metadata(matrix.payload({ tool_name:'Read', tool_use_id:'offline-allow', session_id:'offline-session', tool_input:{} }, 'PreToolUse', 'Read'), 'spend');
       const allowed = await engine.handle({ meta:pre });
       await engine.handle({ meta:metadata({ tool_name:'Read', tool_use_id:'offline-allow', session_id:'offline-session', tool_response:{ ok:true } }, 'receipt') });
       process.env.AGENTGUARD_LICENSE_KEY = 'synthetic-invalid-uncached-key';
@@ -199,16 +202,17 @@ test('Hook refuses an exposed IPC directory and allows with a queued fail-open e
   fs.chmodSync(loc.ipc, 0o777);
   t.after(() => fs.rmSync(loc.ipc, { recursive: true, force: true }));
   const child = spawnSync(process.execPath, [path.join(__dirname, '..', 'hooks', 'spend-gate.cjs')], {
-    input: JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'Read', tool_use_id: 'ipc-permissions', session_id: 'synthetic-ipc-session', tool_input: { filename: 'synthetic-private-file' } }),
+    input: JSON.stringify(matrix.payload({ hook_event_name: 'PreToolUse', tool_name: 'Read', tool_use_id: 'ipc-permissions', session_id: 'synthetic-ipc-session', tool_input: { filename: 'synthetic-private-file' } }, 'PreToolUse', 'Read')),
     env: process.env, encoding: 'utf8', timeout: 5000,
   });
   assert.equal(child.status, 0, child.stderr);
-  assert.equal(JSON.parse(child.stdout).hookSpecificOutput.permissionDecision, 'allow');
+  assert.equal(matrix.permission(JSON.parse(child.stdout)), 'allow');
   assert.match(child.stderr, /internal error; allowed tool call/);
   assert.equal(fs.existsSync(loc.socket), false);
   const events = fs.readFileSync(loc.spool, 'utf8').trim().split('\n').map(line => JSON.parse(line));
   assert.equal(events.length, 1);
   assert.equal(events[0].event, 'fail_open');
+  assert.equal(events[0].host, matrix.host);
   assert.equal(events[0].toolUseId, 'ipc-permissions');
   assert.equal(JSON.stringify(events).includes('synthetic-private-file'), false);
 });

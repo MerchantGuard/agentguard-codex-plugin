@@ -6,26 +6,46 @@ description: Activate an AgentGuard license or edit tool policies for matter bud
 # AgentGuard policy
 
 Use this skill for an operator-requested policy change. A blocked tool request
-is not authorization to loosen its policy. Read `${PLUGIN_DATA}/policy.json`
-first, or the packaged default when it is absent. A paid session can also
+is not authorization to loosen its policy. Read the host's policy file first: `${PLUGIN_DATA}/policy.json` in Codex,
+or `${CLAUDE_PLUGIN_DATA}/policy.json` in Claude Code. Use the packaged
+default when it is absent. A paid session can also
 load a team file from `AGENTGUARD_PLUGIN_POLICY` or the local `teamPolicyFile`
-field; relative paths resolve from `PLUGIN_DATA`. Preserve the local license
+field; relative paths resolve from the host plugin data directory. Preserve the local license
 key while editing shared rules. Do not modify Burn's policy unless the user
 separately requests it.
 
 ## Activate a license
 
-For the operator request `activate license <KEY>`, invoke
-`node "${PLUGIN_ROOT}/runtime/activate.cjs"` and supply the key through standard
-input. Never place it in command arguments, print it, or add it to a ledger
-entry. The helper writes `licenseKey` into `${PLUGIN_DATA}/policy.json`,
-preserves unrelated fields, and resolves the license again outside the hook
-process. Do not reproduce the key in the completion message.
+For the operator request `activate license <KEY>`, choose the command for the
+current host below. Supply the key through standard input. Never place it in
+command arguments, echo it, print it, or add it to a ledger entry. The helper
+writes `licenseKey` into the host's `policy.json`, preserves unrelated fields,
+and resolves the license again outside the hook process. Do not reproduce
+the key in the completion message.
 
-When the host session ID is known, pass that ID as the helper's optional
-positional argument so activation re-resolves the current session. Otherwise
-the helper uses `CODEX_THREAD_ID` when available. Do not invent a session ID
-or pass the license key as that argument.
+### Codex activation
+
+```sh
+PLUGIN_ROOT="${PLUGIN_ROOT}" PLUGIN_DATA="${PLUGIN_DATA}" node "${PLUGIN_ROOT}/runtime/activate.cjs"
+```
+
+Pass the known host session ID as an optional positional argument. Otherwise
+the helper uses `CODEX_THREAD_ID` when available. Do not invent an ID or pass
+the license key as that argument.
+
+### Claude Code activation
+
+```sh
+CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}" CLAUDE_PLUGIN_DATA="${CLAUDE_PLUGIN_DATA}" CLAUDE_SESSION_ID="${CLAUDE_SESSION_ID}" node "${CLAUDE_PLUGIN_ROOT}/runtime/activate.cjs" "${CLAUDE_SESSION_ID}"
+```
+
+Claude Code substitutes those exact placeholders when loading this skill.
+Its Bash tool does not inherit the plugin variables, so retain the explicit
+environment assignments. Use only the current host's command. If its paths
+or session ID remain unresolved, identify them from the installed plugin and
+current host context before running the helper; never use an empty path or
+guess a data directory. The Codex placeholders in the other command do not
+apply to Claude Code.
 
 `AGENTGUARD_LICENSE_KEY` takes precedence over the policy field. If that
 environment variable selects a different key, explain the precedence without
@@ -52,12 +72,13 @@ records every decision, blocks nothing, and includes Burn why and pace.
    then show the changed rules and their effect with synthetic tool names.
    An invalid policy fails open, so do not leave a partially written file.
 4. Explain that unpriced tools cost zero in this ledger and that hook coverage
-   excludes hosted tools and specialized paths. Recommend protecting policy
+   excludes Codex hosted tools and specialized paths. Claude Code WebSearch
+   and WebFetch use its tool hooks. Recommend protecting policy
    files from agent writes when the firm uses them as controls.
 
 Use `get_status` to check the effective mode before describing an edited rule
 as enforced. Set `teamPolicyFile` to share a policy file across paid sessions;
-relative paths resolve from `PLUGIN_DATA`. Free sessions use the local policy
+relative paths resolve from the host plugin data directory. Free sessions use the local policy
 instead. In free shadow mode,
 the operator can review signed decisions, but an allowlist, cap or ethical
 wall does not block a tool call.

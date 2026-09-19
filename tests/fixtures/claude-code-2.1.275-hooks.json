@@ -1,0 +1,631 @@
+{
+  "provenance": {
+    "host": "Claude Code",
+    "version": "2.1.275",
+    "source": "Real stdin delivered to a capture-only plugin in an isolated live session.",
+    "redactions": [
+      "Scratch paths normalized to /tmp/agentguard-fixture.",
+      "Session, prompt, agent, and tool-use identifiers replaced consistently with synthetic identifiers of the same shape, preserving linkage."
+    ],
+    "omissions": [
+      "WebSearch PostToolUse response excluded because it contained unrelated public search results.",
+      "The interrupted onboarding session is excluded."
+    ],
+    "rawPayloadCount": 31,
+    "includedPayloadCount": 29
+  },
+  "payloads": [
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "hook_event_name": "SessionStart",
+      "source": "startup",
+      "model": "claude-sonnet-5"
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000002",
+      "permission_mode": "default",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "PreToolUse",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/tmp/agentguard-fixture/workspace/fixture.txt"
+      },
+      "tool_use_id": "toolu_01Synthetic0000000000006"
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000002",
+      "permission_mode": "default",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "PostToolUse",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/tmp/agentguard-fixture/workspace/fixture.txt"
+      },
+      "tool_response": {
+        "type": "text",
+        "file": {
+          "filePath": "/tmp/agentguard-fixture/workspace/fixture.txt",
+          "content": "Synthetic matter fixture.\nThe allowed word is amber.\n",
+          "numLines": 3,
+          "startLine": 1,
+          "totalLines": 3
+        }
+      },
+      "tool_use_id": "toolu_01Synthetic0000000000006",
+      "duration_ms": 4
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000002",
+      "permission_mode": "default",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "PreToolUse",
+      "tool_name": "Write",
+      "tool_input": {
+        "file_path": "/tmp/agentguard-fixture/workspace/scratch-note.txt",
+        "content": "Synthetic amber note."
+      },
+      "tool_use_id": "toolu_01Synthetic0000000000007"
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000002",
+      "permission_mode": "default",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "PostToolUse",
+      "tool_name": "Write",
+      "tool_input": {
+        "file_path": "/tmp/agentguard-fixture/workspace/scratch-note.txt",
+        "content": "Synthetic amber note."
+      },
+      "tool_response": {
+        "type": "create",
+        "filePath": "/tmp/agentguard-fixture/workspace/scratch-note.txt",
+        "content": "Synthetic amber note.",
+        "structuredPatch": [],
+        "originalFile": null,
+        "userModified": false
+      },
+      "tool_use_id": "toolu_01Synthetic0000000000007",
+      "duration_ms": 17
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000002",
+      "permission_mode": "default",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "PreToolUse",
+      "tool_name": "ToolSearch",
+      "tool_input": {
+        "query": "select:mcp__imanage__get_document,mcp__imanage__save_document",
+        "max_results": 5
+      },
+      "tool_use_id": "toolu_01Synthetic0000000000008"
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000002",
+      "permission_mode": "default",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "PostToolUse",
+      "tool_name": "ToolSearch",
+      "tool_input": {
+        "query": "select:mcp__imanage__get_document,mcp__imanage__save_document",
+        "max_results": 5
+      },
+      "tool_response": {
+        "matches": [
+          "mcp__imanage__get_document",
+          "mcp__imanage__save_document"
+        ],
+        "query": "select:mcp__imanage__get_document,mcp__imanage__save_document",
+        "total_deferred_tools": 16
+      },
+      "tool_use_id": "toolu_01Synthetic0000000000008",
+      "duration_ms": 1
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000002",
+      "permission_mode": "default",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "PreToolUse",
+      "tool_name": "Edit",
+      "tool_input": {
+        "file_path": "/tmp/agentguard-fixture/workspace/scratch-note.txt",
+        "old_string": "amber",
+        "new_string": "blue",
+        "replace_all": false
+      },
+      "tool_use_id": "toolu_01Synthetic0000000000009"
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000002",
+      "permission_mode": "default",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "PostToolUse",
+      "tool_name": "Edit",
+      "tool_input": {
+        "file_path": "/tmp/agentguard-fixture/workspace/scratch-note.txt",
+        "old_string": "amber",
+        "new_string": "blue",
+        "replace_all": false
+      },
+      "tool_response": {
+        "filePath": "/tmp/agentguard-fixture/workspace/scratch-note.txt",
+        "oldString": "amber",
+        "newString": "blue",
+        "originalFile": "Synthetic amber note.",
+        "structuredPatch": [
+          {
+            "oldStart": 1,
+            "oldLines": 1,
+            "newStart": 1,
+            "newLines": 1,
+            "lines": [
+              "-Synthetic amber note.",
+              "\\ No newline at end of file",
+              "+Synthetic blue note.",
+              "\\ No newline at end of file"
+            ]
+          }
+        ],
+        "userModified": false,
+        "replaceAll": false
+      },
+      "tool_use_id": "toolu_01Synthetic0000000000009",
+      "duration_ms": 7
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000002",
+      "permission_mode": "default",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "PreToolUse",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "printf 'synthetic-ok\\n'",
+        "description": "Print synthetic-ok"
+      },
+      "tool_use_id": "toolu_01Synthetic0000000000010"
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000002",
+      "permission_mode": "default",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "PreToolUse",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "false",
+        "description": "Run intentionally failing command"
+      },
+      "tool_use_id": "toolu_01Synthetic0000000000011"
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000002",
+      "permission_mode": "default",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "PostToolUseFailure",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "false",
+        "description": "Run intentionally failing command"
+      },
+      "tool_use_id": "toolu_01Synthetic0000000000011",
+      "error": "Exit code 1",
+      "is_interrupt": false,
+      "duration_ms": 159
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000002",
+      "permission_mode": "default",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "PostToolUse",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "printf 'synthetic-ok\\n'",
+        "description": "Print synthetic-ok"
+      },
+      "tool_response": {
+        "stdout": "synthetic-ok",
+        "stderr": "",
+        "interrupted": false,
+        "isImage": false,
+        "noOutputExpected": false
+      },
+      "tool_use_id": "toolu_01Synthetic0000000000010",
+      "duration_ms": 691
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000002",
+      "permission_mode": "default",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "PreToolUse",
+      "tool_name": "mcp__imanage__get_document",
+      "tool_input": {
+        "document_id": "synthetic-001"
+      },
+      "tool_use_id": "toolu_01Synthetic0000000000012",
+      "mcp_server": {
+        "name": "imanage",
+        "source": "dynamic"
+      }
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000002",
+      "permission_mode": "default",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "PostToolUse",
+      "tool_name": "mcp__imanage__get_document",
+      "tool_input": {
+        "document_id": "synthetic-001"
+      },
+      "tool_response": [
+        {
+          "type": "text",
+          "text": "Synthetic matter fixture. Amber."
+        }
+      ],
+      "tool_use_id": "toolu_01Synthetic0000000000012",
+      "duration_ms": 6,
+      "mcp_server": {
+        "name": "imanage",
+        "source": "dynamic"
+      }
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000002",
+      "permission_mode": "default",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "PreToolUse",
+      "tool_name": "mcp__imanage__save_document",
+      "tool_input": {
+        "document_id": "synthetic-001",
+        "content": "Synthetic blue note."
+      },
+      "tool_use_id": "toolu_01Synthetic0000000000013",
+      "mcp_server": {
+        "name": "imanage",
+        "source": "dynamic"
+      }
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000002",
+      "permission_mode": "default",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "PostToolUse",
+      "tool_name": "mcp__imanage__save_document",
+      "tool_input": {
+        "document_id": "synthetic-001",
+        "content": "Synthetic blue note."
+      },
+      "tool_response": [
+        {
+          "type": "text",
+          "text": "Synthetic save acknowledged."
+        }
+      ],
+      "tool_use_id": "toolu_01Synthetic0000000000013",
+      "duration_ms": 4,
+      "mcp_server": {
+        "name": "imanage",
+        "source": "dynamic"
+      }
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000002",
+      "permission_mode": "default",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "PreToolUse",
+      "tool_name": "Agent",
+      "tool_input": {
+        "description": "Read fixture first line",
+        "prompt": "Read the file /tmp/agentguard-fixture/workspace/fixture.txt and return only its first line of text.",
+        "subagent_type": "fixture-reader"
+      },
+      "tool_use_id": "toolu_01Synthetic0000000000014"
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000002",
+      "agent_id": "a0000000000000003",
+      "agent_type": "fixture-reader",
+      "hook_event_name": "SubagentStart"
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000002",
+      "permission_mode": "default",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "PostToolUse",
+      "tool_name": "Agent",
+      "tool_input": {
+        "description": "Read fixture first line",
+        "prompt": "Read the file /tmp/agentguard-fixture/workspace/fixture.txt and return only its first line of text.",
+        "subagent_type": "fixture-reader"
+      },
+      "tool_response": {
+        "isAsync": true,
+        "status": "async_launched",
+        "agentId": "a0000000000000003",
+        "description": "Read fixture first line",
+        "resolvedModel": "claude-sonnet-5",
+        "prompt": "Read the file /tmp/agentguard-fixture/workspace/fixture.txt and return only its first line of text.",
+        "outputFile": "/tmp/agentguard-fixture/tasks/00000000-0000-4000-8000-000000000001/tasks/a0000000000000003.output",
+        "canReadOutputFile": true
+      },
+      "tool_use_id": "toolu_01Synthetic0000000000014",
+      "duration_ms": 6
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000002",
+      "permission_mode": "default",
+      "agent_id": "a0000000000000003",
+      "agent_type": "fixture-reader",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "PreToolUse",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/tmp/agentguard-fixture/workspace/fixture.txt"
+      },
+      "tool_use_id": "toolu_01Synthetic0000000000015"
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000002",
+      "permission_mode": "default",
+      "agent_id": "a0000000000000003",
+      "agent_type": "fixture-reader",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "PostToolUse",
+      "tool_name": "Read",
+      "tool_input": {
+        "file_path": "/tmp/agentguard-fixture/workspace/fixture.txt"
+      },
+      "tool_response": {
+        "type": "text",
+        "file": {
+          "filePath": "/tmp/agentguard-fixture/workspace/fixture.txt",
+          "content": "Synthetic matter fixture.\nThe allowed word is amber.\n",
+          "numLines": 3,
+          "startLine": 1,
+          "totalLines": 3
+        }
+      },
+      "tool_use_id": "toolu_01Synthetic0000000000015",
+      "duration_ms": 1
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000002",
+      "permission_mode": "default",
+      "agent_id": "a0000000000000003",
+      "agent_type": "fixture-reader",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "SubagentStop",
+      "stop_hook_active": false,
+      "agent_transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001/subagents/agent-a0000000000000003.jsonl",
+      "last_assistant_message": "First line: \"Synthetic matter fixture.\"\n\nFile: /tmp/agentguard-fixture/workspace/fixture.txt",
+      "background_tasks": [
+        {
+          "id": "a0000000000000003",
+          "type": "subagent",
+          "status": "running",
+          "description": "Read fixture first line",
+          "agent_type": "fixture-reader"
+        }
+      ],
+      "session_crons": []
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000004",
+      "permission_mode": "default",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "PreToolUse",
+      "tool_name": "ToolSearch",
+      "tool_input": {
+        "query": "select:WebFetch,WebSearch",
+        "max_results": 5
+      },
+      "tool_use_id": "toolu_01Synthetic0000000000016"
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000004",
+      "permission_mode": "default",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "PostToolUse",
+      "tool_name": "ToolSearch",
+      "tool_input": {
+        "query": "select:WebFetch,WebSearch",
+        "max_results": 5
+      },
+      "tool_response": {
+        "matches": [
+          "WebFetch",
+          "WebSearch"
+        ],
+        "query": "select:WebFetch,WebSearch",
+        "total_deferred_tools": 16
+      },
+      "tool_use_id": "toolu_01Synthetic0000000000016",
+      "duration_ms": 1
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000004",
+      "permission_mode": "default",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "PreToolUse",
+      "tool_name": "WebFetch",
+      "tool_input": {
+        "url": "https://example.com",
+        "prompt": "Return only the page title."
+      },
+      "tool_use_id": "toolu_01Synthetic0000000000017"
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000004",
+      "permission_mode": "default",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "PreToolUse",
+      "tool_name": "WebSearch",
+      "tool_input": {
+        "query": "\"agentguard-synthetic-fixture-7d2f9c1a\""
+      },
+      "tool_use_id": "toolu_01Synthetic0000000000018"
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000004",
+      "permission_mode": "default",
+      "effort": {
+        "level": "low"
+      },
+      "hook_event_name": "PostToolUse",
+      "tool_name": "WebFetch",
+      "tool_input": {
+        "url": "https://example.com",
+        "prompt": "Return only the page title."
+      },
+      "tool_response": {
+        "bytes": 559,
+        "code": 200,
+        "codeText": "OK",
+        "result": "The page title is \"Example Domain\".",
+        "durationMs": 2557,
+        "url": "https://example.com"
+      },
+      "tool_use_id": "toolu_01Synthetic0000000000017",
+      "duration_ms": 2557
+    },
+    {
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "transcript_path": "/tmp/agentguard-fixture/claude-home/projects/-tmp-agentguard-fixture-workspace/00000000-0000-4000-8000-000000000001.jsonl",
+      "cwd": "/tmp/agentguard-fixture/workspace",
+      "prompt_id": "00000000-0000-4000-8000-000000000005",
+      "hook_event_name": "SessionEnd",
+      "reason": "prompt_input_exit"
+    }
+  ]
+}

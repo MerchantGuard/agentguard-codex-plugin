@@ -1,6 +1,6 @@
 # AgentGuard directory submission pack
 
-Prepared for version 0.2.2 on 2026-09-18. This is a review pack, not a submitted or approved listing. No directory draft, publication or remote MCP deployment was created by preparing it.
+Prepared for version 0.3.0 on 2026-09-18. This is a review pack, not a submitted or approved listing. No directory draft, publication or remote MCP deployment was created by preparing it.
 
 ## Submission route
 
@@ -19,7 +19,7 @@ The proposed public developer name is MerchantGuardOps. The publisher must selec
 Listing values follow. Business identity verification remains pending.
 
 - Package name: `agentguard`.
-- Version: `0.2.2`.
+- Version: `0.3.0`.
 - Display name: `AgentGuard`.
 - Short description: `Tool policy and signed records`.
 - Developer name: `MerchantGuardOps`.
@@ -39,13 +39,13 @@ The current final form permits three starters, each at most 128 characters, and 
 
 ### Long description
 
-AgentGuard applies operator-defined policies to supported local tool calls in Codex and ChatGPT Work. Set capability tiers, tool allowlists, ethical-wall denies and budgets based on configured unit costs. Burn handles subagent fan-out and sustained usage. Signed local decisions and outcome records retain tool names, identifiers, input digests and sizes, without retaining tool input or output text.
+AgentGuard applies operator-defined policies to supported local tool calls in Codex, ChatGPT Work and Claude Code. Set capability tiers, tool allowlists, ethical-wall denies and budgets based on configured unit costs. Burn handles subagent fan-out and sustained usage. Signed local decisions and outcome records retain tool names, identifiers, input digests and sizes, without retaining tool input or output text.
 
 Free sessions run in shadow mode: decisions are signed and recorded, and tools are not blocked. Free verification and Burn why and pace remain available. An existing valid Solo, Startup or Growth license, including Pro variants, enables enforcement, team policy files, receipt export and seat metering. A paid policy may still request shadow mode.
 
 The status skill and read-only MCP tools explain the effective mode, license expiry, seat count and verification state, daily decisions, configured spend and fail-open events. The verification skill checks the signed chain; paid users can export a bundle for their own records.
 
-Hooks require review and trust. Disabled or untrusted hooks do not govern calls. Internal errors and timeouts fail open. Hosted tools such as WebSearch, web ChatGPT and specialized paths outside hook dispatch are not covered. Managed installation does not change this fail-open contract. Protect policy files from agent writes and retain service-side access controls.
+Hooks require review and trust. Disabled or untrusted hooks do not govern calls. Internal errors and timeouts fail open. Codex hosted tools such as WebSearch, web ChatGPT and specialized paths outside hook dispatch are not covered. Claude Code routes WebSearch and WebFetch through its tool hooks. Managed installation does not change this fail-open contract. Protect policy files from agent writes and retain service-side access controls.
 
 Install the Node 22 runtime dependencies in the plugin root and follow the Codex 0.154 compatibility instructions. Paid license validation and live-session seat renewal use bounded requests to AgentGuard; tool hook processes and the audit MCP tools do not open network sockets.
 
@@ -69,7 +69,7 @@ The following annotation values describe each MCP tool, not the separate policy-
 
 It reads local policy, license snapshots, health and signed decision records to calculate a status response. It does not refresh a license, register a seat, create a log or update a file. Timestamps, expiry, seat provenance and aggregate counts explain the current state. A display allowlist omits key fingerprints, session fingerprints, seat identities and unknown snapshot fields from the response.
 
-Arguments: optional `day` as a UTC date and `sessionId`. Result: `license`, `health`, `day`, `timezone`, `decisions`, `spendCents`, `blocks`, `failOpenEvents`, `outcomes`, `integrityEvents`, `totalEntries`, plus pending recovery counts. Unverified recovery rows are reported separately from signed decisions.
+Arguments: optional `day` as a UTC date and `sessionId`. Result: `host`, `hosts`, `license`, `health`, `day`, `timezone`, `decisions`, `spendCents`, `blocks`, `failOpenEvents`, `outcomes`, `integrityEvents`, `totalEntries`, plus pending recovery counts. Unverified recovery rows are reported separately from signed decisions.
 
 ### list_decisions
 
@@ -667,7 +667,11 @@ This preparation leaves the token unset. An HTTP 404 proves the empty configurat
 
 All countries and regions offered by the submission portal. Listing and support language: English.
 
-## Release notes for 0.2.2
+## Release notes for 0.3.0
+
+Add Claude Code marketplace packaging, host metadata and failed-tool receipts to the shared runtime. Preserve the public package name, Codex compatibility installation and existing signed chains. Claude allows keep normal host permission checks; standalone Burn coexistence avoids duplicate spawn accounting.
+
+### Previous 0.2.2 notes
 
 Initial directory review proposal for AgentGuard 0.2.2. The package supplies local tool policy hooks, policy/status/verification skills and read-only MCP access to signed local records. Free sessions record decisions in shadow mode; existing paid licenses enable enforcement, team policy files, receipt export and seat metering.
 

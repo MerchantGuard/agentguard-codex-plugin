@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const {locations} = require('./common.cjs');
+const {locations, hostContext} = require('./common.cjs');
 const {readPolicy} = require('./policy-file.cjs');
 const {resolveSessionLicense} = require('./license.cjs');
 async function activate(key, options = {}) {
@@ -16,12 +16,12 @@ async function activate(key, options = {}) {
   fs.writeFileSync(temporary, JSON.stringify({...personal, licenseKey: key.trim()}, null, 2) + '\n', {mode: 0o600, flag: 'wx'});
   fs.renameSync(temporary, file);
   const {policy} = readPolicy(data);
-  const status = await resolveSessionLicense({data, sessionId: options.sessionId || process.env.CODEX_THREAD_ID || 'local',
+  const status = await resolveSessionLicense({data, sessionId: options.sessionId || hostContext().sessionId || 'local',
     policy, forceActivation: true, postJson: options.postJson, now: options.now});
   return {tier: status.tier, mode: status.paid ? (policy.mode || 'enforce') : 'shadow', reason: status.reason, seatsUsed: status.seatsUsed,
     seatLimit: status.seatLimit, seatStorage: status.seatStorage ?? null, seatsVerified: status.seatsVerified === true, expiresAt: status.expiresAt, offlineGrace: status.offlineGrace};
 }
 module.exports = {activate};
 if (require.main === module) activate(fs.readFileSync(0, 'utf8').trim(), {sessionId: process.argv[2]})
-  .then(async status => { await require('./session-start.cjs').track(process.argv[2] || process.env.CODEX_THREAD_ID || 'local', process.ppid).catch(() => {}); process.stdout.write(JSON.stringify(status) + '\n'); })
+  .then(async status => { await require('./session-start.cjs').track(process.argv[2] || hostContext().sessionId || 'local', process.ppid).catch(() => {}); process.stdout.write(JSON.stringify(status) + '\n'); })
   .catch(() => {process.stderr.write('agentguard: activation could not complete; inspect local policy and license status.\n');process.exitCode = 1;});

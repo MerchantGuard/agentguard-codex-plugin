@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "agentguard",
-  "version": "0.2.2",
-  "description": "Local tool policy gates and signed, content-free decision records for Codex and ChatGPT Work.",
+  "version": "0.3.0",
+  "description": "Local tool policy gates and signed, content-free decision records for Codex, ChatGPT Work and Claude Code.",
   "author": {
     "name": "MerchantGuardOps",
     "url": "https://agentguard.run"
@@ -20,11 +20,11 @@
   "extensions": {
     "com.openai": {
       "apps": "./.app.json",
-      "hooks": "./hooks/hooks.json",
+      "hooks": "./hooks/codex-hooks.json",
       "interface": {
         "displayName": "AgentGuard",
         "shortDescription": "Tool policy and signed records",
-        "longDescription": "Apply policies to supported local tool calls in Codex and ChatGPT Work. Record signed decisions and outcomes without retaining tool inputs or output text. Hooks fail open on internal errors.",
+        "longDescription": "Apply policies to supported local tool calls in Codex, ChatGPT Work and Claude Code. Record signed decisions and outcomes without retaining tool inputs or output text. Hooks fail open on internal errors.",
         "developerName": "MerchantGuardOps",
         "category": "Productivity",
         "capabilities": [

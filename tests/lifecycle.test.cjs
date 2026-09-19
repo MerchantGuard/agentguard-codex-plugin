@@ -1,4 +1,5 @@
 'use strict';
+const matrix = require('./helper-host-matrix.cjs');
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -13,7 +14,7 @@ const root = path.resolve(__dirname, '..');
 function fixture(t) {
   const data = fs.mkdtempSync(path.join(os.tmpdir(), 'ag-lifecycle-'));
   const before = {...process.env};
-  process.env.PLUGIN_DATA = data; process.env.AGENTGUARD_HOME = path.join(data, 'sdk');
+  matrix.environment(process.env, data); process.env.AGENTGUARD_HOME = path.join(data, 'sdk');
   delete process.env.AGENTGUARD_LICENSE_KEY; delete process.env.AGENTGUARD_PLUGIN_POLICY;
   t.after(() => {process.env = before; fs.rmSync(data, {recursive: true, force: true});});
   return data;
@@ -35,7 +36,7 @@ test('activation reads a key from stdin flow, writes private local policy and re
 test('SessionStart acknowledges without waiting for a network resolver and persists missing-key shadow', async t => {
   const data = fixture(t);
   const child = spawnSync(process.execPath, ['hooks/session-start.cjs'], {cwd: root, env: process.env,
-    input: JSON.stringify({session_id: 'synthetic-start', hook_event_name: 'SessionStart'}), encoding: 'utf8', timeout: 1000});
+    input: JSON.stringify(matrix.payload({session_id: 'synthetic-start', hook_event_name: 'SessionStart'}, 'SessionStart')), encoding: 'utf8', timeout: 1000});
   assert.equal(child.status, 0, child.stderr); assert.deepEqual(JSON.parse(child.stdout), {});
   const filename = licenseStatusPath({data, sessionId: 'synthetic-start', policy: {}});
   for (let n=0; n<100 && !fs.existsSync(filename); n++) await new Promise(resolve => setTimeout(resolve, 10));

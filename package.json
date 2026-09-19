@@ -1,7 +1,7 @@
 {
   "name": "@agentguard-run/codex-plugin",
-  "version": "0.2.2",
-  "description": "Local tool policy hooks and content-free signed records for Codex and ChatGPT Work.",
+  "version": "0.3.0",
+  "description": "Local tool policy hooks and content-free signed records for Codex, ChatGPT Work and Claude Code.",
   "license": "SEE LICENSE IN LICENSE",
   "type": "commonjs",
   "engines": {
@@ -12,7 +12,9 @@
     "start": "node runtime/mcp.cjs",
     "build:compat": "node scripts/build-compat.cjs",
     "check:compat": "node scripts/build-compat.cjs --check",
-    "postinstall": "node scripts/provision-dependencies.cjs"
+    "postinstall": "node scripts/provision-dependencies.cjs",
+    "test:claude": "AGENTGUARD_TEST_HOST=claude-code node --test --test-concurrency=1 tests/*.test.cjs",
+    "test:hosts": "npm test && npm run test:claude"
   },
   "dependencies": {
     "@agentguard-run/spend": "^0.20.0",
@@ -33,7 +35,9 @@
     "scripts",
     "compat",
     ".agents/plugins/marketplace.json",
-    "docs"
+    "docs",
+    ".claude-plugin",
+    ".mcp.json"
   ],
   "repository": {
     "type": "git",

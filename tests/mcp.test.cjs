@@ -67,6 +67,27 @@ test('MCP daily status counts unit spend once and includes blocks and fail-open 
   assert.deepEqual({ decisions: result.decisions, spendCents: result.spendCents, blocks: result.blocks, failOpenEvents: result.failOpenEvents, outcomes: result.outcomes }, { decisions: 3, spendCents: 5, blocks: 1, failOpenEvents: 1, outcomes: 1 });
 });
 
+test('MCP preserves legacy signatures and reports recorded hosts in a mixed ledger', async t => {
+  const sessionEnvironment = Object.fromEntries(['CODEX_THREAD_ID', 'CLAUDE_SESSION_ID'].map(key => [key, process.env[key]]));
+  for (const key of Object.keys(sessionEnvironment)) delete process.env[key];
+  t.after(() => { for (const [key, value] of Object.entries(sessionEnvironment)) value === undefined ? delete process.env[key] : process.env[key] = value; });
+  const plugin = (host, sessionId) => ({schema: 'agentguard.codex.v1', event: 'decision', host, sessionId, toolName: 'Read', gate: 'spend'});
+  const {reader, store} = await fixture(t, [
+    {},
+    {plugin: plugin('codex', 'synthetic-codex-session')},
+    {plugin: plugin('claude-code', 'synthetic-claude-session')},
+  ]);
+  const before = fs.readFileSync(store.filePath);
+  const status = await reader.call('get_status');
+  assert.equal(status.host, 'mixed');
+  assert.deepEqual({...status.hosts}, {unknown: 1, codex: 1, 'claude-code': 1});
+  assert.equal((await reader.call('get_status', {sessionId: 'synthetic-claude-session'})).host, 'claude-code');
+  assert.deepEqual((await reader.call('list_decisions')).entries.map(entry => entry.host), ['unknown', 'codex', 'claude-code']);
+  assert.equal((await reader.call('verify_chain')).ok, true);
+  assert.equal((await reader.call('export_receipts')).entries.length, 3);
+  assert.deepEqual(fs.readFileSync(store.filePath), before);
+});
+
 test('MCP list is bounded and paginated and rejects filesystem arguments', async t => {
   const { reader } = await fixture(t, [{}, {}, {}]);
   const first = await reader.call('list_decisions', { limit: 2 });

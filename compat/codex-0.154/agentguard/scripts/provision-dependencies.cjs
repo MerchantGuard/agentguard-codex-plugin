@@ -35,7 +35,7 @@ function provision() {
   let data;
   try { data = durableDataDirectory(root); } catch {
     // npm ci in a source checkout should not create implicit home state.
-    if (process.env.PLUGIN_DATA) throw new Error('AgentGuard plugin data directory is invalid.');
+    if (require('../runtime/common.cjs').hostContext().data) throw new Error('AgentGuard plugin data directory is invalid.');
     process.stdout.write('AgentGuard dependencies remain local; set PLUGIN_DATA to provision a source checkout.\n');
     return;
   }

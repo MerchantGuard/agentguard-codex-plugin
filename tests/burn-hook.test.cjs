@@ -1,4 +1,5 @@
 'use strict';
+const matrix = require('./helper-host-matrix.cjs');
 const {LICENSE_KEY, seedPaidLicense} = require('./helper-paid-license.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -11,7 +12,7 @@ const sdk = require('@agentguard-run/spend');
 const burn = require('@agentguard-run/burn');
 const { Engine } = require('../runtime/engine.cjs');
 const { metadata } = require('../runtime/common.cjs');
-const recorded = require('./fixtures/codex-0.151.0-pretooluse.json').payloads;
+const recorded = matrix.payloads(require('./fixtures/codex-0.151.0-pretooluse.json').payloads);
 
 function setup(t, thresholds = {}) {
   const data = fs.mkdtempSync(path.join(os.tmpdir(), 'agentguard-burn-hook-'));
@@ -19,6 +20,7 @@ function setup(t, thresholds = {}) {
   fs.mkdirSync(home);
   seedPaidLicense(home);
   const env = { ...process.env, PLUGIN_DATA: data, AGENTGUARD_HOME: home, AGENTGUARD_LICENSE_KEY: '', AGENTGUARD_NO_BEACON: '1', AGENTGUARD_TELEMETRY: '0' };
+  matrix.environment(env, data);
   delete env.AGENTGUARD_PLUGIN_POLICY;
   fs.writeFileSync(path.join(data, 'policy.json'), JSON.stringify({ licenseKey: LICENSE_KEY, version: 1, tenantId: 'synthetic-local', mode: 'enforce', maxCapability: 'payment_execute', deniedTools: ['^spawn_agent$'], caps: [] }));
   const policy = structuredClone(burn.DEFAULT_POLICY);
@@ -42,14 +44,14 @@ function setup(t, thresholds = {}) {
   return { data, home, ipc, env, invoke, timeouts: 0, rows: () => read(path.join(data, 'ledger', 'decisions.ndjson')), receipts: () => read(path.join(home, 'receipts.ndjson')), read };
 }
 function payloads(f, tokens, attempt = 0) {
-  const spawn = structuredClone(recorded.find(raw => raw.tool_name === 'spawn_agent'));
+  const spawn = structuredClone(recorded.find(raw => raw.tool_name === matrix.spawnTool));
   const bash = structuredClone(recorded.find(raw => raw.tool_name === 'Bash'));
   const transcript = path.join(f.data, 'synthetic-transcript.jsonl');
-  fs.writeFileSync(transcript, JSON.stringify({ timestamp: new Date().toISOString(), usage: { input_tokens: tokens, output_tokens: 0 }, text: 'SYNTHETIC_TRANSCRIPT_CONTENT_MUST_NOT_APPEAR' }) + '\n');
+  fs.writeFileSync(transcript, JSON.stringify(matrix.transcript(tokens)) + '\n');
   for (const raw of [spawn, bash]) { raw.session_id = `synthetic-burn-session-${attempt}`; raw.tool_use_id += `_${attempt}`; raw.transcript_path = transcript; raw.cwd = f.data; }
   return { spawn, bash };
 }
-const permission = result => result.output.hookSpecificOutput.permissionDecision;
+const permission = result => matrix.permission(result.output);
 const verify = async f => assert.equal((await sdk.verifyChain(f.rows(), Buffer.from(fs.readFileSync(path.join(f.data, 'public-key.hex'), 'utf8').trim(), 'hex'))).ok, true);
 
 async function recoverTimeout(f, result, raw, gate) {
@@ -115,6 +117,7 @@ test('Burn hook subprocess observes the recorded Bash shape and admits then deni
   const gateway = new burn.Gateway(f.home, { sign: false });
   assert.equal(gateway.sessions().find(session => session.sessionId === admitted.session_id).state.totalTokens, 15);
   const rows = f.rows();
+  assert.equal(rows.every(row => row.decision.plugin.host === matrix.host), true);
   assert.equal(rows.length, 3);
   assert.equal(rows.some(row => row.decision.plugin.event === 'fail_open'), false);
   await verify(f);
@@ -192,7 +195,7 @@ test('An intentionally busy worker times out safely and its queued event becomes
 
 test('Observation-only Burn failure cannot replace an ordinary tool admission or its outcome link', async t => {
   const f = setup(t);
-  const envKeys = ['PLUGIN_DATA', 'AGENTGUARD_HOME', 'AGENTGUARD_LICENSE_KEY', 'AGENTGUARD_PLUGIN_POLICY'];
+  const envKeys = [...matrix.envKeys, 'AGENTGUARD_HOME', 'AGENTGUARD_LICENSE_KEY', 'AGENTGUARD_PLUGIN_POLICY'];
   const previous = Object.fromEntries(envKeys.map(key => [key, process.env[key]]));
   for (const key of envKeys) { if (f.env[key] === undefined) delete process.env[key]; else process.env[key] = f.env[key]; }
   t.after(() => { for (const [key, value] of Object.entries(previous)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } });
@@ -207,6 +210,7 @@ test('Observation-only Burn failure cannot replace an ordinary tool admission or
   const restarted = new Engine(); await restarted.init();
   await restarted.handle({ meta: metadata({ ...raw, tool_response: { ok: true }, duration_ms: 3 }, 'receipt') });
   const rows = f.rows();
+  assert.equal(rows.every(row => row.decision.plugin.host === matrix.host), true);
   assert.equal(rows.length, 3);
   assert.equal(rows[1].decision.plugin.event, 'fail_open');
   assert.equal(rows[2].decision.entryType, 'outcome');
@@ -246,7 +250,7 @@ test('Simultaneous PreToolUse hooks share one cold worker and one signed chain',
     for (const result of results) {
       assert.equal(result.code, 0, result.stderr);
       assert.equal(result.stderr, '', `Cold pair ${iteration}: ${result.stderr}`);
-      assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, 'allow');
+      assert.equal(matrix.permission(JSON.parse(result.stdout)), 'allow');
     }
     const rows = f.rows();
     assert.equal(rows.length, 2);

@@ -4,7 +4,7 @@ const crypto = require('node:crypto');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const {warmBudget, COLD_MS} = require('./budget.cjs');
-const { locations, allow, metadata, spoolFailure, writeWorkerPid } = require('./common.cjs');
+const { locations, allow, metadata, spoolFailure, writeWorkerPid, hostContext, normalizeHookOutput } = require('./common.cjs');
 
 function ensurePrivateIpc(loc) {
   fs.mkdirSync(loc.data, { recursive: true, mode: 0o700 });
@@ -92,25 +92,14 @@ async function request(message, options = {}) {
     receive();
   });
 }
-function hookOutput(output, options = {}) {
-  const specific = output?.hookSpecificOutput;
-  if (!options.legacyAllow || specific?.hookEventName !== 'PreToolUse' ||
-      specific.permissionDecision !== 'allow' || specific.updatedInput != null) return output;
-  // Codex 0.154 accepts an empty successful response for an unmodified input;
-  // its explicit allow envelope is supported only when updatedInput is set.
-  // Preserve advisory context, including Burn shadow-mode warnings.
-  const normalized = {...output, hookSpecificOutput: {...specific}};
-  delete normalized.hookSpecificOutput.permissionDecision;
-  delete normalized.hookSpecificOutput.permissionDecisionReason;
-  if (Object.keys(normalized.hookSpecificOutput).every(key => key === 'hookEventName')) delete normalized.hookSpecificOutput;
-  return normalized;
-}
+function hookOutput(output, options = {}) { return normalizeHookOutput(output, options); }
+
 async function run(gate, options = {}) {
-  let meta = { schema: 'agentguard.codex.v1', requestId: crypto.randomUUID(), gate, toolName: 'unknown', sessionId: 'unknown', toolUseId: require('node:crypto').randomUUID(), startedAt: new Date().toISOString() };
+  let meta = { schema: 'agentguard.codex.v1', host: hostContext().host, requestId: crypto.randomUUID(), gate, toolName: 'unknown', sessionId: 'unknown', toolUseId: require('node:crypto').randomUUID(), startedAt: new Date().toISOString() };
   try {
     const raw = JSON.parse(fs.readFileSync(0, 'utf8'));
     meta = metadata(raw, gate);
-    const result = await request({ meta, ...(gate === 'burn' && typeof raw.transcript_path === 'string' ? { transcriptPath: raw.transcript_path } : {}) });
+    const result = await request({ meta, ...(gate === 'burn' && typeof raw.cwd === 'string' ? {workingDirectory: raw.cwd} : {}), ...(gate === 'burn' && typeof raw.transcript_path === 'string' ? { transcriptPath: raw.transcript_path } : {}) });
     if (result.warning) process.stderr.write('agentguard: internal error; allowed tool call; fail-open event recorded.'
       + (result.healthWarning ? ' ' + result.healthWarning.replace(/^agentguard: /, '') : '') + '\n');
     else if (result.healthWarning) process.stderr.write(result.healthWarning + '\n');

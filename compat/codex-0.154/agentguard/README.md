@@ -1,4 +1,6 @@
-# AgentGuard for Codex and ChatGPT Work
+# AgentGuard for Codex, ChatGPT Work and Claude Code
+
+Codex and ChatGPT Work:
 
 ```sh
 codex plugin marketplace add MerchantGuard/agentguard-codex-plugin
@@ -7,14 +9,23 @@ codex plugin add agentguard@agentguard
 npm ci
 ```
 
-AgentGuard records signed tool decisions in Codex and ChatGPT Work, with free shadow mode and licensed policy enforcement.
+Claude Code:
+
+```sh
+claude plugin marketplace add MerchantGuard/agentguard-codex-plugin
+claude plugin install agentguard@agentguard
+# In the installed plugin root reported by Claude Code:
+npm ci
+```
+
+AgentGuard records signed tool decisions in Codex, ChatGPT Work and Claude Code, with free shadow mode and licensed policy enforcement.
 
 [Watch the Burn 0.2.5 usage clip](assets/burn-usage-preview.mp4).
 
 ## Details
 
-AgentGuard applies tool policies to **every local tool call that Codex or
-ChatGPT Work sends through its hook path**, including plugin MCP tools. It
+AgentGuard applies tool policies to **every local tool call that Codex,
+ChatGPT Work or Claude Code sends through its hook path**, including plugin MCP tools. It
 records signed decisions and outcomes locally without retaining tool input
 contents or output text. Burn controls subagent spawning and sustained burn;
 Spend controls the other calls using tool patterns, capability tiers, and
@@ -24,13 +35,29 @@ not observed model usage.
 
 ### Coverage and limits
 
-The two `PreToolUse` hooks and the `PostToolUse` hook use matcher `.*`.
-Supported paths include Bash, `apply_patch`/Edit/Write, MCP tools,
+The two `PreToolUse` gates and receipt hooks use matcher `.*`.
+In Codex, supported paths include Bash, `apply_patch`/Edit/Write, MCP tools,
 `update_plan`, and `spawn_agent`. Hosted tools such as WebSearch and web
 ChatGPT are outside this hook path. `write_stdin` does not receive another
 pre-tool decision for an already-approved shell session, and specialized tool
 paths can opt out. The plugin therefore cannot provide universal interception.
 See OpenAI's [tool coverage](https://learn.chatgpt.com/docs/hooks#tool-coverage).
+
+In Claude Code, coverage includes Bash, Read, Edit, Write, MCP tools, Agent
+and the older Task spawn name. WebFetch and WebSearch pass through the Spend
+gate at the read_only tier. Failed calls use PostToolUseFailure so their
+outcomes are recorded too. Claude Code does not run PreToolUse for
+EndConversation, and disabled hooks, work outside tool dispatch, and a host
+crash remain outside the ledger. Built-in slash commands and model responses
+are not tool calls. An allowed Claude gate returns no permission override,
+so normal Claude Code permission checks still apply.
+See [Claude Code hook events](https://code.claude.com/docs/en/hooks#pretooluse).
+
+When a matching standalone Burn Claude hook is installed, the plugin defers
+Burn accounting to that hook and records the deferral. It does not reserve
+or charge the spawn twice. Separate installed hooks retain their own policy
+and enforcement mode; the plugin does not disable them.
+
 
 Hooks are **fail-open**. On an internal error, a gate allows the call, exits
 successfully, emits a one-line warning, and records a fail-open event when
@@ -82,7 +109,7 @@ shadow. Unknown seat usage remains unknown during an outage.
 
 The key comes from `AGENTGUARD_LICENSE_KEY`, otherwise the policy's
 `licenseKey` field. Ask the `agentguard-policy` skill to
-`activate license <KEY>` to save it in `${PLUGIN_DATA}/policy.json` and resolve
+`activate license <KEY>` to save it in `policy.json` in the host plugin data directory and resolve
 again. The activation helper receives the key on standard input, never in
 command arguments or ledger entries. The environment variable takes
 precedence over the saved key.
@@ -104,7 +131,7 @@ process, it uses a fifteen minute lease renewed by tool activity rather than
 renewing an orphaned session indefinitely.
 
 Use `agentguard-status` or the read-only MCP `get_status` tool to see the
-tier, `seatsUsed`, `seatLimit`, `seatStorage`, `seatsVerified`, expiry, effective
+recorded host, tier, `seatsUsed`, `seatLimit`, `seatStorage`, `seatsVerified`, expiry, effective
 mode, and reason. `seatStorage` is `kv`, `memory`, or unknown. A verified count
 comes from a valid shared KV response. Memory fallback is explicitly
 unverified and does not establish cross-machine occupancy. After a failed
@@ -113,12 +140,13 @@ total; `seatsVerified` becomes false. `seatRefreshedAt` identifies the last
 well-formed response, while `seatHeartbeatAt` and `seatHeartbeatError` describe
 the latest heartbeat attempt. Signature verification stays free. Paid users
 can ask `agentguard-verify` for an export, call `export_receipts`, or run
-`node "${PLUGIN_ROOT}/runtime/verify.cjs" export RECEIPTS_FILE` to write the
-signed bundle locally. Set the destination to a path the operator authorized.
+the host-specific local helper command in
+[agentguard-verify](skills/agentguard-verify/SKILL.md) to write the signed bundle
+locally. Set the destination to a path the operator authorized.
 
 ### Install
 
-Use Node.js 22 and Codex CLI on macOS or Linux. Hooks communicate with the
+Use Node.js 22 with Codex CLI or Claude Code on macOS or Linux. Hooks communicate with the
 worker through a private filesystem mailbox. Windows support is not verified.
 
 Use the commands at the top to install from the
@@ -129,6 +157,10 @@ After adding the plugin, change into its installed root before running
 The plugin depends on published `@agentguard-run/spend ^0.20.0` and
 `@agentguard-run/burn ^0.2.3`. It uses no sibling links. Codex's Git
 marketplace installation does not install Node dependencies automatically.
+Claude Code installs locked npm dependencies for cached marketplace plugins
+with lifecycle scripts disabled. The explicit `npm ci` step provisions this
+package and its persistent dependency copy. Local-directory Claude
+marketplaces do not automatically install those dependencies.
 Dependency setup may access npm; the hooks make no network requests.
 
 Keep npm lifecycle scripts enabled for this step. In a Codex cache installation,
@@ -140,7 +172,7 @@ Source checkouts keep their usual local dependencies. For a managed or custom
 installation, set `PLUGIN_DATA` to the runtime's private data directory when
 provisioning. No dependency downloads happen during a tool call.
 
-#### Trust the hooks
+#### Codex hook trust
 
 Start a new session, open **`/hooks`**, inspect the session startup and end
 commands, both pre-tool gates and the post-tool receipt command, and trust
@@ -151,6 +183,32 @@ User hooks can take precedence over conflicting plugin decisions, and other
 matching hooks run alongside these hooks.
 
 See [hook review and trust](https://learn.chatgpt.com/docs/hooks#review-and-trust-hooks).
+
+#### Claude Code installation and trust
+
+The Claude marketplace selects the repository root through
+`.claude-plugin/marketplace.json`. It loads `.claude-plugin/plugin.json`,
+the shared skills and runtime, native `hooks/hooks.json`, and `.mcp.json`.
+The generated Codex hook configuration uses the same scripts and omits the
+Claude-only failure event.
+
+Review the marketplace and plugin source before installing. Accept the normal
+workspace trust prompt only for a directory you trust. Claude Code's `/hooks`
+menu is a read-only view of loaded hooks; it does not use Codex's per-hook
+hash trust action. Restart the session or use `/reload-plugins` after changing
+plugin definitions. Normal tool permission prompts remain in effect.
+The shared skills include separate commands for each host. Claude substitutes
+its exact path and session placeholders when loading a skill; Bash does not
+inherit those plugin variables. Keep the skill's explicit environment
+assignments when running activation or local verification helpers. Use the
+read-only MCP tools when available.
+See [Claude plugin installation](https://code.claude.com/docs/en/discover-plugins)
+and [the hooks menu](https://code.claude.com/docs/en/hooks#the-hooks-menu).
+
+Each host uses its own persistent data location. Set the documented plugin
+data environment variable explicitly when provisioning a custom installation.
+See the [Claude Code adapter and fixture notes](docs/CLAUDE_CODE.md) for field
+mapping, coverage and the two-host test commands.
 
 #### Codex 0.154 compatibility
 
@@ -205,11 +263,14 @@ interface is also a separate administrator action.
 
 ### Configure policy
 
-The runtime reads `${PLUGIN_DATA}/policy.json`; the host supplies
-`PLUGIN_DATA` to plugin hooks (the legacy MCP launcher derives the same path).
-A paid operator can set `teamPolicyFile` in that file, or launch Codex with
+The runtime reads `policy.json` in the host's plugin data directory. Codex
+supplies `PLUGIN_DATA`; Claude Code supplies `CLAUDE_PLUGIN_DATA`. The legacy
+Codex MCP launcher derives that same Codex path. When both are explicitly set,
+`PLUGIN_DATA` keeps its existing precedence. Each host keeps its own data
+unless the operator deliberately points them at a shared directory.
+A paid operator can set `teamPolicyFile` in that file, or launch the host with
 `AGENTGUARD_PLUGIN_POLICY`, to load a shared team policy. Relative team file
-paths resolve from `PLUGIN_DATA`. The local license key remains local;
+paths resolve from the host plugin data directory. The local license key remains local;
 free sessions use the local policy without the shared rules. A missing policy
 uses the packaged default: local decisions with no configured monetary charge
 or cap. The license gate controls whether enforcement is available; hook
@@ -275,7 +336,8 @@ they serve as firm controls.
 ### Records and optional MCP server
 
 The signed decision chain is stored at
-`${PLUGIN_DATA}/ledger/decisions.ndjson`. Records include the tool name,
+`${PLUGIN_DATA}/ledger/decisions.ndjson` in Codex and
+`${CLAUDE_PLUGIN_DATA}/ledger/decisions.ndjson` in Claude Code. Records include the tool name,
 input SHA-256, encoded input/output byte counts, actor identifiers, decision,
 and outcome. They never include `tool_input` or tool output text. Outcomes
 link to the pre-tool decision ID. Duration uses host timing when supplied;
@@ -306,8 +368,8 @@ The optional local MCP server exposes only:
 - `export_receipts`: with a valid paid license, return a bounded JSON bundle for the caller to save.
 
 The server does not change policies, write exports, or operate tools on your
-behalf. To disable it while retaining the hooks, use the plugin-scoped setting
-for the installed plugin (for this marketplace, `agentguard@agentguard`):
+behalf. In Codex, disable it while retaining the hooks through the plugin-scoped
+setting for the installed plugin (for this marketplace, `agentguard@agentguard`):
 
 ```toml
 [plugins."agentguard@agentguard".mcp_servers.agentguard]

@@ -1,4 +1,5 @@
 'use strict';
+const matrix = require('./helper-host-matrix.cjs');
 const {LICENSE_KEY, seedPaidLicense} = require('./helper-paid-license.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -10,15 +11,16 @@ const sdk = require('@agentguard-run/spend');
 const { Engine, validatePolicy } = require('../runtime/engine.cjs');
 const { metadata, locations } = require('../runtime/common.cjs');
 const { request } = require('../runtime/client.cjs');
-const fixtures = require('./fixtures/codex-plugin-pretooluse.json').payloads;
+const fixtures = matrix.payloads(require('./fixtures/codex-plugin-pretooluse.json').payloads);
 const base = { licenseKey: LICENSE_KEY, version: 1, tenantId: 'synthetic-tenant', mode: 'enforce', maxCapability: 'payment_execute', caps: [], toolRules: [], sessions: {} };
 let sequence = 0;
 const payload = (name = 'Bash', extra = {}) => ({ ...fixtures.find(p => p.tool_name === 'Bash'), tool_name: name, tool_use_id: `call_SYNTHETIC_TEST_${sequence++}`, ...extra });
-const allowed = output => output.hookSpecificOutput.permissionDecision === 'allow';
+const allowed = output => matrix.permission(output) === 'allow';
 async function setup(t, policy = {}) {
   const data = fs.mkdtempSync(path.join(os.tmpdir(), 'agentguard-hook-test-'));
-  const old = { PLUGIN_DATA: process.env.PLUGIN_DATA, AGENTGUARD_HOME: process.env.AGENTGUARD_HOME, AGENTGUARD_PLUGIN_POLICY: process.env.AGENTGUARD_PLUGIN_POLICY, AGENTGUARD_LICENSE_KEY: process.env.AGENTGUARD_LICENSE_KEY };
-  process.env.PLUGIN_DATA = data;
+  const hostOld = Object.fromEntries(matrix.envKeys.map(key => [key, process.env[key]]));
+  const old = { ...hostOld, PLUGIN_DATA: process.env.PLUGIN_DATA, AGENTGUARD_HOME: process.env.AGENTGUARD_HOME, AGENTGUARD_PLUGIN_POLICY: process.env.AGENTGUARD_PLUGIN_POLICY, AGENTGUARD_LICENSE_KEY: process.env.AGENTGUARD_LICENSE_KEY };
+  matrix.environment(process.env, data);
   process.env.AGENTGUARD_HOME = path.join(data, 'burn');
   process.env.AGENTGUARD_LICENSE_KEY = '';
   seedPaidLicense(process.env.AGENTGUARD_HOME);
@@ -37,8 +39,8 @@ async function setup(t, policy = {}) {
 }
 
 test('recorded Codex fixture and synthetic MCP payloads retain the documented input shape', () => {
-  const recorded = require('./fixtures/codex-0.151.0-pretooluse.json');
-  assert.equal(recorded.payloads.length, 3);
+  const recorded = {payloads: matrix.payloads(require('./fixtures/codex-0.151.0-pretooluse.json').payloads)};
+  assert.ok(recorded.payloads.length >= 3);
   for (const raw of [...recorded.payloads, ...fixtures]) {
     assert.equal(raw.hook_event_name, 'PreToolUse');
     assert.equal(typeof raw.tool_input, 'object');
@@ -176,7 +178,7 @@ test('hook subprocesses return valid JSON, signed decisions, and a matching post
   const allow = invoke('spend-gate.cjs', raw); assert.equal(allow.status, 0, allow.stderr); assert.equal(allowed(JSON.parse(allow.stdout)), true); assert.equal(allow.stderr, '');
   const post = invoke('receipt.cjs', { ...raw, tool_response: { text: 'SYNTHETIC_TOOL_OUTPUT_MUST_NOT_APPEAR' }, duration_ms: 4 });
   assert.equal(post.status, 0, post.stderr); assert.equal(post.stderr, ''); assert.deepEqual(JSON.parse(post.stdout), {});
-  assert.equal(f.rows().length, 3); assert.equal((await sdk.verifyChain(f.rows(), f.engine.publicKey)).ok, true);
+  assert.equal(f.rows().length, 3); assert.equal(f.rows().every(row => row.decision.plugin.host === matrix.host), true); assert.equal((await sdk.verifyChain(f.rows(), f.engine.publicKey)).ok, true);
 });
 
 test('warm IPC decisions meet the 250ms budget without fail-open and report subprocess startup separately', async t => {

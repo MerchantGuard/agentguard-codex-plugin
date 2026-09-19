@@ -7,7 +7,7 @@ const path = require('node:path');
 const readline = require('node:readline');
 const { createHash } = require('node:crypto');
 const sdk = require('./dependencies.cjs').loadDependency('@agentguard-run/spend');
-const { locations } = require('./common.cjs');
+const { locations, hostContext } = require('./common.cjs');
 const {readPolicy} = require('./policy-file.cjs');
 const {readHealth} = require('./health.cjs');
 const {readSessionLicense, readLatestLicenseStatus} = require('./license.cjs');
@@ -22,7 +22,7 @@ const schemas = {
   export_receipts: { type: 'object', properties: { sessionId: {type: 'string', description: 'Current host session identifier.'}, fromSequence: { type: 'integer', minimum: 0 }, limit: { type: 'integer', minimum: 1, maximum: PAGE_LIMIT } }, additionalProperties: false },
 };
 const descriptions = {
-  get_status: 'Read license tier, seat count and limit, seat storage and verification status, expiry, effective mode, shadow reason, daily signed decision totals, and fail-open counts and rates for the last hour and since worker start. License and health reads are offline.',
+  get_status: 'Read recorded host, license tier, seat count and limit, seat storage and verification status, expiry, effective mode, shadow reason, daily signed decision totals, and fail-open counts and rates for the last hour and since worker start. License and health reads are offline.',
   list_decisions: 'Read a bounded page of content-free tool decision summaries from the local ledger.',
   verify_chain: 'Verify every local ledger signature and hash link against the local public verification key; never accesses private keys.',
   export_receipts: 'With a valid paid license, return a page of signed content-free receipts and the public verification key for a records custodian. No files are written. Concatenate pages to verify the complete chain.',
@@ -31,7 +31,7 @@ const TOOLS = Object.keys(schemas).map(name => ({ name, description: description
 
 const ENTRY_KEYS = new Set(['sequence', 'decision', 'previousHash', 'entryHash', 'signature', 'signerFingerprint', 'builderCode', 'publicKeyHex']);
 const DECISION_KEYS = new Set(['decisionId', 'timestamp', 'action', 'triggeredCap', 'triggeredScopeKey', 'projectedCents', 'windowSpendBefore', 'windowSpendAfter', 'provider', 'modelRequested', 'modelResolved', 'policyId', 'policyVersion', 'enforcementMode', 'reasons', 'entryType', 'originalDecisionId', 'actor', 'costBasis', 'provenance', 'outcomeReceipt', 'governanceReceipt', 'estimatedInputTokens', 'estimatedOutputTokens', 'actualInputTokens', 'actualOutputTokens', 'actualCents', 'deltaCents', 'partial', 'plugin']);
-const PLUGIN_KEYS = new Set(['schema', 'event', 'toolName', 'inputSha256', 'inputBytes', 'inputKeys', 'toolUseId', 'sessionId', 'agentId', 'capabilityTier', 'unitCostCents', 'chargedCents', 'chargedWindows', 'startedAt', 'durationMs', 'durationSource', 'outputBytes', 'success', 'decisionId', 'gate', 'reasonCode', 'burnReceiptId', 'license', 'policyReasonCode', 'requestId', 'integrity']);
+const PLUGIN_KEYS = new Set(['schema', 'event', 'toolName', 'inputSha256', 'inputBytes', 'inputKeys', 'toolUseId', 'sessionId', 'agentId', 'capabilityTier', 'unitCostCents', 'chargedCents', 'chargedWindows', 'startedAt', 'durationMs', 'durationSource', 'outputBytes', 'success', 'decisionId', 'gate', 'reasonCode', 'burnReceiptId', 'license', 'policyReasonCode', 'requestId', 'integrity', 'host']);
 const FORBIDDEN_KEY = /^(?:tool_input|tool_response|tool_output|input|output|prompt|completion|content|messages|text|body|raw|privateKey|private_key|signingKey|signing_key|secret|secretKey|secret_key|accessToken|access_token|authorization|apiKey|api_key|licenseKey|license_key)$/i;
 
 function metadataOnly(value, depth = 0) {
@@ -53,6 +53,7 @@ function validateEntry(entry) {
   metadataOnly(decision);
   for (const metadata of [decision.plugin, decision.outcomeReceipt?.plugin]) {
     if (metadata !== undefined && (!metadata || typeof metadata !== 'object' || Array.isArray(metadata) || Object.keys(metadata).some(key => !PLUGIN_KEYS.has(key)))) throw new Error('Plugin metadata schema is invalid.');
+    if (metadata?.host !== undefined && (typeof metadata.host !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(metadata.host))) throw new Error('Plugin host metadata is invalid.');
     if (metadata?.integrity !== undefined && (!metadata.integrity || typeof metadata.integrity !== 'object' || Array.isArray(metadata.integrity) || Object.keys(metadata.integrity).some(key => !['reason', 'confirmedSequence', 'confirmedHash', 'recoveredHeadHash', 'recoveredRows', 'truncatedBytes', 'checkpointMissing'].includes(key)))) throw new Error('Integrity metadata schema is invalid.');
     if (metadata?.chargedWindows !== undefined && (!Array.isArray(metadata.chargedWindows) || metadata.chargedWindows.some(window => !window || typeof window !== 'object' || Array.isArray(window) || Object.keys(window).some(key => !['scopeKey', 'window', 'windowStart'].includes(key))))) throw new Error('Plugin budget metadata schema is invalid.');
   }
@@ -72,7 +73,7 @@ function assertArgs(name, args) {
 function summary(entry) {
   const d = entry.decision;
   const metadata = d.plugin || d.outcomeReceipt?.plugin || {};
-  return { sequence: entry.sequence, entryHash: entry.entryHash, decisionId: d.decisionId, timestamp: d.timestamp, action: d.action, entryType: d.entryType || 'decision', provider: d.provider, model: d.modelRequested, actor: d.actor, projectedCents: d.projectedCents, reasons: d.reasons, originalDecisionId: d.originalDecisionId, toolName: metadata.toolName, event: metadata.event, gate: metadata.gate };
+  return { sequence: entry.sequence, entryHash: entry.entryHash, decisionId: d.decisionId, timestamp: d.timestamp, action: d.action, entryType: d.entryType || 'decision', provider: d.provider, model: d.modelRequested, actor: d.actor, projectedCents: d.projectedCents, reasons: d.reasons, originalDecisionId: d.originalDecisionId, toolName: metadata.toolName, event: metadata.event, gate: metadata.gate, host: metadata.host || 'unknown' };
 }
 
 function failOpen(decision) {
@@ -162,9 +163,9 @@ function createReader(options = {}) {
     let config;
     try { config = readPolicy(dataDir); }
     catch { return {tier: 'free', mode: 'shadow', reason: 'license_required', paid: false, seatsUsed: null, seatLimit: null, seatStorage: null, seatsVerified: false, expiresAt: null, source: 'policy_unavailable'}; }
-    const sessionId = args.sessionId || process.env.CODEX_THREAD_ID || entries.at(-1)?.decision.plugin?.sessionId || 'local';
+    const sessionId = args.sessionId || hostContext().sessionId || entries.at(-1)?.decision.plugin?.sessionId || 'local';
     const parameters = {data: dataDir, sessionId, policy: config.policy};
-    const status = !args.sessionId && !process.env.CODEX_THREAD_ID && !entries.length && args.displayOnly
+    const status = !args.sessionId && !hostContext().sessionId && !entries.length && args.displayOnly
       ? readLatestLicenseStatus(parameters) : readSessionLicense(parameters);
     const effectivePolicy = status.paid ? config.policy : config.personal;
     return {...status, ...seatEvidence(status), mode: status.paid ? effectivePolicy.mode || 'enforce' : 'shadow'};
@@ -179,7 +180,16 @@ function createReader(options = {}) {
       const today = entries.filter(entry => entry.decision.timestamp.slice(0, 10) === day);
       const decisions = today.filter(entry => !['outcome', 'settlement'].includes(entry.decision.entryType) && entry.decision.plugin?.event !== 'integrity');
       const health = readHealth({data: dataDir, entries});
-      return { license: displayLicense(license({...args, displayOnly: true}, entries)), health, integrityEvents: today.filter(entry => entry.decision.plugin?.event === 'integrity').length, day, timezone: 'UTC', decisions: decisions.length, spendCents: decisions.filter(entry => entry.decision.action !== 'block').reduce((total, entry) => total + (entry.decision.plugin?.chargedCents ?? entry.decision.projectedCents), 0), blocks: decisions.filter(entry => entry.decision.action === 'block').length, failOpenEvents: today.filter(entry => failOpen(entry.decision)).length, outcomes: today.filter(entry => entry.decision.entryType === 'outcome').length, totalEntries: entries.length, ...pendingRecovery() };
+      const hostCounts = Object.create(null);
+      for (const entry of decisions) {
+        const host = entry.decision.plugin?.host || entry.decision.outcomeReceipt?.plugin?.host || 'unknown';
+        hostCounts[host] = (hostCounts[host] || 0) + 1;
+      }
+      const sessionId = args.sessionId || hostContext().sessionId;
+      const selected = sessionId ? entries.filter(entry => (entry.decision.plugin?.sessionId || entry.decision.actor?.sessionId) === sessionId) : entries;
+      const names = [...new Set(selected.map(entry => entry.decision.plugin?.host || entry.decision.outcomeReceipt?.plugin?.host || 'unknown'))];
+      const host = names.length === 1 ? names[0] : names.length ? 'mixed' : 'unknown';
+      return { host, hosts: hostCounts, license: displayLicense(license({...args, displayOnly: true}, entries)), health, integrityEvents: today.filter(entry => entry.decision.plugin?.event === 'integrity').length, day, timezone: 'UTC', decisions: decisions.length, spendCents: decisions.filter(entry => entry.decision.action !== 'block').reduce((total, entry) => total + (entry.decision.plugin?.chargedCents ?? entry.decision.projectedCents), 0), blocks: decisions.filter(entry => entry.decision.action === 'block').length, failOpenEvents: today.filter(entry => failOpen(entry.decision)).length, outcomes: today.filter(entry => entry.decision.entryType === 'outcome').length, totalEntries: entries.length, ...pendingRecovery() };
     }
     const from = args.fromSequence || 0;
     const limit = args.limit || 100;

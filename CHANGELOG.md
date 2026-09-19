@@ -1,3 +1,9 @@
+## 0.3.0
+
+- Add Claude Code packaging and host metadata to the shared runtime, signed decisions and status.
+- Record failed Claude Code tools, preserve native permission prompts on allowed calls, and defer spawn accounting when a standalone Burn hook owns the call.
+- Keep the Codex repository and package names, compatibility installation, license split and existing signed chains.
+
 ## 0.2.2
 
 - Add directory review metadata, reproducible positive and negative cases, and public policy links. MCP status omits private worker fingerprints while preserving license and seat evidence.

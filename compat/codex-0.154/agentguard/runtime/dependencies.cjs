@@ -34,7 +34,8 @@ function dependencyInfo(root = pluginRoot) {
 }
 
 function durableDataDirectory(root = pluginRoot) {
-  if (process.env.PLUGIN_DATA) return path.resolve(process.env.PLUGIN_DATA);
+  const data = require('./common.cjs').hostContext().data;
+  if (data) return path.resolve(data);
   return require('./mcp-legacy.cjs').legacyDataDirectory(root);
 }
 

@@ -1,4 +1,5 @@
 'use strict';
+const matrix = require('./helper-host-matrix.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -39,6 +40,7 @@ function fixture(t) {
     AGENTGUARD_HOME: path.join(data, 'burn'), AGENTGUARD_PLUGIN_POLICY: path.join(data, 'policy.json'),
     AGENTGUARD_LICENSE_KEY: '', AGENTGUARD_NO_BEACON: '1', AGENTGUARD_TELEMETRY: '0',
     NODE_OPTIONS: `--require=${blocker}` };
+  matrix.environment(env, data);
   fs.writeFileSync(env.AGENTGUARD_PLUGIN_POLICY, JSON.stringify({ version: 1, mode: 'enforce', tenantId: 'synthetic-tenant', maxCapability: 'payment_execute', toolRules: [], caps: [] }), { mode: 0o600 });
   t.after(() => {
     spawnSync(process.execPath, ['runtime/control.cjs', 'stop'], { cwd: root, env, timeout: 3000 });
@@ -50,8 +52,9 @@ function fixture(t) {
 
 test('Every tool hook records a verified outcome without opening any network or Unix socket', async t => {
   const f = fixture(t);
-  const raw = { hook_event_name: 'PreToolUse', tool_name: 'Read', tool_use_id: 'synthetic-offline-call',
-    session_id: 'synthetic-offline-session', tool_input: { path: 'PRIVATE_PATH_NOT_FOR_LEDGER' } };
+  const raw = matrix.payload({ hook_event_name: 'PreToolUse', tool_name: 'Read', tool_use_id: 'synthetic-offline-call',
+    session_id: 'synthetic-offline-session', tool_input: { path: 'PRIVATE_PATH_NOT_FOR_LEDGER' } }, 'PreToolUse', 'Read');
+  raw.cwd = f.data; raw.transcript_path = path.join(f.data, 'not-created-yet.jsonl');
   for (const hook of ['session-start', 'burn-gate', 'spend-gate', 'receipt', 'session-end']) {
     const payload = hook === 'receipt' ? { ...raw, hook_event_name: 'PostToolUse', tool_response: { content: 'PRIVATE_OUTPUT_NOT_FOR_LEDGER' }, duration_ms: 3 } : raw;
     const child = spawnSync(process.execPath, [`hooks/${hook}.cjs`], { cwd: root, env: f.env, input: JSON.stringify(payload), encoding: 'utf8', timeout: 5000 });
@@ -64,6 +67,7 @@ test('Every tool hook records a verified outcome without opening any network or 
   assert.equal(fs.existsSync(f.attempts), false, 'No network API or Unix socket may be attempted');
   const text = fs.readFileSync(path.join(f.data, 'ledger', 'decisions.ndjson'), 'utf8');
   const entries = text.trim().split('\n').map(JSON.parse);
+  assert.equal(entries.every(entry => entry.decision.plugin.host === matrix.host), true);
   assert.ok(entries.some(entry => entry.decision.plugin.event === 'decision'));
   const admission = entries.find(entry => entry.decision.plugin.event === 'decision' && entry.decision.plugin.gate === 'spend');
   const outcome = entries.find(entry => entry.decision.plugin.event === 'outcome');

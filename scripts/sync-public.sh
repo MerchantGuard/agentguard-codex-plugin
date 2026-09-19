@@ -26,6 +26,9 @@ mkdir -p -- "$sync_tmp/package"
 # file, or nested dependency directory is never picked up by a recursive glob.
 cat > "$sync_tmp/files.txt" <<'FILES'
 .app.json
+.mcp.json
+.claude-plugin/plugin.json
+.claude-plugin/marketplace.json
 .gitignore
 .agents/plugins/marketplace.json
 plugin.json
@@ -40,6 +43,7 @@ scripts/provision-dependencies.cjs
 scripts/print-trust-state.cjs
 scripts/probe-hooks.cjs
 docs/ENTERPRISE_INSTALL.md
+docs/CLAUDE_CODE.md
 docs/DIRECTORY_SUBMISSION.md
 docs/DIRECTORY_FIXTURES.json
 scripts/sync-public.sh
@@ -62,6 +66,7 @@ runtime/owned-log.cjs
 runtime/budget.cjs
 runtime/health.cjs
 hooks/hooks.json
+hooks/codex-hooks.json
 hooks/session-start.cjs
 hooks/session-end.cjs
 hooks/burn-gate.cjs
@@ -100,9 +105,15 @@ tests/hooks.test.cjs
 tests/mcp.test.cjs
 tests/runtime-recovery.test.cjs
 tests/packaging.test.cjs
+tests/claude-packaging.test.cjs
+tests/claude-host.test.cjs
+tests/claude-helpers.test.cjs
+tests/helper-host-matrix.cjs
 tests/public-sync.test.cjs
 tests/fixtures/codex-0.151.0-pretooluse.json
 tests/fixtures/codex-plugin-pretooluse.json
+tests/fixtures/claude-code-2.1.275-hooks.json
+tests/fixtures/CLAUDE_CAPTURE_PROVENANCE.md
 FILES
 while IFS= read -r relative; do
   case "$relative" in runtime/*|hooks/*|config/*|skills/*|assets/*|docs/*|scripts/provision-dependencies.cjs|scripts/print-trust-state.cjs)
@@ -159,13 +170,13 @@ rsync -a --files-from="$sync_tmp/files.txt" "$source_root/" "$sync_tmp/package/"
 
 # Only these package-owned directories are replaced. The repository .git,
 # root node_modules, and unrelated root files are outside every deletion scope.
-for directory in runtime hooks config skills assets scripts tests compat docs; do
+for directory in runtime hooks config skills assets scripts tests compat docs .claude-plugin; do
   mkdir -p -- "$destination/$directory"
   rsync -a --delete "$sync_tmp/package/$directory/" "$destination/$directory/"
 done
 mkdir -p -- "$destination/.agents/plugins"
 rsync -a --delete "$sync_tmp/package/.agents/plugins/" "$destination/.agents/plugins/"
-for file in .app.json .gitignore plugin.json mcp.json package.json package-lock.json README.md LICENSE CHANGELOG.md; do
+for file in .app.json .mcp.json .gitignore plugin.json mcp.json package.json package-lock.json README.md LICENSE CHANGELOG.md; do
   rsync -a "$sync_tmp/package/$file" "$destination/$file"
 done
 printf '%s\n' 'Public checkout synchronized. Review the working tree before committing or pushing.'

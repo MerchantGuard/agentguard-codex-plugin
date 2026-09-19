@@ -6,12 +6,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/burn-gate.cjs\"",
+            "command": "node \"${PLUGIN_ROOT}/hooks/burn-gate.cjs\"",
             "timeout": 2
           },
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/spend-gate.cjs\"",
+            "command": "node \"${PLUGIN_ROOT}/hooks/spend-gate.cjs\"",
             "timeout": 2
           }
         ]
@@ -23,7 +23,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/receipt.cjs\"",
+            "command": "node \"${PLUGIN_ROOT}/hooks/receipt.cjs\"",
             "timeout": 2
           }
         ]
@@ -34,7 +34,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.cjs\"",
+            "command": "node \"${PLUGIN_ROOT}/hooks/session-start.cjs\"",
             "timeout": 2
           }
         ]
@@ -45,19 +45,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-end.cjs\"",
-            "timeout": 2
-          }
-        ]
-      }
-    ],
-    "PostToolUseFailure": [
-      {
-        "matcher": ".*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/receipt.cjs\"",
+            "command": "node \"${PLUGIN_ROOT}/hooks/session-end.cjs\"",
             "timeout": 2
           }
         ]
