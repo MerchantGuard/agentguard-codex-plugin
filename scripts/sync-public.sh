@@ -40,6 +40,8 @@ scripts/provision-dependencies.cjs
 scripts/print-trust-state.cjs
 scripts/probe-hooks.cjs
 docs/ENTERPRISE_INSTALL.md
+docs/DIRECTORY_SUBMISSION.md
+docs/DIRECTORY_FIXTURES.json
 scripts/sync-public.sh
 runtime/license.cjs
 runtime/seat-heartbeat.cjs
@@ -86,6 +88,8 @@ tests/license.test.cjs
 tests/seat-heartbeat.test.cjs
 tests/live-sessions.test.cjs
 tests/seat-status.test.cjs
+tests/directory-review.test.cjs
+tests/directory-package.test.cjs
 tests/lifecycle.test.cjs
 tests/engine-license.test.cjs
 tests/offline-hooks.test.cjs

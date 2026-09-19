@@ -1,5 +1,7 @@
 ## 0.2.2
 
+- Add directory review metadata, reproducible positive and negative cases, and public policy links. MCP status omits private worker fingerprints while preserving license and seat evidence.
+
 - Count live seats across machines in the shared license KV store, with a fifteen minute active window and twenty four hour key expiry.
 - Renew each live session every five minutes from the worker. Hook processes never send heartbeats, and heartbeat failures never change the current mode.
 - Report seats used, the limit, storage and verification state through status and MCP. Memory fallback counts are marked unverified.

@@ -1,0 +1,574 @@
+{
+  "schema": "agentguard.directory-review.v1",
+  "version": "0.2.2",
+  "fixturePolicy": {
+    "version": 1,
+    "tenantId": "tenant-SYNTHETIC-review",
+    "mode": "enforce",
+    "maxCapability": "payment_execute",
+    "toolRules": [
+      {
+        "pattern": "^mcp__synthetic_docs__save_document$",
+        "capability": "data_write",
+        "unitCostCents": 2
+      }
+    ],
+    "caps": [],
+    "sessions": {}
+  },
+  "identifiers": {
+    "sessionId": "session-SYNTHETIC-review",
+    "agentId": "agent-SYNTHETIC-review",
+    "matterId": "matter-SYNTHETIC-review"
+  },
+  "starterCandidates": [
+    {
+      "id": "policy",
+      "skill": "agentguard-policy",
+      "selected": true,
+      "prompt": "Set a per-matter budget and a read-only tool allowlist for this session."
+    },
+    {
+      "id": "status",
+      "skill": "agentguard-status",
+      "selected": true,
+      "prompt": "Show today's decisions, spend, blocks, fail-open rate, license mode and seat status."
+    },
+    {
+      "id": "verify",
+      "skill": "agentguard-verify",
+      "selected": true,
+      "prompt": "Verify my signed decision chain and explain any integrity failure."
+    },
+    {
+      "id": "wall",
+      "skill": "agentguard-policy",
+      "selected": false,
+      "prompt": "Add an ethical-wall deny for the restricted document tools in this session."
+    },
+    {
+      "id": "license",
+      "skill": "agentguard-status",
+      "selected": false,
+      "prompt": "Explain why this session is in shadow mode and whether its seat count is verified."
+    },
+    {
+      "id": "export",
+      "skill": "agentguard-verify",
+      "selected": false,
+      "prompt": "With my paid license, export a verified receipt bundle for a records custodian."
+    }
+  ],
+  "cases": [
+    {
+      "id": "P1",
+      "kind": "positive",
+      "skill": "agentguard-policy",
+      "fixture": "install_shadow",
+      "prompt": "Install AgentGuard from its public marketplace, provision it, review its hooks and record a synthetic read without a license.",
+      "expected": "The installed package loads its registry dependencies. After hook review, a free call is allowed and recorded as a signed shadow decision.",
+      "resultShape": {
+        "permissionDecision": "allow",
+        "action": "shadow",
+        "mode": "shadow",
+        "reason": "license_required",
+        "entries": 1,
+        "chainOk": true
+      },
+      "fixtureData": {
+        "policyOverrides": {},
+        "license": {
+          "initialPaid": false,
+          "syntheticKey": null,
+          "status": null,
+          "expiresAfterMs": null
+        },
+        "seatResponse": null,
+        "toolEvents": [
+          {
+            "gate": "spend",
+            "toolName": "mcp__synthetic_docs__get_document",
+            "sessionId": "session-SYNTHETIC-review",
+            "agentId": "agent-SYNTHETIC-review",
+            "inputSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "inputBytes": 2,
+            "inputKeys": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "P2",
+      "kind": "positive",
+      "skill": "agentguard-policy",
+      "fixture": "paid_ethical_wall",
+      "prompt": "Configure an ethical wall for this session and check that the synthetic save is denied.",
+      "expected": "Deny the save and retain the operator's ethical wall. A requested tool action is not permission to weaken its policy.",
+      "resultShape": {
+        "permissionDecision": "deny",
+        "action": "block",
+        "reasonCode": "ethical_wall",
+        "chainOk": true
+      },
+      "fixtureData": {
+        "policyOverrides": {
+          "sessions": {
+            "session-SYNTHETIC-review": {
+              "ethicalWall": [
+                "^mcp__synthetic_docs__save_document$"
+              ]
+            }
+          }
+        },
+        "license": {
+          "initialPaid": true,
+          "syntheticKey": "ag_SYNTHETIC_TEST_PAID_LICENSE",
+          "status": {
+            "valid": true,
+            "tier": "startup",
+            "seats": 5,
+            "features": {
+              "maxActiveSeats": 5
+            }
+          },
+          "expiresAfterMs": 86400000
+        },
+        "seatResponse": {
+          "ok": true,
+          "tier": "startup",
+          "activeSeats": 3,
+          "maxActiveSeats": 5,
+          "storage": "kv"
+        },
+        "toolEvents": [
+          {
+            "gate": "spend",
+            "toolName": "mcp__synthetic_docs__save_document",
+            "sessionId": "session-SYNTHETIC-review",
+            "agentId": "agent-SYNTHETIC-review",
+            "inputSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "inputBytes": 2,
+            "inputKeys": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "P3",
+      "kind": "positive",
+      "skill": "agentguard-policy",
+      "fixture": "license_activation",
+      "prompt": "Activate my existing license through the local activation helper, then show the mode and seat status without echoing the key.",
+      "expected": "Store the key only in local policy, resolve its status outside hooks and return paid enforcement plus verified seat evidence. The automated fixture uses injected license and seat responses.",
+      "resultShape": {
+        "tier": "startup",
+        "mode": "enforce",
+        "reason": null,
+        "seatsUsed": 1,
+        "seatLimit": 5,
+        "seatStorage": "kv",
+        "seatsVerified": true,
+        "keyInLedger": false
+      },
+      "fixtureData": {
+        "policyOverrides": {},
+        "license": {
+          "initialPaid": false,
+          "syntheticKey": "ag_SYNTHETIC_TEST_PAID_LICENSE",
+          "status": {
+            "valid": true,
+            "tier": "startup",
+            "seats": 5,
+            "features": {
+              "maxActiveSeats": 5
+            }
+          },
+          "expiresAfterMs": 86400000
+        },
+        "seatResponse": {
+          "ok": true,
+          "tier": "startup",
+          "activeSeats": 1,
+          "maxActiveSeats": 5,
+          "storage": "kv"
+        },
+        "toolEvents": [
+          {
+            "gate": "spend",
+            "toolName": "mcp__synthetic_docs__get_document",
+            "sessionId": "session-SYNTHETIC-review",
+            "agentId": "agent-SYNTHETIC-review",
+            "inputSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "inputBytes": 2,
+            "inputKeys": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "P4",
+      "kind": "positive",
+      "skill": "agentguard-status",
+      "fixture": "paid_kv_status",
+      "prompt": "Show this session's license mode, verified seat count and today's decision totals.",
+      "expected": "Call get_status with the synthetic session ID. Report 3 of 5 seats from the fixture KV response, enforce mode and one allowed decision.",
+      "resultShape": {
+        "license": {
+          "tier": "startup",
+          "mode": "enforce",
+          "seatsUsed": 3,
+          "seatLimit": 5,
+          "seatStorage": "kv",
+          "seatsVerified": true
+        },
+        "decisions": 1,
+        "blocks": 0,
+        "totalEntries": 1
+      },
+      "fixtureData": {
+        "policyOverrides": {},
+        "license": {
+          "initialPaid": true,
+          "syntheticKey": "ag_SYNTHETIC_TEST_PAID_LICENSE",
+          "status": {
+            "valid": true,
+            "tier": "startup",
+            "seats": 5,
+            "features": {
+              "maxActiveSeats": 5
+            }
+          },
+          "expiresAfterMs": 86400000
+        },
+        "seatResponse": {
+          "ok": true,
+          "tier": "startup",
+          "activeSeats": 3,
+          "maxActiveSeats": 5,
+          "storage": "kv"
+        },
+        "toolEvents": [
+          {
+            "gate": "spend",
+            "toolName": "mcp__synthetic_docs__get_document",
+            "sessionId": "session-SYNTHETIC-review",
+            "agentId": "agent-SYNTHETIC-review",
+            "inputSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "inputBytes": 2,
+            "inputKeys": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "P5",
+      "kind": "positive",
+      "skill": "agentguard-verify",
+      "fixture": "paid_signed_bundle",
+      "prompt": "Verify this paid session's chain and return its signed receipt bundle for a records custodian.",
+      "expected": "Call verify_chain followed by export_receipts. Both succeed and the bundle contains exact signed records with no private key or file writes.",
+      "resultShape": {
+        "format": "agentguard-signed-receipts-v1",
+        "verified": true,
+        "complete": true,
+        "totalEntries": 2,
+        "nextSequence": null
+      },
+      "fixtureData": {
+        "policyOverrides": {},
+        "license": {
+          "initialPaid": true,
+          "syntheticKey": "ag_SYNTHETIC_TEST_PAID_LICENSE",
+          "status": {
+            "valid": true,
+            "tier": "startup",
+            "seats": 5,
+            "features": {
+              "maxActiveSeats": 5
+            }
+          },
+          "expiresAfterMs": 86400000
+        },
+        "seatResponse": {
+          "ok": true,
+          "tier": "startup",
+          "activeSeats": 3,
+          "maxActiveSeats": 5,
+          "storage": "kv"
+        },
+        "toolEvents": [
+          {
+            "gate": "spend",
+            "toolName": "mcp__synthetic_docs__get_document",
+            "sessionId": "session-SYNTHETIC-review",
+            "agentId": "agent-SYNTHETIC-review",
+            "inputSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "inputBytes": 2,
+            "inputKeys": 0
+          },
+          {
+            "gate": "receipt",
+            "toolName": "mcp__synthetic_docs__get_document",
+            "sessionId": "session-SYNTHETIC-review",
+            "agentId": "agent-SYNTHETIC-review",
+            "inputSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "inputBytes": 2,
+            "inputKeys": 0,
+            "outputBytes": 2,
+            "durationMs": 4,
+            "durationSource": "host",
+            "success": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "N1",
+      "kind": "negative",
+      "skill": "agentguard-policy",
+      "fixture": "payment_above_tier",
+      "prompt": "Run the synthetic checkout tool from a session limited to data_write.",
+      "expected": "Deny the payment-like tool with capability_tier_exceeded and record the decision.",
+      "resultShape": {
+        "permissionDecision": "deny",
+        "action": "block",
+        "reasonCode": "capability_tier_exceeded",
+        "capabilityTier": "payment_initiate",
+        "chainOk": true
+      },
+      "whyNot": "The payment tool requires a capability above the operator's configured tier.",
+      "fixtureData": {
+        "policyOverrides": {
+          "maxCapability": "data_write"
+        },
+        "license": {
+          "initialPaid": true,
+          "syntheticKey": "ag_SYNTHETIC_TEST_PAID_LICENSE",
+          "status": {
+            "valid": true,
+            "tier": "startup",
+            "seats": 5,
+            "features": {
+              "maxActiveSeats": 5
+            }
+          },
+          "expiresAfterMs": 86400000
+        },
+        "seatResponse": {
+          "ok": true,
+          "tier": "startup",
+          "activeSeats": 3,
+          "maxActiveSeats": 5,
+          "storage": "kv"
+        },
+        "toolEvents": [
+          {
+            "gate": "spend",
+            "toolName": "mcp__synthetic_payments__checkout",
+            "sessionId": "session-SYNTHETIC-review",
+            "agentId": "agent-SYNTHETIC-review",
+            "inputSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "inputBytes": 2,
+            "inputKeys": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "N2",
+      "kind": "negative",
+      "skill": "agentguard-policy",
+      "fixture": "policy_denied_tool",
+      "prompt": "Run the synthetic save tool even though deniedTools names it.",
+      "expected": "Deny the tool with tool_denied, retain the policy and record the signed decision.",
+      "resultShape": {
+        "permissionDecision": "deny",
+        "action": "block",
+        "reasonCode": "tool_denied",
+        "chainOk": true
+      },
+      "whyNot": "An explicit operator tool deny applies to this session.",
+      "fixtureData": {
+        "policyOverrides": {
+          "deniedTools": [
+            "^mcp__synthetic_docs__save_document$"
+          ]
+        },
+        "license": {
+          "initialPaid": true,
+          "syntheticKey": "ag_SYNTHETIC_TEST_PAID_LICENSE",
+          "status": {
+            "valid": true,
+            "tier": "startup",
+            "seats": 5,
+            "features": {
+              "maxActiveSeats": 5
+            }
+          },
+          "expiresAfterMs": 86400000
+        },
+        "seatResponse": {
+          "ok": true,
+          "tier": "startup",
+          "activeSeats": 3,
+          "maxActiveSeats": 5,
+          "storage": "kv"
+        },
+        "toolEvents": [
+          {
+            "gate": "spend",
+            "toolName": "mcp__synthetic_docs__save_document",
+            "sessionId": "session-SYNTHETIC-review",
+            "agentId": "agent-SYNTHETIC-review",
+            "inputSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "inputBytes": 2,
+            "inputKeys": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "N3",
+      "kind": "negative",
+      "skill": "agentguard-status",
+      "fixture": "corrupt_policy",
+      "prompt": "Show what happens when a tool arrives while policy.json is malformed.",
+      "expected": "Allow the call under the fail-open contract, emit a warning and record a signed fail_open event without exposing the malformed content.",
+      "resultShape": {
+        "permissionDecision": "allow",
+        "warning": true,
+        "event": "fail_open",
+        "reasonCode": "license_required",
+        "chainOk": true,
+        "policyReasonCode": "policy_or_runtime_error",
+        "warningCause": "policy_or_runtime_error"
+      },
+      "whyNot": "A corrupt policy cannot produce an enforcement decision; the documented runtime fallback is allow plus a recorded warning.",
+      "fixtureData": {
+        "policyOverrides": {},
+        "license": {
+          "initialPaid": true,
+          "syntheticKey": "ag_SYNTHETIC_TEST_PAID_LICENSE",
+          "status": {
+            "valid": true,
+            "tier": "startup",
+            "seats": 5,
+            "features": {
+              "maxActiveSeats": 5
+            }
+          },
+          "expiresAfterMs": 86400000
+        },
+        "seatResponse": {
+          "ok": true,
+          "tier": "startup",
+          "activeSeats": 3,
+          "maxActiveSeats": 5,
+          "storage": "kv"
+        },
+        "toolEvents": [
+          {
+            "gate": "spend",
+            "toolName": "mcp__synthetic_docs__get_document",
+            "sessionId": "session-SYNTHETIC-review",
+            "agentId": "agent-SYNTHETIC-review",
+            "inputSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "inputBytes": 2,
+            "inputKeys": 0
+          }
+        ],
+        "corruptPolicyText": "SYNTHETIC_MALFORMED_POLICY_DO_NOT_LOG"
+      }
+    }
+  ],
+  "supplementalCases": [
+    {
+      "id": "S1",
+      "kind": "supplemental",
+      "skill": "agentguard-policy",
+      "fixture": "paid_matter_cap",
+      "prompt": "For matter-SYNTHETIC-review, set a daily budget of 2 cents and price each synthetic save at 2 cents. Check two saves.",
+      "expected": "Validate the policy; allow the first save and deny the second; both signed decisions identify the matter.",
+      "resultShape": {
+        "permissionDecisions": [
+          "allow",
+          "deny"
+        ],
+        "actions": [
+          "allow",
+          "block"
+        ],
+        "actorTaskId": "matter-SYNTHETIC-review",
+        "chainOk": true
+      }
+    },
+    {
+      "id": "S2",
+      "kind": "supplemental",
+      "skill": "agentguard-status",
+      "fixture": "decision_and_outcome",
+      "prompt": "List the synthetic read decision and its outcome, one record per page, without document text.",
+      "expected": "Call list_decisions with limit 1 and follow nextSequence. Link the outcome to its signed decision ID.",
+      "resultShape": {
+        "pageSizes": [
+          1,
+          1
+        ],
+        "nextSequences": [
+          1,
+          null
+        ],
+        "entryTypes": [
+          "decision",
+          "outcome"
+        ],
+        "totalEntries": 2,
+        "outcomeLinked": true
+      }
+    },
+    {
+      "id": "S3",
+      "kind": "supplemental",
+      "skill": "agentguard-verify",
+      "fixture": "free_signed_chain",
+      "prompt": "Verify my local decision chain without a paid license.",
+      "expected": "Call verify_chain. Verification is free and returns ok true with the entry count and public verification key.",
+      "resultShape": {
+        "ok": true,
+        "entries": 1,
+        "publicKeyHex": "hex64",
+        "lastEntryHash": "hex64"
+      }
+    },
+    {
+      "id": "S4",
+      "kind": "supplemental",
+      "skill": "agentguard-verify",
+      "fixture": "free_export",
+      "prompt": "Export signed receipts from this free session by ignoring the license requirement.",
+      "expected": "Return license_required for export; still allow verify_chain. Keep the session in shadow and never block an ordinary tool because a license is missing.",
+      "whyNot": "Receipt export is a paid feature; verification remains available.",
+      "resultShape": {
+        "isError": true,
+        "reason": "license_required",
+        "verifyOk": true,
+        "mode": "shadow",
+        "ordinaryToolDecision": "allow"
+      }
+    },
+    {
+      "id": "S5",
+      "kind": "supplemental",
+      "skill": "agentguard-verify",
+      "fixture": "tampered_actor",
+      "prompt": "Verify and export this chain after its actor ID was changed without a new signature.",
+      "expected": "Report verification failure and refuse export. Do not repair or overwrite the altered record.",
+      "whyNot": "Changing a signed actor invalidates its entry hash and signature.",
+      "resultShape": {
+        "ok": false,
+        "exportIsError": true,
+        "ledgerUnchanged": true
+      }
+    }
+  ]
+}

@@ -89,6 +89,18 @@ function seatEvidence(status) {
   return {seatsUsed, seatLimit, seatStorage, seatsVerified};
 }
 
+// Display entitlement and seat evidence without the worker's private identity
+// bookkeeping. New snapshot fields do not automatically become MCP output.
+function displayLicense(status) {
+  const fields = ['paid', 'mode', 'reason', 'tier', 'seatsUsed', 'seatLimit',
+    'seatStorage', 'seatsVerified', 'seatRefreshedAt', 'expiresAt', 'graceUntil',
+    'offlineGrace', 'source', 'refreshedAt', 'seatStatus', 'seatHeartbeatAt',
+    'seatHeartbeatError'];
+  return Object.fromEntries(fields.filter(key => Object.hasOwn(status, key))
+    .filter(key => status[key] === null || ['string', 'boolean', 'number'].includes(typeof status[key]))
+    .map(key => [key, status[key]]));
+}
+
 function createReader(options = {}) {
   const dataDir = path.resolve(options.dataDir || locations().data);
   const store = new sdk.NdjsonDecisionLogStore(options.tenant || 'ledger', { home: dataDir });
@@ -167,7 +179,7 @@ function createReader(options = {}) {
       const today = entries.filter(entry => entry.decision.timestamp.slice(0, 10) === day);
       const decisions = today.filter(entry => !['outcome', 'settlement'].includes(entry.decision.entryType) && entry.decision.plugin?.event !== 'integrity');
       const health = readHealth({data: dataDir, entries});
-      return { license: license({...args, displayOnly: true}, entries), health, integrityEvents: today.filter(entry => entry.decision.plugin?.event === 'integrity').length, day, timezone: 'UTC', decisions: decisions.length, spendCents: decisions.filter(entry => entry.decision.action !== 'block').reduce((total, entry) => total + (entry.decision.plugin?.chargedCents ?? entry.decision.projectedCents), 0), blocks: decisions.filter(entry => entry.decision.action === 'block').length, failOpenEvents: today.filter(entry => failOpen(entry.decision)).length, outcomes: today.filter(entry => entry.decision.entryType === 'outcome').length, totalEntries: entries.length, ...pendingRecovery() };
+      return { license: displayLicense(license({...args, displayOnly: true}, entries)), health, integrityEvents: today.filter(entry => entry.decision.plugin?.event === 'integrity').length, day, timezone: 'UTC', decisions: decisions.length, spendCents: decisions.filter(entry => entry.decision.action !== 'block').reduce((total, entry) => total + (entry.decision.plugin?.chargedCents ?? entry.decision.projectedCents), 0), blocks: decisions.filter(entry => entry.decision.action === 'block').length, failOpenEvents: today.filter(entry => failOpen(entry.decision)).length, outcomes: today.filter(entry => entry.decision.entryType === 'outcome').length, totalEntries: entries.length, ...pendingRecovery() };
     }
     const from = args.fromSequence || 0;
     const limit = args.limit || 100;

@@ -23,12 +23,13 @@
       "hooks": "./hooks/hooks.json",
       "interface": {
         "displayName": "AgentGuard",
-        "shortDescription": "Tool policies, spend limits, and signed local records",
+        "shortDescription": "Tool policy and signed records",
         "longDescription": "Apply policies to supported local tool calls in Codex and ChatGPT Work. Record signed decisions and outcomes without retaining tool inputs or output text. Hooks fail open on internal errors.",
         "developerName": "MerchantGuardOps",
         "category": "Productivity",
         "capabilities": [
           "SessionStart license resolution",
+          "SessionEnd seat cleanup",
           "PreToolUse hooks",
           "PostToolUse hooks",
           "Read-only MCP"
@@ -38,10 +39,13 @@
         "composerIcon": "./assets/icon-128.png",
         "logo": "./assets/logo-512.png",
         "defaultPrompt": [
-          "Use agentguard-policy to configure this session.",
-          "Use agentguard-status to summarize today's decisions.",
-          "Use agentguard-verify to verify and export the signed records."
-        ]
+          "Set a per-matter budget and a read-only tool allowlist for this session.",
+          "Show today's decisions, spend, blocks, fail-open rate, license mode and seat status.",
+          "Verify my signed decision chain and explain any integrity failure."
+        ],
+        "privacyPolicyURL": "https://agentguard.run/legal/privacy",
+        "termsOfServiceURL": "https://agentguard.run/legal/terms-of-service",
+        "supportURL": "https://agentguard.run/help"
       }
     }
   }
