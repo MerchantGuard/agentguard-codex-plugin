@@ -89,18 +89,30 @@ precedence over the saved key.
 
 Without a usable license, each decision records `license_required` and the
 engine forces shadow regardless of the requested mode. Seat registration
-uses the existing license seat endpoint once per session. An exceeded seat
-limit forces shadow with `seat_limit`. Licensing never denies a tool call.
+uses the existing license seat endpoint at session start. An exceeded startup
+seat limit selects shadow with `seat_limit`. Licensing never denies a tool call.
 
-Seats used is the last response at session start. The existing service uses a
-five minute registration lifetime; this client does not renew it. When that
-service uses its KV backend, the response currently counts registrations on
-the requesting machine. Cross-machine seat enforcement needs a service fix.
+The shared KV service counts a license's active heartbeats across machines
+within a fifteen minute window. Its storage key has a twenty four hour
+lifetime renewed by a heartbeat. The worker sends a bounded heartbeat every
+five minutes for each live session, outside hook processes and without
+waiting in the decision path. Heartbeat failures or later over-limit responses
+do not change an already-running session's enforcement mode; the next startup
+seat check still applies the limit. Heartbeats stop on `SessionEnd` or when
+the identified host process exits. If the worker cannot identify a host
+process, it uses a fifteen minute lease renewed by tool activity rather than
+renewing an orphaned session indefinitely.
 
 Use `agentguard-status` or the read-only MCP `get_status` tool to see the
-tier, seats used and limit, expiry, effective mode, and reason. Signature
-verification stays free. Paid users can ask `agentguard-verify` for an export,
-call `export_receipts`, or run
+tier, `seatsUsed`, `seatLimit`, `seatStorage`, `seatsVerified`, expiry, effective
+mode, and reason. `seatStorage` is `kv`, `memory`, or unknown. A verified count
+comes from a valid shared KV response. Memory fallback is explicitly
+unverified and does not establish cross-machine occupancy. After a failed
+heartbeat, any retained count is an earlier observation, not a fresh verified
+total; `seatsVerified` becomes false. `seatRefreshedAt` identifies the last
+well-formed response, while `seatHeartbeatAt` and `seatHeartbeatError` describe
+the latest heartbeat attempt. Signature verification stays free. Paid users
+can ask `agentguard-verify` for an export, call `export_receipts`, or run
 `node "${PLUGIN_ROOT}/runtime/verify.cjs" export RECEIPTS_FILE` to write the
 signed bundle locally. Set the destination to a path the operator authorized.
 
@@ -130,9 +142,9 @@ provisioning. No dependency downloads happen during a tool call.
 
 #### Trust the hooks
 
-Start a new session, open **`/hooks`**, inspect the session startup command,
-both pre-tool gates and the post-tool receipt command, and trust their
-definitions. Installing or
+Start a new session, open **`/hooks`**, inspect the session startup and end
+commands, both pre-tool gates and the post-tool receipt command, and trust
+their definitions. Installing or
 enabling the plugin does not perform this review. Trust is pinned to each
 definition's current hash, so changed definitions require review again.
 User hooks can take precedence over conflicting plugin decisions, and other
@@ -288,7 +300,7 @@ Integrity events appear separately from tool decisions in status reports.
 
 The optional local MCP server exposes only:
 
-- `get_status`: report license tier, seats, expiry, effective mode and reason alongside today's decisions, configured spend, blocks, integrity events, and fail-open health.
+- `get_status`: report license tier, seat count, limit, storage and verification status, expiry, effective mode and reason alongside today's decisions, configured spend, blocks, integrity events, and fail-open health.
 - `list_decisions`: read a bounded page of signed entries.
 - `verify_chain`: verify chain hashes and signatures on every tier.
 - `export_receipts`: with a valid paid license, return a bounded JSON bundle for the caller to save.
@@ -349,7 +361,9 @@ because they invoke these scripts. The reviewed commands are
 License resolution also needs the reviewed session startup command. It
 launches the detached resolver, which performs the bounded license refresh
 outside the hook process. Include that startup entry when delivering managed
-hooks; the tool gates only consume its saved result.
+hooks; the tool gates only consume its saved result. Include the reviewed
+`SessionEnd` command so a closing session removes its local heartbeat entry.
+The worker maintains seat heartbeats outside those hook processes.
 
 Managed delivery does **not** change these scripts' fail-open contract or
 make the host fail closed on crashes or timeouts. Firms requiring fail-closed

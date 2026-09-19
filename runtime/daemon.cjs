@@ -4,18 +4,18 @@ const path = require('node:path');
 const { locations, writeWorkerPid } = require('./common.cjs');
 const { ensurePrivateIpc, readPrivate, writeMessage } = require('./client.cjs');
 const loc = locations();
-let watcher, idle, rescan, engine, health, stopPromise, draining = false, stopped = false;
+let watcher, idle, rescan, engine, health, live, heartbeats, heartbeatTimer, stopPromise, draining = false, stopped = false;
 function ownsWorker() {
   try { return readPrivate(loc.lock) === String(process.pid); } catch { return false; }
 }
 function stop(responsePath) {
   if (stopPromise) return stopPromise;
-  stopped = true; clearTimeout(idle); clearInterval(rescan); watcher?.close();
+  stopped = true; clearTimeout(idle); clearInterval(rescan); clearInterval(heartbeatTimer); heartbeats?.stop(); watcher?.close();
   stopPromise = (async () => {
     let timer;
     try {
       await Promise.race([
-        Promise.all([engine?.flush(), health?.persist()]),
+        Promise.all([engine?.flush(), health?.persist(), live?.persist()]),
         new Promise(resolve => { timer = setTimeout(resolve, 1500); }),
       ]);
     } catch { /* An unconfirmed tail is reconciled at the next startup. */ }
@@ -26,7 +26,10 @@ function stop(responsePath) {
   })();
   return stopPromise;
 }
-function touch() { clearTimeout(idle); idle = setTimeout(stop, 300000); }
+function touch() {
+  clearTimeout(idle);
+  idle = setTimeout(() => { if (live?.ids().length) touch(); else void stop(); }, 300000);
+}
 async function main() {
   ensurePrivateIpc(loc);
   const owner = Number(readPrivate(loc.lock));
@@ -37,6 +40,23 @@ async function main() {
   health = new HealthTracker({data: loc.data});
   health.recordPending();
   engine = new Engine(); await engine.init();
+  live = new (require('./live-sessions.cjs').LiveSessions)({data: loc.data});
+  heartbeats = new (require('./seat-heartbeat.cjs').SeatHeartbeatScheduler)({data: loc.data, isLive: id => live.confirmHost(id)});
+  function observe(sessionId, ownerPid, ownerIdentity) {
+    live.observe(sessionId, ownerPid, ownerIdentity);
+    try { heartbeats.observe(sessionId, require('./policy-file.cjs').readPolicy(loc.data).policy); } catch {}
+  }
+  for (const id of live.ids()) {
+    try { heartbeats.observe(id, require('./policy-file.cjs').readPolicy(loc.data).policy); } catch {}
+  }
+  // Network renewal runs independently of gate handling and never delays replies.
+  heartbeatTimer = setInterval(() => {
+    try {
+      const policy = require('./policy-file.cjs').readPolicy(loc.data).policy;
+      for (const id of live.ids()) heartbeats.observe(id, policy);
+    } catch {}
+    void heartbeats.tick().catch(() => {}); void live.persist().catch(() => {});
+  }, 1000);
   async function drain() {
     if (draining || stopped) return;
     draining = true;
@@ -52,6 +72,11 @@ async function main() {
         try { fs.unlinkSync(input); } catch (error) { if (error.code === 'ENOENT') continue; throw error; }
         touch();
         if (message.control === 'stop') return stop(output);
+        if (message.control === 'session-start' || message.control === 'session-end') {
+          if (message.control === 'session-start') observe(message.sessionId, message.ownerPid, message.ownerIdentity);
+          else { live.forget(message.sessionId); heartbeats.forget(message.sessionId); }
+          writeMessage(output, {}); void live.persist().catch(() => {}); continue;
+        }
         try {
           health.recordPending();
           const result = await engine.handle(message);
@@ -67,6 +92,7 @@ async function main() {
         } finally {
           // Publish the reply before scheduling durability or metric storage.
           engine.afterReply();
+          if (message.meta?.sessionId) live.observe(message.meta.sessionId);
           void health.persist().catch(() => {});
         }
       }

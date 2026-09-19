@@ -1,3 +1,10 @@
+## 0.2.2
+
+- Count live seats across machines in the shared license KV store, with a fifteen minute active window and twenty four hour key expiry.
+- Renew each live session every five minutes from the worker. Hook processes never send heartbeats, and heartbeat failures never change the current mode.
+- Report seats used, the limit, storage and verification state through status and MCP. Memory fallback counts are marked unverified.
+- Retain the startup seat limit check and a stable machine plus session process identity. Stop renewal on SessionEnd or host exit, with an activity lease when the host cannot be identified.
+
 ## 0.2.1
 
 - Reply after signing and writing each plugin ledger row, then sync asynchronously and reconcile unconfirmed tails with signed integrity events on restart.

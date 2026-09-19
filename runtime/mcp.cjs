@@ -22,7 +22,7 @@ const schemas = {
   export_receipts: { type: 'object', properties: { sessionId: {type: 'string', description: 'Current host session identifier.'}, fromSequence: { type: 'integer', minimum: 0 }, limit: { type: 'integer', minimum: 1, maximum: PAGE_LIMIT } }, additionalProperties: false },
 };
 const descriptions = {
-  get_status: 'Read license tier, seats, expiry, effective mode, shadow reason, daily signed decision totals, and fail-open counts and rates for the last hour and since worker start. License and health reads are offline.',
+  get_status: 'Read license tier, seat count and limit, seat storage and verification status, expiry, effective mode, shadow reason, daily signed decision totals, and fail-open counts and rates for the last hour and since worker start. License and health reads are offline.',
   list_decisions: 'Read a bounded page of content-free tool decision summaries from the local ledger.',
   verify_chain: 'Verify every local ledger signature and hash link against the local public verification key; never accesses private keys.',
   export_receipts: 'With a valid paid license, return a page of signed content-free receipts and the public verification key for a records custodian. No files are written. Concatenate pages to verify the complete chain.',
@@ -78,6 +78,15 @@ function summary(entry) {
 function failOpen(decision) {
   const metadata = decision.plugin || decision.outcomeReceipt?.plugin || decision.governanceReceipt || decision.outcomeReceipt || {};
   return metadata.failOpen === true || ['fail_open', 'fail-open'].includes(metadata.event) || ['fail_open', 'fail-open'].includes(metadata.kind);
+}
+
+function seatEvidence(status) {
+  const seatsUsed = Number.isSafeInteger(status?.seatsUsed) && status.seatsUsed >= 0 ? status.seatsUsed : null;
+  const seatLimit = Number.isSafeInteger(status?.seatLimit) && status.seatLimit >= 0 ? status.seatLimit : null;
+  const seatStorage = ['kv', 'memory'].includes(status?.seatStorage) ? status.seatStorage : null;
+  const seatsVerified = status?.seatsVerified === true && seatStorage === 'kv'
+    && seatsUsed !== null && seatLimit !== null;
+  return {seatsUsed, seatLimit, seatStorage, seatsVerified};
 }
 
 function createReader(options = {}) {
@@ -140,13 +149,13 @@ function createReader(options = {}) {
   function license(args, entries) {
     let config;
     try { config = readPolicy(dataDir); }
-    catch { return {tier: 'free', mode: 'shadow', reason: 'license_required', paid: false, seatsUsed: null, seatLimit: null, expiresAt: null, source: 'policy_unavailable'}; }
+    catch { return {tier: 'free', mode: 'shadow', reason: 'license_required', paid: false, seatsUsed: null, seatLimit: null, seatStorage: null, seatsVerified: false, expiresAt: null, source: 'policy_unavailable'}; }
     const sessionId = args.sessionId || process.env.CODEX_THREAD_ID || entries.at(-1)?.decision.plugin?.sessionId || 'local';
     const parameters = {data: dataDir, sessionId, policy: config.policy};
     const status = !args.sessionId && !process.env.CODEX_THREAD_ID && !entries.length && args.displayOnly
       ? readLatestLicenseStatus(parameters) : readSessionLicense(parameters);
     const effectivePolicy = status.paid ? config.policy : config.personal;
-    return {...status, mode: status.paid ? effectivePolicy.mode || 'enforce' : 'shadow'};
+    return {...status, ...seatEvidence(status), mode: status.paid ? effectivePolicy.mode || 'enforce' : 'shadow'};
   }
 
   async function call(name, args = {}) {

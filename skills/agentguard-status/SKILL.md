@@ -1,6 +1,6 @@
 ---
 name: agentguard-status
-description: Read AgentGuard license tier, seats, expiry, effective mode, today's signed decisions, configured spend, blocks, and rolling fail-open counts and rates without changing policy or tools.
+description: Read AgentGuard license tier, seat counts and verification status, expiry, effective mode, today's signed decisions, configured spend, blocks, and rolling fail-open counts and rates without changing policy or tools.
 ---
 
 # AgentGuard status
@@ -13,15 +13,34 @@ used by the hooks at `${PLUGIN_DATA}/ledger/decisions.ndjson`.
 Include the known host `sessionId` in the tool arguments when available so
 the returned license state belongs to that session. Do not invent an ID.
 
-Report the license tier, seats used and seat limit, expiry, effective mode,
-and reason from the returned `license` object. Include offline grace or unavailable seat
-registration when reported. Report seats as the last observed startup count,
-with `refreshedAt` when available, not a live concurrency total. The existing
-service registration expires after five minutes and is not renewed by this
-client; its KV backend counts the requesting machine, so do not claim
-cross-machine seat enforcement. Do not show the license key. Unknown seats or
-expiry must stay unknown; do not infer them from ledger activity. A paid
-license permits enforcement but does not override a policy set to shadow.
+Report the license tier, `seatsUsed`, `seatLimit`, `seatStorage`,
+`seatsVerified`, expiry, effective mode, and reason from the returned `license`
+object. Include offline grace or unavailable seat registration when reported.
+A `kv` response with `seatsVerified: true` is a validated shared count across
+machines over the service's fifteen minute active window. Its storage key has
+a twenty four hour lifetime renewed by heartbeats. It is still an observation
+at a point in time, not a guarantee about future activity.
+
+Label `memory` counts as unverified. They do not establish shared occupancy
+across machines. If storage is unknown or `seatsVerified` is false, do not
+claim a verified seat total. A retained numeric count after a failed heartbeat
+is an earlier observation; preserve that qualification. Report
+`seatRefreshedAt` as the last well-formed seat response time when available.
+`seatHeartbeatAt` identifies the latest heartbeat attempt; a failure can update
+that field while the count and its response time remain unchanged. Report
+`seatHeartbeatError` as a reason code when present. Do not show the
+license key. Unknown seats or expiry must stay unknown; do not infer them from
+ledger activity. A paid license permits enforcement but does not override a
+policy set to shadow.
+
+The worker sends bounded heartbeats every five minutes for live sessions.
+Those calls happen outside hook processes and do not delay a tool decision.
+Heartbeats stop on `SessionEnd` or identified host process exit. When the host
+process cannot be identified, recent tool activity renews a fifteen minute
+lease; the worker does not renew an orphaned session indefinitely.
+A failed heartbeat or later over-limit response does not change the current
+session's effective mode. Startup still selects shadow when its seat check
+reports an exceeded limit. Status reads make no network request.
 
 Explain `license_required` as free shadow mode: decisions are signed and
 recorded, but no tool call is blocked. Explain `seat_limit` as shadow mode
@@ -29,7 +48,7 @@ because the license's active seat limit was exceeded. These reason codes
 are not tool denials. License refresh happens once per session outside the
 hooks, with a two second timeout. Previously valid cached status can remain
 usable offline for seven days after its expiry. Status reads do not refresh
-the license or register a seat.
+the license, register a seat or send a heartbeat.
 
 Use `list_decisions` with `fromSequence` and `limit` to inspect the relevant
 entries when a total or failure needs explanation. Follow the returned

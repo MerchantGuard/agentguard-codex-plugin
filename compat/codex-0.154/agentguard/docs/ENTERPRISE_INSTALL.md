@@ -2,10 +2,10 @@
 
 This guide targets the OpenAI source tag `rust-v0.154.0`. IT first reviews a
 specific AgentGuard release, installs its Codex 0.154 compatibility bundle,
-and provisions its registry dependencies with `npm ci`. The four bundled
-hooks are the two tool gates, the outcome recorder, and SessionStart license
-resolution. MCP and skills continue to come from the firm's private
-marketplace.
+and provisions its registry dependencies with `npm ci`. The five bundled
+hooks are the two tool gates, the outcome recorder, SessionStart license
+resolution and SessionEnd heartbeat cleanup. MCP and skills continue to come
+from the firm's private marketplace.
 
 Codex admits an enabled hook only when its trust status is Trusted or Managed,
 unless the operator explicitly bypasses trust. Managed hooks are enabled by
@@ -69,8 +69,8 @@ changed hook definition, not a signature over the executable bundle.
 Use this path when the firm controls which hook definitions run. Put the
 reviewed, provisioned compatibility bundle at `/Library/AgentGuard/plugin`
 and a reviewed Node.js 22 executable at `/Library/AgentGuard/node/bin/node`.
-Keep the complete bundle: the three tool scripts and SessionStart script
-import files from `runtime`, and the runtime needs its policy defaults,
+Keep the complete bundle: the three tool scripts and both session lifecycle
+scripts import files from `runtime`, and the runtime needs its policy defaults,
 manifest, lockfile and dependencies. IT owns the executable files; each user
 owns their separate data directory.
 
@@ -114,6 +114,13 @@ timeout = 2
 type = "command"
 command = 'env PLUGIN_ROOT="/Library/AgentGuard/plugin" PLUGIN_DATA="${CODEX_HOME:-$HOME/.codex}/plugins/data/agentguard-firm" /Library/AgentGuard/node/bin/node /Library/AgentGuard/plugin/hooks/session-start.cjs'
 timeout = 2
+
+[[hooks.SessionEnd]]
+
+[[hooks.SessionEnd.hooks]]
+type = "command"
+command = 'env PLUGIN_ROOT="/Library/AgentGuard/plugin" PLUGIN_DATA="${CODEX_HOME:-$HOME/.codex}/plugins/data/agentguard-firm" /Library/AgentGuard/node/bin/node /Library/AgentGuard/plugin/hooks/session-end.cjs'
+timeout = 2
 ```
 
 The TOML table is `[hooks]`. `managed_hooks` is its internal Rust field after
@@ -154,17 +161,27 @@ TOML.
 
 ## Verification and limits
 
-The script was compared against an actual Codex 0.154.0 install in an isolated
-home. Each of the four hooks was reviewed and trusted through normal `/hooks`.
-The four keys and hashes written by Codex matched the script output exactly.
-The comparison diff was empty. No trust bypass was used. Tests also cover
-normalization, changed definitions, private marketplace keys and the fact that
-script contents are outside this hash.
+For plugin 0.2.0, the script was compared against an actual Codex 0.154.0
+install in an isolated home. Each of that release's four hooks was reviewed
+and trusted through normal `/hooks`. The four keys and hashes written by
+Codex matched the script output exactly. The comparison diff was empty and
+no trust bypass was used. That recorded comparison did not include the
+SessionEnd cleanup hook added in 0.2.2. Review and trust its definition too,
+and repeat the comparison for the release IT distributes. Tests cover
+normalization, changed definitions, private marketplace keys and the fact
+that script contents are outside this hash.
 
 MDM enrollment, managed preference delivery and the managed hook path above
 have not been executed on a managed device. Windows execution has not been
 verified. Treat the example as a source-checked configuration to review and
 exercise in the firm's staging environment.
+
+Seat renewal belongs to the worker, outside the hook processes. It sends a
+bounded heartbeat every five minutes while the session remains live and
+stops on SessionEnd or identified host process exit. Hosts without an
+identifiable process use a fifteen minute lease renewed by tool activity.
+Heartbeat failures and later seat-limit responses do not change the current
+session's mode. Startup still applies its seat admission result.
 
 MDM delivery does not turn fail-open hooks into fail-closed authorization.
 AgentGuard still allows a tool call on an internal hook error or timeout.

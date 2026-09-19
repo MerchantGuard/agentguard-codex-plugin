@@ -9,6 +9,8 @@ const crypto = require('node:crypto');
 const GRACE_MS = 7 * 24 * 60 * 60 * 1000;
 const REFRESH_TIMEOUT_MS = 2000;
 const SCHEMA = 'agentguard.plugin.license.v1';
+const SEAT_ENDPOINT = 'https://agentguard.run/api/license/seats';
+const heartbeatPending = new Map();
 const PAID_TIERS = new Set(['solo', 'startup', 'growth', 'solo_pro', 'startup_pro', 'growth_pro']);
 const pending = new Map();
 const digest = value => crypto.createHash('sha256').update(value).digest('hex');
@@ -42,6 +44,24 @@ function eligible(status, now, grace = false) {
   return at === null || (Number.isFinite(at) && now < at + (grace ? GRACE_MS : 0));
 }
 function count(value) { return Number.isSafeInteger(value) && value >= 0 ? value : null; }
+function sessionProcessId(sessionFingerprint) {
+  const hex = digest(`agentguard-seat-v1:${sessionFingerprint}`).slice(0, 32);
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20)}`;
+}
+function seatIdentity(id, sdkPayload, existing) {
+  const machineFingerprint = /^[a-f0-9]{64}$/.test(existing?.machineFingerprint || '')
+    ? existing.machineFingerprint : sdkPayload.machine_fingerprint;
+  if (!/^[a-f0-9]{64}$/.test(machineFingerprint || '')) throw new Error('Seat identity unavailable.');
+  return {machineFingerprint, processId: sessionProcessId(id.sessionFingerprint)};
+}
+function seatFields(seat, now) {
+  const seatsUsed = count(seat?.activeSeats), seatLimit = count(seat?.maxActiveSeats);
+  const valid = typeof seat?.ok === 'boolean' && seatsUsed !== null && seatLimit !== null;
+  const storage = ['kv', 'memory'].includes(seat?.storage) ? seat.storage : null;
+  return {valid, seatsUsed, seatLimit, seatStorage: storage,
+    seatsVerified: valid && storage === 'kv',
+    ...(valid ? {seatRefreshedAt: new Date(now).toISOString()} : {})};
+}
 function limits(status) {
   return count(status?.features?.maxActiveSeats) ?? count(status?.seats)
     ?? (String(status?.tier).startsWith('growth') ? 50 : String(status?.tier).startsWith('startup') ? 5 : 1);
@@ -50,7 +70,7 @@ function snapshot(id, status, now, values = {}) {
   const at = status ? expiry(status) : null;
   return {schema: SCHEMA, sessionFingerprint: id.sessionFingerprint, keyFingerprint: id.keyFingerprint,
     paid: false, mode: 'shadow', reason: 'license_required', tier: PAID_TIERS.has(status?.tier) ? status.tier : 'free',
-    seatsUsed: null, seatLimit: limits(status), expiresAt: Number.isFinite(at) ? new Date(at).toISOString() : null,
+    seatsUsed: null, seatLimit: limits(status), seatStorage: null, seatsVerified: false, seatRefreshedAt: null, expiresAt: Number.isFinite(at) ? new Date(at).toISOString() : null,
     graceUntil: Number.isFinite(at) ? new Date(at + GRACE_MS).toISOString() : null,
     offlineGrace: false, source: 'missing', refreshedAt: new Date(now).toISOString(), ...values};
 }
@@ -120,6 +140,7 @@ async function refresh(options, id) {
   let source = 'remote';
   let seat = null;
   let seatFailure = false;
+  let registeredIdentity = null;
   const controller = new AbortController();
   const deadline = Date.now() + REFRESH_TIMEOUT_MS;
   const aborted = new Promise((resolve, reject) => {
@@ -150,7 +171,11 @@ async function refresh(options, id) {
       await sdk.validateAndRegisterLicense(id.key, {home: home(), nowMs: now, force: true,
         postJson: async (url, payload) => {
           if (new URL(url).pathname === '/api/license/validate') return status;
-          try { seat = await transport(url, payload); return seat; }
+          try {
+            registeredIdentity = seatIdentity(id, payload);
+            seat = await transport(SEAT_ENDPOINT, {...payload, machine_fingerprint: registeredIdentity.machineFingerprint, process_id: registeredIdentity.processId});
+            return seat;
+          }
           catch (error) { seatFailure = true; throw error; }
         }});
     } catch {
@@ -161,9 +186,12 @@ async function refresh(options, id) {
     const seatsUsed = count(seat?.activeSeats);
     const overLimit = seat?.ok === false || (seatsUsed !== null && seatsUsed > seatLimit);
     const at = expiry(status);
+    const observation = seatFields(seat, now);
     return snapshot(id, status, now, {paid: !overLimit, mode: overLimit ? 'shadow' : 'enforce',
       reason: overLimit ? (seat?.error === 'license_not_found' ? 'license_required' : 'seat_limit') : null,
-      seatsUsed, seatLimit, source, offlineGrace: at !== null && now >= at,
+      seatsUsed, seatLimit, seatStorage: observation.seatStorage, seatsVerified: observation.seatsVerified,
+      seatRefreshedAt: observation.seatRefreshedAt ?? null,
+      ...(registeredIdentity ? {seatIdentity: registeredIdentity} : {}), source, offlineGrace: at !== null && now >= at,
       seatStatus: overLimit ? 'denied' : seatFailure ? 'unavailable' : 'registered'});
   } catch {
     return snapshot(id, null, now, {source: 'unavailable'});
@@ -218,5 +246,57 @@ async function resolveSessionLicense(options) {
   try { return await work; } finally { pending.delete(id.file); }
 }
 
-module.exports = {resolveSessionLicense, readSessionLicense, readLatestLicenseStatus, licenseStatusPath, configuredKey,
-  GRACE_MS, REFRESH_TIMEOUT_MS, PAID_TIERS};
+// Only the worker or explicit session resolver calls this function. Hook-side
+// reads remain synchronous and never perform a registration or heartbeat.
+async function heartbeatSessionSeat(options) {
+  const policy = options.policy || require('./policy-file.cjs').readPolicy(options.data).policy;
+  const opts = {...options, policy};
+  const id = identity(opts);
+  const initial = readJson(id.file);
+  if (!id.key || !matchStatus(initial, id) || initial.source === 'resolving'
+    || !/^[a-f0-9]{64}$/.test(initial.seatIdentity?.machineFingerprint || '')
+    || initial.seatIdentity?.processId !== sessionProcessId(id.sessionFingerprint)) return readSessionLicense(opts);
+  if (heartbeatPending.has(id.file)) return heartbeatPending.get(id.file);
+  const work = (async () => {
+    const now = nowOf(options.now);
+    let seat = null, registeredIdentity = initial.seatIdentity;
+    const controller = new AbortController();
+    let timer;
+    const aborted = new Promise((resolve, reject) => {
+      controller.signal.addEventListener('abort', () => reject(new Error('Seat heartbeat timed out.')), {once: true});
+    });
+    timer = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);
+    const deadline = Date.now() + REFRESH_TIMEOUT_MS;
+    try {
+      // Startup captured the SDK's anonymous machine fingerprint. Reuse that
+      // exact pair without revalidating or rewriting the SDK's license cache.
+      registeredIdentity = seatIdentity(id, {}, initial.seatIdentity);
+      seat = await Promise.race([
+        Promise.resolve().then(() => (options.postJson || httpPostJson)(SEAT_ENDPOINT,
+          {license_key: id.key, machine_fingerprint: registeredIdentity.machineFingerprint, process_id: registeredIdentity.processId},
+          {signal: controller.signal, deadline})),
+        aborted,
+      ]);
+    } catch { /* A heartbeat observes seats and never changes authorization. */ }
+    finally { clearTimeout(timer); controller.abort(); aborted.catch(() => {}); }
+    const observation = seatFields(seat, now);
+    const latest = readJson(id.file);
+    // Explicit activation owns entitlement changes. A late heartbeat must not
+    // overwrite a new startup or activation result for the same key.
+    if (!matchStatus(latest, id) || latest.source === 'resolving' || latest.refreshedAt !== initial.refreshedAt) return readSessionLicense(opts);
+    const updated = {...latest, seatHeartbeatAt: new Date(now).toISOString(),
+      seatStorage: observation.seatStorage, seatsVerified: observation.seatsVerified,
+      seatStatus: observation.valid ? (seat.ok ? 'registered' : 'denied') : 'unavailable',
+      seatHeartbeatError: observation.valid ? (seat.ok ? null : 'seat_denied') : 'unavailable',
+      ...(registeredIdentity ? {seatIdentity: registeredIdentity} : {}),
+      ...(observation.valid ? {seatsUsed: observation.seatsUsed, seatLimit: observation.seatLimit,
+        seatRefreshedAt: observation.seatRefreshedAt} : {})};
+    writeStatus(id.file, updated);
+    return updated;
+  })();
+  heartbeatPending.set(id.file, work);
+  try { return await work; } finally { heartbeatPending.delete(id.file); }
+}
+
+module.exports = {heartbeatSessionSeat, resolveSessionLicense, readSessionLicense, readLatestLicenseStatus, licenseStatusPath, configuredKey,
+  GRACE_MS, REFRESH_TIMEOUT_MS, SEAT_ENDPOINT, PAID_TIERS};

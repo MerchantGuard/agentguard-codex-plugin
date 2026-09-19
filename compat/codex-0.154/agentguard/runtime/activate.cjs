@@ -19,9 +19,9 @@ async function activate(key, options = {}) {
   const status = await resolveSessionLicense({data, sessionId: options.sessionId || process.env.CODEX_THREAD_ID || 'local',
     policy, forceActivation: true, postJson: options.postJson, now: options.now});
   return {tier: status.tier, mode: status.paid ? (policy.mode || 'enforce') : 'shadow', reason: status.reason, seatsUsed: status.seatsUsed,
-    seatLimit: status.seatLimit, expiresAt: status.expiresAt, offlineGrace: status.offlineGrace};
+    seatLimit: status.seatLimit, seatStorage: status.seatStorage ?? null, seatsVerified: status.seatsVerified === true, expiresAt: status.expiresAt, offlineGrace: status.offlineGrace};
 }
 module.exports = {activate};
 if (require.main === module) activate(fs.readFileSync(0, 'utf8').trim(), {sessionId: process.argv[2]})
-  .then(status => process.stdout.write(JSON.stringify(status) + '\n'))
+  .then(async status => { await require('./session-start.cjs').track(process.argv[2] || process.env.CODEX_THREAD_ID || 'local', process.ppid).catch(() => {}); process.stdout.write(JSON.stringify(status) + '\n'); })
   .catch(() => {process.stderr.write('agentguard: activation could not complete; inspect local policy and license status.\n');process.exitCode = 1;});

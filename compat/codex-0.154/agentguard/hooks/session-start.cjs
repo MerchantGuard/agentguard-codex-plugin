@@ -9,7 +9,7 @@ try {
   const raw = JSON.parse(fs.readFileSync(0, 'utf8'));
   const sessionId = raw.session_id || raw.sessionId;
   if (typeof sessionId !== 'string' || sessionId.length > 512 || !sessionId) throw new Error();
-  const child = spawn(process.execPath, [path.join(__dirname, '../runtime/session-start.cjs'), sessionId],
+  const child = spawn(process.execPath, [path.join(__dirname, '../runtime/session-start.cjs'), sessionId, String(process.ppid)],
     {detached: true, stdio: 'ignore', env: process.env});
   child.on('error', () => {});
   child.unref();

@@ -42,6 +42,8 @@ scripts/probe-hooks.cjs
 docs/ENTERPRISE_INSTALL.md
 scripts/sync-public.sh
 runtime/license.cjs
+runtime/seat-heartbeat.cjs
+runtime/live-sessions.cjs
 runtime/policy-file.cjs
 runtime/session-start.cjs
 runtime/activate.cjs
@@ -59,6 +61,7 @@ runtime/budget.cjs
 runtime/health.cjs
 hooks/hooks.json
 hooks/session-start.cjs
+hooks/session-end.cjs
 hooks/burn-gate.cjs
 hooks/spend-gate.cjs
 hooks/receipt.cjs
@@ -80,6 +83,9 @@ tests/latency-probe.test.cjs
 tests/trust-state.test.cjs
 tests/helper-paid-license.cjs
 tests/license.test.cjs
+tests/seat-heartbeat.test.cjs
+tests/live-sessions.test.cjs
+tests/seat-status.test.cjs
 tests/lifecycle.test.cjs
 tests/engine-license.test.cjs
 tests/offline-hooks.test.cjs

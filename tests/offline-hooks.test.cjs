@@ -52,13 +52,13 @@ test('Every tool hook records a verified outcome without opening any network or 
   const f = fixture(t);
   const raw = { hook_event_name: 'PreToolUse', tool_name: 'Read', tool_use_id: 'synthetic-offline-call',
     session_id: 'synthetic-offline-session', tool_input: { path: 'PRIVATE_PATH_NOT_FOR_LEDGER' } };
-  for (const hook of ['session-start', 'burn-gate', 'spend-gate', 'receipt']) {
+  for (const hook of ['session-start', 'burn-gate', 'spend-gate', 'receipt', 'session-end']) {
     const payload = hook === 'receipt' ? { ...raw, hook_event_name: 'PostToolUse', tool_response: { content: 'PRIVATE_OUTPUT_NOT_FOR_LEDGER' }, duration_ms: 3 } : raw;
     const child = spawnSync(process.execPath, [`hooks/${hook}.cjs`], { cwd: root, env: f.env, input: JSON.stringify(payload), encoding: 'utf8', timeout: 5000 });
     assert.equal(child.status, 0, child.stderr);
     assert.equal(child.stderr, '', `${hook} must complete its signed path rather than fail open`);
     const output = JSON.parse(child.stdout);
-    if (['receipt', 'session-start'].includes(hook)) assert.deepEqual(output, {});
+    if (['receipt', 'session-start', 'session-end'].includes(hook)) assert.deepEqual(output, {});
     else assert.notEqual(output.hookSpecificOutput?.permissionDecision, 'deny');
   }
   assert.equal(fs.existsSync(f.attempts), false, 'No network API or Unix socket may be attempted');
@@ -72,7 +72,7 @@ test('Every tool hook records a verified outcome without opening any network or 
   assert.equal(/PRIVATE_PATH_NOT_FOR_LEDGER|PRIVATE_OUTPUT_NOT_FOR_LEDGER/.test(text), false);
   assert.equal(fs.lstatSync(path.join(f.ipc, 'worker.ready')).isFile(), true);
   assert.equal(fs.readdirSync(f.ipc).some(name => /\.(request|response)$/.test(name)), false);
-  t.diagnostic(`Four hook subprocesses, zero socket attempts, ${entries.length} signed rows, chain valid.`);
+  t.diagnostic(`Five hook subprocesses, zero socket attempts, ${entries.length} signed rows, chain valid.`);
 });
 
 test('Filesystem IPC rejects symlink messages and messages larger than its fixed bound', t => {

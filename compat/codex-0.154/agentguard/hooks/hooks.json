@@ -39,6 +39,17 @@
           }
         ]
       }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/hooks/session-end.cjs\"",
+            "timeout": 2
+          }
+        ]
+      }
     ]
   }
 }
