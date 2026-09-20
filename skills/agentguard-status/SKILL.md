@@ -40,17 +40,30 @@ Those calls happen outside hook processes and do not delay a tool decision.
 Heartbeats stop on `SessionEnd` or identified host process exit. When the host
 process cannot be identified, recent tool activity renews a fifteen minute
 lease; the worker does not renew an orphaned session indefinitely.
-A failed heartbeat or later over-limit response does not change the current
-session's effective mode. Startup still selects shadow when its seat check
-reports an exceeded limit. Status reads make no network request.
+A failed heartbeat selects shadow with `seat_unavailable`; a later over-limit
+response selects shadow with `seat_limit`. Status reads make no network request.
+A revoked seat stays shadow with `seat_revoked` until a successful heartbeat
+explicitly reports `revoked: false`. Explain that an admin can restore it from
+the Seats panel. Revocation never denies a tool call.
 
 Explain `license_required` as free shadow mode: decisions are signed and
 recorded, but no tool call is blocked. Explain `seat_limit` as shadow mode
 because the license's active seat limit was exceeded. These reason codes
 are not tool denials. License refresh happens once per session outside the
 hooks, with a two second timeout. Previously valid cached status can remain
-usable offline for seven days after its expiry. Status reads do not refresh
+eligible offline for seven days after its expiry. A refresh failure still puts
+enforcement in shadow with `license_unavailable` or `org_policy_unavailable`.
+The last good org policy stays cached and is merged locally in shadow. Only the
+detached worker fetches it at session start and every fifth five minute
+heartbeat. Report `orgPolicyVersion` and `orgPolicySha256` when present.
+Status reads do not refresh
 the license, register a seat or send a heartbeat.
+A status read asks an already running worker for its current mode through
+private local files, including any failure it could not persist. It never
+starts a worker or performs a network request. If `statusError` is
+`status_unavailable`, show shadow and say "Current worker status is unavailable;
+license details are cached." `cachedMode` is historical evidence, not the
+current effective mode.
 
 Use `list_decisions` with `fromSequence` and `limit` to inspect the relevant
 entries when a total or failure needs explanation. Follow the returned

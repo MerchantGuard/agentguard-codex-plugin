@@ -71,12 +71,13 @@ test('missing license forces shadow without anonymous seat registration or a net
   assert.equal(fs.existsSync(process.env.AGENTGUARD_HOME), false);
 });
 
-test('offline cached paid status is honored through seven days after expiry', async t => {
+test('offline cache keeps paid eligibility for seven days but refresh failure stays shadow', async t => {
   const f = fixture(t, {postJson: async () => { throw new Error('SYNTHETIC_NETWORK_FAILURE'); }});
   f.cache(status('startup', new Date(NOW - 6 * DAY).toISOString()));
   const value = await resolveSessionLicense(f.options);
   assert.equal(value.paid, true);
-  assert.equal(value.mode, 'enforce');
+  assert.equal(value.mode, 'shadow');
+  assert.equal(value.reason, 'license_unavailable');
   assert.equal(value.offlineGrace, true);
   assert.equal(value.source, 'offline_cache');
   assert.equal(value.tier, 'startup');

@@ -53,11 +53,13 @@ function fixture(t) {
     require('node:https').request = fail;
     global.fetch = async (url, options) => {
       if (process.env.SYNTHETIC_ACTIVATION !== '1') return fail();
+      if (!process.argv[1].endsWith('/runtime/daemon.cjs')) return fail();
       const endpoint = new URL(url);
       if (endpoint.origin !== 'https://agentguard.run') return fail();
       const calls = fs.existsSync(${JSON.stringify(transport)}) ? JSON.parse(fs.readFileSync(${JSON.stringify(transport)}, 'utf8')) : [];
       calls.push(endpoint.pathname);
       fs.writeFileSync(${JSON.stringify(transport)}, JSON.stringify(calls));
+      if (endpoint.pathname === '/api/org/policy') return {status: 204, ok: true};
       if (endpoint.pathname === '/api/license/validate') return {ok: true, json: async () => ({valid: true, tier: 'solo', seats: 1, expiresAt: new Date(Date.now() + 86400000).toISOString(), features: {maxActiveSeats: 1}})};
       if (endpoint.pathname === '/api/license/seats') return {ok: true, json: async () => ({ok: true, activeSeats: 1, maxActiveSeats: 1, storage: 'kv'})};
       return fail();
@@ -110,7 +112,7 @@ test('rendered Claude activation and verification commands preserve the session,
   assert.equal(policy.licenseKey, LICENSE_KEY);
   assert.deepEqual(policy.ethicalWall, ['^synthetic_restricted_tool$']);
   assert.deepEqual(JSON.parse(fs.readFileSync(f.tracked, 'utf8')), {sessionId: f.variables.CLAUDE_SESSION_ID});
-  assert.deepEqual(JSON.parse(fs.readFileSync(f.transport, 'utf8')), ['/api/license/validate', '/api/license/seats']);
+  assert.deepEqual(JSON.parse(fs.readFileSync(f.transport, 'utf8')).sort(), ['/api/license/seats', '/api/license/validate', '/api/org/policy']);
   assert.equal(result.stdout.includes(LICENSE_KEY), false);
   const statusDir = path.join(f.data, 'license-status', 'sessions');
   const statusFile = path.join(statusDir, `${hash(f.variables.CLAUDE_SESSION_ID)}-${hash(LICENSE_KEY)}.json`);
@@ -118,6 +120,7 @@ test('rendered Claude activation and verification commands preserve the session,
   assert.equal(savedStatus.paid, true);
   assert.equal(JSON.stringify(savedStatus).includes(LICENSE_KEY), false);
 
+  assert.equal(f.execute('node runtime/control.cjs stop', '', f.variables).status, 0);
   const keys = generateKeyPairSync('ed25519');
   const privateKey = keys.privateKey.export({format: 'der', type: 'pkcs8'}).subarray(-32);
   const publicKey = keys.publicKey.export({format: 'der', type: 'spki'}).subarray(-32);
@@ -160,7 +163,7 @@ test('rendered Claude activation and verification commands preserve the session,
   assert.deepEqual(fs.readFileSync(store.filePath), ledgerBefore);
   assert.equal(fs.existsSync(path.join(f.home, '.agentguard')), false);
   assert.equal(fs.existsSync(f.attempts), false, 'all helpers used fixture transport or offline reads');
-  assert.deepEqual(JSON.parse(fs.readFileSync(f.transport, 'utf8')), ['/api/license/validate', '/api/license/seats'], 'verification did not refresh the license');
+  assert.deepEqual(JSON.parse(fs.readFileSync(f.transport, 'utf8')).sort(), ['/api/license/seats', '/api/license/validate', '/api/org/policy'], 'verification did not refresh the license or org policy');
 });
 
 test('shared skills keep exact placeholders separate and scope host-specific coverage and controls', () => {

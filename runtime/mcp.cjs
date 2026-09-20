@@ -96,7 +96,7 @@ function displayLicense(status) {
   const fields = ['paid', 'mode', 'reason', 'tier', 'seatsUsed', 'seatLimit',
     'seatStorage', 'seatsVerified', 'seatRefreshedAt', 'expiresAt', 'graceUntil',
     'offlineGrace', 'source', 'refreshedAt', 'seatStatus', 'seatHeartbeatAt',
-    'seatHeartbeatError'];
+    'seatHeartbeatError', 'seatRevoked', 'orgPolicySha256', 'orgPolicyVersion', 'statusSource', 'statusError', 'cachedMode'];
   return Object.fromEntries(fields.filter(key => Object.hasOwn(status, key))
     .filter(key => status[key] === null || ['string', 'boolean', 'number'].includes(typeof status[key]))
     .map(key => [key, status[key]]));
@@ -167,8 +167,34 @@ function createReader(options = {}) {
     const parameters = {data: dataDir, sessionId, policy: config.policy};
     const status = !args.sessionId && !hostContext().sessionId && !entries.length && args.displayOnly
       ? readLatestLicenseStatus(parameters) : readSessionLicense(parameters);
-    const effectivePolicy = status.paid ? config.policy : config.personal;
-    return {...status, ...seatEvidence(status), mode: status.paid ? effectivePolicy.mode || 'enforce' : 'shadow'};
+    const {orgEnabled, readCachedOrgPolicy, mergeOrgPolicy} = require('./org-policy.cjs');
+    let effectivePolicy = status.paid ? config.policy : config.personal;
+    let reason = status.reason, orgPolicySha256 = null, orgPolicyVersion = null;
+    if (orgEnabled(status)) {
+      const org = readCachedOrgPolicy(dataDir, {keyFingerprint: require('node:crypto').createHash('sha256').update(require('./license.cjs').configuredKey(config.policy)).digest('hex')});
+      if (org.envelope) { effectivePolicy = mergeOrgPolicy(config.personal, config.shared, org.envelope.policy); orgPolicySha256 = org.envelope.sha256; orgPolicyVersion = org.envelope.version; }
+      if (org.reason && !reason) reason = org.reason;
+    }
+    try { require('./engine.cjs').validatePolicy(effectivePolicy); } catch { reason = reason || 'policy_invalid'; }
+    return {...status, ...seatEvidence(status), orgPolicySha256, orgPolicyVersion, reason,
+      mode: status.paid && status.mode !== 'shadow' && !reason ? effectivePolicy.mode || 'enforce' : 'shadow'};
+  }
+
+  async function effectiveStatus(args, entries) {
+    const cached = license({...args, displayOnly: true}, entries);
+    const sessionId = args.sessionId || hostContext().sessionId || entries.at(-1)?.decision.plugin?.sessionId || 'local';
+    const query = options.workerStatus || (parameters => require('./client.cjs').request(
+      {control: 'effective-license', sessionId: parameters.sessionId},
+      {data: dataDir, startWorker: false, timeoutMs: 250}));
+    try {
+      const response = await query({data: dataDir, sessionId});
+      if (!response?.license || !['shadow', 'enforce'].includes(response.license.mode)) throw new Error('status_unavailable');
+      return {...cached, ...response.license, ...seatEvidence({...cached, ...response.license}), statusSource: 'worker', statusError: null};
+    } catch {
+      // Without a current worker response, cached facts cannot prove enforce.
+      return {...cached, cachedMode: cached.mode, mode: 'shadow', reason: cached.reason || 'status_unavailable',
+        statusSource: 'cached_unverified', statusError: 'status_unavailable'};
+    }
   }
 
   async function call(name, args = {}) {
@@ -189,7 +215,7 @@ function createReader(options = {}) {
       const selected = sessionId ? entries.filter(entry => (entry.decision.plugin?.sessionId || entry.decision.actor?.sessionId) === sessionId) : entries;
       const names = [...new Set(selected.map(entry => entry.decision.plugin?.host || entry.decision.outcomeReceipt?.plugin?.host || 'unknown'))];
       const host = names.length === 1 ? names[0] : names.length ? 'mixed' : 'unknown';
-      return { host, hosts: hostCounts, license: displayLicense(license({...args, displayOnly: true}, entries)), health, integrityEvents: today.filter(entry => entry.decision.plugin?.event === 'integrity').length, day, timezone: 'UTC', decisions: decisions.length, spendCents: decisions.filter(entry => entry.decision.action !== 'block').reduce((total, entry) => total + (entry.decision.plugin?.chargedCents ?? entry.decision.projectedCents), 0), blocks: decisions.filter(entry => entry.decision.action === 'block').length, failOpenEvents: today.filter(entry => failOpen(entry.decision)).length, outcomes: today.filter(entry => entry.decision.entryType === 'outcome').length, totalEntries: entries.length, ...pendingRecovery() };
+      return { host, hosts: hostCounts, license: displayLicense(await effectiveStatus(args, entries)), health, integrityEvents: today.filter(entry => entry.decision.plugin?.event === 'integrity').length, day, timezone: 'UTC', decisions: decisions.length, spendCents: decisions.filter(entry => entry.decision.action !== 'block').reduce((total, entry) => total + (entry.decision.plugin?.chargedCents ?? entry.decision.projectedCents), 0), blocks: decisions.filter(entry => entry.decision.action === 'block').length, failOpenEvents: today.filter(entry => failOpen(entry.decision)).length, outcomes: today.filter(entry => entry.decision.entryType === 'outcome').length, totalEntries: entries.length, ...pendingRecovery() };
     }
     const from = args.fromSequence || 0;
     const limit = args.limit || 100;

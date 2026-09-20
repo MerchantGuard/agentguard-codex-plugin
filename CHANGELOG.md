@@ -1,3 +1,10 @@
+## 0.3.1
+
+- Fetch the organization policy published in the dashboard through the detached worker and merge it as the root layer above team and local policy files; org enforce cannot be loosened locally.
+- Report the loaded org policy hash in the seat heartbeat so admins can see which seats run the current policy. Heartbeats carry only license, machine, process and policy-hash identifiers.
+- Revoked seats select shadow with seat_revoked at the next heartbeat; restoring a seat takes effect on a successful heartbeat.
+- Team licenses cover ten seats.
+
 ## 0.3.0
 
 - Add Claude Code packaging and host metadata to the shared runtime, signed decisions and status.

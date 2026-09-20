@@ -43,11 +43,16 @@ scripts/provision-dependencies.cjs
 scripts/print-trust-state.cjs
 scripts/probe-hooks.cjs
 docs/ENTERPRISE_INSTALL.md
+docs/ORG_FEATURES_CONTRACT.md
 docs/CLAUDE_CODE.md
 docs/DIRECTORY_SUBMISSION.md
 docs/DIRECTORY_FIXTURES.json
 scripts/sync-public.sh
 runtime/license.cjs
+runtime/org-policy-contract.cjs
+runtime/org-policy.cjs
+runtime/org-policy-refresh.cjs
+runtime/worker-session.cjs
 runtime/seat-heartbeat.cjs
 runtime/live-sessions.cjs
 runtime/policy-file.cjs
@@ -89,6 +94,9 @@ tests/health.test.cjs
 tests/latency-probe.test.cjs
 tests/trust-state.test.cjs
 tests/helper-paid-license.cjs
+tests/helper-worker-license.cjs
+tests/org-policy.test.cjs
+tests/org-worker.test.cjs
 tests/license.test.cjs
 tests/seat-heartbeat.test.cjs
 tests/live-sessions.test.cjs

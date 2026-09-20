@@ -109,17 +109,19 @@ test('a heartbeat reuses the registered identity at the fixed endpoint without r
   assert.deepEqual(fs.readFileSync(f.cachePath), cache);
 });
 
-test('a heartbeat denial changes the observed seats without revoking a running paid session', async t => {
+test('a heartbeat denial retains paid eligibility but selects seat_limit shadow', async t => {
   const f = fixture(t);
   const before = await resolveSessionLicense(f.options);
   const after = await heartbeatSessionSeat({...f.options, now: NOW + HEARTBEAT_MS,
     postJson: async () => seatResponse({ok: false, activeSeats: 6, error: 'seat_limit'})});
-  assert.deepEqual(entitlements(after), entitlements(before));
+  assert.equal(after.paid, before.paid);
+  assert.equal(after.mode, 'shadow');
+  assert.equal(after.reason, 'seat_limit');
   assert.equal(after.seatsUsed, 6);
   assert.equal(after.seatsVerified, true);
   assert.equal(after.seatStatus, 'denied');
   assert.equal(after.seatHeartbeatError, 'seat_denied');
-  assert.equal(readSessionLicense(f.options).mode, 'enforce');
+  assert.equal(readSessionLicense(f.options).mode, 'shadow');
 });
 
 test('a successful heartbeat cannot upgrade a session that entered shadow at startup', async t => {
@@ -143,7 +145,9 @@ test('failed and malformed heartbeat observations preserve the last valid counts
   for (let index = 0; index < cases.length; index++) {
     const at = NOW + (index + 1) * HEARTBEAT_MS;
     const after = await heartbeatSessionSeat({...f.options, now: at, postJson: cases[index]});
-    assert.deepEqual(entitlements(after), entitlements(before));
+    assert.equal(after.paid, before.paid);
+    assert.equal(after.mode, 'shadow');
+    assert.equal(after.reason, 'seat_unavailable');
     assert.equal(after.seatsUsed, before.seatsUsed);
     assert.equal(after.seatLimit, before.seatLimit);
     assert.equal(after.seatRefreshedAt, before.seatRefreshedAt);
@@ -176,7 +180,9 @@ test('heartbeat transport has a two-second deadline even if the transport ignore
   assert.equal(REFRESH_TIMEOUT_MS, 2000);
   assert.ok(duration >= 1900 && duration < 2800, `heartbeat took ${duration} ms`);
   assert.equal(signal.aborted, true);
-  assert.deepEqual(entitlements(after), entitlements(before));
+  assert.equal(after.paid, before.paid);
+    assert.equal(after.mode, 'shadow');
+    assert.equal(after.reason, 'seat_unavailable');
   assert.equal(after.seatsVerified, false);
   assert.equal(after.seatHeartbeatError, 'unavailable');
 });

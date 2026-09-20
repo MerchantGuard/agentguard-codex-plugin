@@ -6,12 +6,14 @@ const HEARTBEAT_MS = 5 * 60 * 1000;
 // or network operation, and hooks do not instantiate the scheduler.
 class SeatHeartbeatScheduler {
   constructor({data, postJson, now = Date.now, isLive = () => false,
-    heartbeat = heartbeatSessionSeat} = {}) {
+    heartbeat = heartbeatSessionSeat, refreshOrg = require('./org-policy-refresh.cjs').refreshOrgPolicy,
+    getPolicy, onOrgRefresh = () => {}, onOrgFailure = () => {}, onSeatRefresh = () => {}, onSeatFailure = () => {}, orgPolicyDigest = () => null} = {}) {
     this.data = data;
     this.postJson = postJson;
     this.now = now;
     this.isLive = isLive;
-    this.heartbeat = heartbeat;
+    this.heartbeat = heartbeat; this.refreshOrg = refreshOrg; this.getPolicy = getPolicy;
+    this.onOrgRefresh = onOrgRefresh; this.onOrgFailure = onOrgFailure; this.onSeatRefresh = onSeatRefresh; this.onSeatFailure = onSeatFailure; this.orgPolicyDigest = orgPolicyDigest;
     this.sessions = new Map();
     this.stopped = false;
     this.tickPromise = null;
@@ -23,7 +25,7 @@ class SeatHeartbeatScheduler {
     let refreshedAt;
     try { refreshedAt = Date.parse(readSessionLicense({data: this.data, sessionId, policy, now}).seatRefreshedAt); } catch {}
     const baseline = Number.isFinite(refreshedAt) ? Math.min(refreshedAt, now) : previous?.lastAttempt ?? now;
-    this.sessions.set(sessionId, {policy, lastAttempt: Math.max(previous?.lastAttempt ?? baseline, baseline)});
+    this.sessions.set(sessionId, {policy, lastAttempt: Math.max(previous?.lastAttempt ?? baseline, baseline), heartbeats: previous?.heartbeats ?? 0});
   }
   forget(sessionId) { this.sessions.delete(sessionId); }
   tick(at = this.now()) {
@@ -39,11 +41,20 @@ class SeatHeartbeatScheduler {
         if (this.stopped || !this.sessions.has(sessionId)) continue;
         if (!live) { this.sessions.delete(sessionId); continue; }
         state.lastAttempt = at;
+        state.heartbeats += 1;
+        if (state.heartbeats % 5 === 0) {
+          try {
+            await this.refreshOrg({data: this.data, sessionId, policy: state.policy, now: at, getPolicy: this.getPolicy});
+            await this.onOrgRefresh(sessionId);
+          } catch { this.onOrgFailure(sessionId, 'org_policy_unavailable'); }
+        }
         try {
           const value = await this.heartbeat({data: this.data, sessionId, policy: state.policy,
-            postJson: this.postJson, now: at});
+            postJson: this.postJson, now: at, orgPolicySha256: this.orgPolicyDigest(sessionId)});
+          this.onSeatRefresh(sessionId, value);
           outcomes.push({sessionId, status: value});
-        } catch {
+        } catch (error) {
+          this.onSeatFailure(sessionId, error?.code === 'seat_revoked' ? 'seat_revoked' : 'seat_unavailable');
           // Heartbeat failures cannot interfere with a tool admission or with
           // other live sessions. A later interval can retry this seat.
           outcomes.push({sessionId, unavailable: true});

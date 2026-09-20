@@ -98,14 +98,15 @@ license, including Pro variants, enables enforce mode, team policy files,
 receipts export and seat metering. These are the existing licenses; the
 plugin has no separate plan. A paid policy can still choose shadow mode.
 
-At session start, a detached runtime process resolves the license through
+At session start, the detached worker resolves the license through
 the Spend SDK. It makes one refresh attempt for that session, with a two
 second deadline covering validation and seat registration. Hook processes
 read only the local result and never open a socket. Without a usable cached
 license, they remain in shadow until startup resolution finishes. A previously valid cached license is
-honored offline for seven days after `expiresAt`; a server rejection does
-not receive that grace. After the grace period, enforcement returns to
-shadow. Unknown seat usage remains unknown during an outage.
+retained offline for seven days after `expiresAt`; a server rejection does
+not receive that grace. A failed license, seat or org refresh selects shadow
+with a reason, even during grace. After grace the paid entitlement expires.
+Unknown seat usage remains unknown during an outage.
 
 The key comes from `AGENTGUARD_LICENSE_KEY`, otherwise the policy's
 `licenseKey` field. Ask the `agentguard-policy` skill to
@@ -123,9 +124,9 @@ The shared KV service counts a license's active heartbeats across machines
 within a fifteen minute window. Its storage key has a twenty four hour
 lifetime renewed by a heartbeat. The worker sends a bounded heartbeat every
 five minutes for each live session, outside hook processes and without
-waiting in the decision path. Heartbeat failures or later over-limit responses
-do not change an already-running session's enforcement mode; the next startup
-seat check still applies the limit. Heartbeats stop on `SessionEnd` or when
+waiting in the decision path. Heartbeat failures, later over-limit responses
+and revocation select shadow with a reason. A revoked seat remains shadow
+through failures until a successful heartbeat explicitly restores it. Heartbeats stop on `SessionEnd` or when
 the identified host process exits. If the worker cannot identify a host
 process, it uses a fifteen minute lease renewed by tool activity rather than
 renewing an orphaned session indefinitely.
@@ -281,6 +282,60 @@ Burn continues using its existing user policy and ledger under
 `AGENTGUARD_HOME` or `~/.agentguard`; this plugin does not run Burn init or
 enforce commands.
 
+### Published org policy
+
+Team (ten seats) and 50-seat owners can publish a versioned policy in the
+[dashboard](https://agentguard.run/dashboard/org-policy). Solo has no published
+org policy. The detached worker fetches the root policy at session start,
+alongside license refresh, and every fifth five-minute heartbeat. Hooks,
+lifecycle helpers, activation helpers and status reads never open a socket.
+
+The worker validates the shared field allowlist and SHA256 of recursively
+key-sorted JSON, then atomically saves the last good envelope in
+`${PLUGIN_DATA}/org-policy.json`, bound to the license fingerprint. Failed
+fetches keep that copy, including through the existing seven-day grace,
+and select shadow with a reason. No tool is denied because licensing or
+org state is unavailable. A successful 204 means this license has no org
+policy; any retained copy on disk is ignored.
+
+- `allowedTools`: A tool must match an expression in every supplied list. An absent list adds no restriction; an empty list matches nothing.
+- `deniedTools`, `ethicalWall`: Union of patterns, at root and within each session.
+- `maxCapability`: Lowest ceiling across layers; session ceilings also apply.
+- `caps`: Append all caps. Matching root and session caps apply together.
+- `mode`: Org enforce, including its default, cannot be lowered locally. A lower layer may tighten org shadow to enforce. Licensing and failures still select shadow.
+- `toolRules`: Local, then team, then org; matching org fields win.
+- Identity and payment classification: Org values and its documented tenant/payment defaults are authoritative. Org default matter and explicit session mappings cannot be redirected locally.
+
+For example, publish:
+
+```json
+{"version":1,"mode":"enforce","allowedTools":["^mcp__documents__.*$"],"deniedTools":["^mcp__documents__delete$"],"maxCapability":"data_write","caps":[{"window":"per_day","amountCents":500}]}
+```
+
+A local policy asking for shadow, `allowedTools: [".*"]`, no denies,
+`maxCapability: "payment_execute"` and a larger cap does not loosen this
+root. With healthy licensing, only matching document tools pass the
+allowlists, delete remains denied, the ceiling remains data write, and both
+caps apply. If a refresh fails, the same rules can record what they would
+have blocked, but the call is allowed in shadow.
+
+The published policy uses only the documented identifiers, expressions,
+enums and numeric settings. `licenseKey` and `teamPolicyFile` remain local
+and are rejected in published policies. Unknown fields at every level are
+rejected. Identifier length is at most 128, expressions at most 512, and
+lists or session maps at most 256 entries. See the
+[wire contract](docs/ORG_FEATURES_CONTRACT.md).
+
+AgentGuard's server is a control plane for policy, not data. It stores the policy your admin writes, which seats are licensed, and which policy version each seat last reported. It never receives a tool call, a prompt, a file, or a receipt.
+
+Heartbeats contain exactly the license key, machine fingerprint, derived
+process identifier and loaded org policy hash. An admin can label a machine
+on the server, invite a teammate by license email, or revoke and restore a
+seat. Labels are never sent to the machine. Revocation selects
+`seat_revoked` shadow on the next heartbeat, never a denied call.
+A matching hash does not attest enforcement. Pending invites cannot be
+attributed to a person using a shared license key.
+
 Use `agentguard-policy` to author policy examples. These are illustrative
 configuration amounts, not measured charges:
 
@@ -421,7 +476,7 @@ because they invoke these scripts. The reviewed commands are
 `hooks/burn-gate.cjs`, `hooks/spend-gate.cjs`, and `hooks/receipt.cjs`.
 
 License resolution also needs the reviewed session startup command. It
-launches the detached resolver, which performs the bounded license refresh
+uses private file IPC to ask the detached worker for the bounded license refresh
 outside the hook process. Include that startup entry when delivering managed
 hooks; the tool gates only consume its saved result. Include the reviewed
 `SessionEnd` command so a closing session removes its local heartbeat entry.

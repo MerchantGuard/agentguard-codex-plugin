@@ -18,7 +18,7 @@ function setup(t, thresholds = {}) {
   const data = fs.mkdtempSync(path.join(os.tmpdir(), 'agentguard-burn-hook-'));
   const home = path.join(data, 'burn');
   fs.mkdirSync(home);
-  seedPaidLicense(home);
+  seedPaidLicense(home, LICENSE_KEY, data);
   const env = { ...process.env, PLUGIN_DATA: data, AGENTGUARD_HOME: home, AGENTGUARD_LICENSE_KEY: '', AGENTGUARD_NO_BEACON: '1', AGENTGUARD_TELEMETRY: '0' };
   matrix.environment(env, data);
   delete env.AGENTGUARD_PLUGIN_POLICY;

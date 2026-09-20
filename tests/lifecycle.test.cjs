@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const {spawnSync} = require('node:child_process');
-const {activate} = require('../runtime/activate.cjs');
+const {activate} = require('./helper-worker-license.cjs');
 const {run} = require('../runtime/verify.cjs');
 const {createReader, handleRpc} = require('../runtime/mcp.cjs');
 const {licenseStatusPath} = require('../runtime/license.cjs');
@@ -16,7 +16,10 @@ function fixture(t) {
   const before = {...process.env};
   matrix.environment(process.env, data); process.env.AGENTGUARD_HOME = path.join(data, 'sdk');
   delete process.env.AGENTGUARD_LICENSE_KEY; delete process.env.AGENTGUARD_PLUGIN_POLICY;
-  t.after(() => {process.env = before; fs.rmSync(data, {recursive: true, force: true});});
+  t.after(() => {
+    spawnSync(process.execPath, ['runtime/control.cjs', 'stop'], {cwd: root, env: process.env, timeout: 3000});
+    process.env = before; fs.rmSync(data, {recursive: true, force: true});
+  });
   return data;
 }
 const paid = {valid: true, tier: 'solo', seats: 1, expiresAt: new Date(Date.now()+86400000).toISOString(), features: {maxActiveSeats: 1}};

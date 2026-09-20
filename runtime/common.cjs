@@ -15,8 +15,8 @@ function hostContext(env = process.env) {
     // explicitly exports it, but hook session_id remains authoritative.
     sessionId: identifier(host === 'claude-code' ? env.CLAUDE_SESSION_ID : env.CODEX_THREAD_ID, null) ?? undefined };
 }
-function locations() {
-  const data = path.resolve(hostContext().data || path.join(os.homedir(), '.agentguard', 'codex-plugin'));
+function locations(dataOverride) {
+  const data = path.resolve(dataOverride || hostContext().data || path.join(os.homedir(), '.agentguard', 'codex-plugin'));
   const tag = crypto.createHash('sha256').update(data).digest('hex').slice(0, 24);
   // Hook IPC uses files only. The directory is private to this uid.
   const ipc = path.join('/tmp', `ag-plugin-${process.getuid?.() ?? 'local'}-${tag}`);

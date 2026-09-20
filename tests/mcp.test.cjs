@@ -27,6 +27,7 @@ async function fixture(t, specs = [{ action: 'allow', projectedCents: 5 }]) {
   }
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentguard-mcp-reader-'));
   t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  seedPaidLicense(licenseHomes.get(t), LICENSE_KEY, dataDir);
   fs.writeFileSync(path.join(dataDir, 'policy.json'), JSON.stringify({version: 1, mode: 'enforce', licenseKey: LICENSE_KEY}));
   const keys = generateKeyPairSync('ed25519');
   const privateKey = keys.privateKey.export({ format: 'der', type: 'pkcs8' }).subarray(-32);

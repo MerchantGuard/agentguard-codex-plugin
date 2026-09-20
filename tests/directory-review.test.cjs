@@ -11,7 +11,7 @@ const sdk = require('@agentguard-run/spend');
 const {Engine, validatePolicy} = require('../runtime/engine.cjs');
 const {createReader, handleRpc, TOOLS} = require('../runtime/mcp.cjs');
 const {licenseStatusPath} = require('../runtime/license.cjs');
-const {activate} = require('../runtime/activate.cjs');
+const {activate} = require('./helper-worker-license.cjs');
 const catalog = require('../docs/DIRECTORY_FIXTURES.json');
 const {LICENSE_KEY, seedPaidLicense} = require('./helper-paid-license.cjs');
 const SESSION = catalog.identifiers.sessionId;
@@ -40,7 +40,7 @@ async function setup(t, {paid = true, patch = {}, fixtureData} = {}) {
   validatePolicy(policy);
   fs.writeFileSync(path.join(data, 'policy.json'), JSON.stringify(policy));
   if (paid) {
-    seedPaidLicense(process.env.AGENTGUARD_HOME, key);
+    seedPaidLicense(process.env.AGENTGUARD_HOME, key, data);
     if (fixtureData) fs.writeFileSync(path.join(process.env.AGENTGUARD_HOME, `license-${crypto.createHash('sha256').update(key).digest('hex')}.json`), JSON.stringify({fetchedAt: Date.now(), status: licenseStatus(fixtureData)}));
     const file = licenseStatusPath({data, sessionId: SESSION, policy});
     fs.mkdirSync(path.dirname(file), {recursive: true});
@@ -63,7 +63,10 @@ async function setup(t, {paid = true, patch = {}, fixtureData} = {}) {
     assert.equal(networkAttempts, 0, 'Review fixture execution must stay offline.');
   });
   await engine.init();
-  const reader = createReader({dataDir: data});
+  const reader = createReader({dataDir: data, workerStatus: async ({sessionId}) => {
+    const current = engine.context({sessionId});
+    return {license: {...current.license, mode: current.mode}};
+  }});
   let sequence = 0;
   const meta = (name, gate = 'spend', extra = {}) => ({schema: 'agentguard.codex.v1', requestId: crypto.randomUUID(), gate, toolName: name, toolUseId: `call_SYNTHETIC_review_${sequence++}`, sessionId: SESSION, agentId: catalog.identifiers.agentId, inputSha256: crypto.createHash('sha256').update('{}').digest('hex'), inputBytes: 2, inputKeys: 0, startedAt: new Date().toISOString(), ...extra});
   const gate = async metadata => {

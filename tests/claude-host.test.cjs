@@ -18,7 +18,7 @@ async function fixture(t, options = {}) {
   const data = fs.mkdtempSync(path.join(os.tmpdir(), 'agentguard-claude-test-'));
   const home = path.join(data, 'burn'), config = path.join(data, 'claude');
   fs.mkdirSync(home); fs.mkdirSync(config);
-  seedPaidLicense(home);
+  seedPaidLicense(home, LICENSE_KEY, data);
   const previous = {...process.env};
   for (const key of ['PLUGIN_ROOT', 'PLUGIN_DATA', 'AGENTGUARD_PLUGIN_POLICY', 'CLAUDE_SESSION_ID', 'CODEX_THREAD_ID', 'CLAUDE_PROJECT_DIR']) delete process.env[key];
   Object.assign(process.env, {CLAUDE_PLUGIN_ROOT: root, CLAUDE_PLUGIN_DATA: data, CLAUDE_CONFIG_DIR: config,

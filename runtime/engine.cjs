@@ -9,7 +9,8 @@ const crypto = require('node:crypto');
 const sdk = require('./dependencies.cjs').loadDependency('@agentguard-run/spend');
 const burn = require('./dependencies.cjs').loadDependency('@agentguard-run/burn');
 const { OwnedLogStore } = require('./owned-log.cjs');
-const { readSessionLicense } = require('./license.cjs');
+const { readSessionLicense, configuredKey } = require('./license.cjs');
+const { readCachedOrgPolicy, mergeOrgPolicy, orgEnabled } = require('./org-policy.cjs');
 const { locations, allow, deny, SPAWN, hostContext, runBurnHook, matchingExternalBurn, outcomeFlow, minimumCapability } = require('./common.cjs');
 const tiers = ['read_only', 'data_write', 'payment_initiate', 'payment_execute'];
 const durations = { per_minute: 60000, per_hour: 3600000, per_day: 86400000, per_month: 2592000000 };
@@ -27,6 +28,10 @@ function validatePolicy(policy) {
   for (const config of configs) {
     if (!config || typeof config !== 'object') throw new Error('policy_invalid');
     if (config.maxCapability !== undefined && !tiers.includes(config.maxCapability)) throw new Error('policy_invalid');
+    for (const group of config.allowedToolGroups ?? []) {
+      if (!Array.isArray(group)) throw new Error('policy_invalid');
+      for (const pattern of group) { if (typeof pattern !== 'string' || pattern.length > 512) throw new Error('policy_invalid'); new RegExp(pattern, 'i'); }
+    }
     for (const field of ['allowedTools', 'deniedTools', 'ethicalWall']) {
       if (config[field] !== undefined && !Array.isArray(config[field])) throw new Error('policy_invalid');
       for (const pattern of config[field] ?? []) { if (typeof pattern !== 'string' || pattern.length > 512) throw new Error('policy_invalid'); new RegExp(pattern, 'i'); }
@@ -52,7 +57,7 @@ class Engine {
     this.logOptions = options.logOptions ?? {};
     this.loc = locations(); this.spendStore = new sdk.InMemorySpendStore(); this.pending = new Map(); this.completed = new Map(); this.failures = new Set();
     this.outcomes = new sdk.SpendGuard({ policy: basePolicy, spendStore: this.spendStore, licensePostJson: offline });
-    this.guards = new Map();
+    this.guards = new Map(); this.orgPolicyDigests = new Map(); this.sessionFailures = new Map();
   }
   async init() {
     fs.mkdirSync(this.loc.data, { recursive: true, mode: 0o700 });
@@ -98,16 +103,54 @@ class Engine {
     // Import deferred events only after validating the existing chain.
     await this.drainSpool();
   }
+  setSessionFailure(sessionId, source, reason) {
+    const existing = this.sessionFailures.get(sessionId);
+    const failures = existing instanceof Map ? existing : new Map(existing ? [['legacy', existing]] : []);
+    failures.set(source, reason);
+    this.sessionFailures.set(sessionId, failures);
+  }
+  clearSessionFailure(sessionId, source) {
+    const failures = this.sessionFailures.get(sessionId);
+    if (!(failures instanceof Map)) return;
+    failures.delete(source);
+    if (!failures.size) this.sessionFailures.delete(sessionId);
+  }
+  preferredSessionFailure(sessionId) {
+    const failures = this.sessionFailures.get(sessionId);
+    if (!(failures instanceof Map)) return failures;
+    const reasons = [...failures.values()];
+    return reasons.includes('seat_revoked') ? 'seat_revoked' : reasons.at(-1);
+  }
   context(meta) {
+    this.orgPolicyDigests.set(meta.sessionId, null);
     const source = require('./policy-file.cjs').readPolicy(this.loc.data);
-    const license = this.licenseReader({data: this.loc.data, sessionId: meta.sessionId, policy: source.policy});
-    const selected = license.paid || !source.team ? source.policy : source.personal;
+    let license = this.licenseReader({data: this.loc.data, sessionId: meta.sessionId, policy: source.policy});
+    let selected = license.paid || !source.team ? source.policy : source.personal;
+    let org = null;
+    if (orgEnabled(license)) {
+      const key = configuredKey(source.policy);
+      org = readCachedOrgPolicy(this.loc.data, {keyFingerprint: key ? crypto.createHash('sha256').update(key).digest('hex') : null});
+      if (org.envelope) {
+        // Validate each layer before internal merge fields are constructed.
+        validatePolicy(source.personal);
+        if (source.shared) validatePolicy({...source.personal, ...source.shared});
+        selected = mergeOrgPolicy(source.personal, source.shared, org.envelope.policy);
+      }
+      if (org.reason) license = {...license, mode: 'shadow', reason: license.reason || org.reason};
+    }
     const text = JSON.stringify(selected);
     if (text !== this.policyText) { this.policyValue = validatePolicy(selected); this.policyText = text; this.guards.clear(); }
-    return {config: this.policyValue, license, mode: license.paid ? (this.policyValue.mode ?? 'enforce') : 'shadow'};
+    if (org?.envelope) this.orgPolicyDigests.set(meta.sessionId, org.envelope.sha256);
+    // The worker can retain a failure even when disk writes themselves fail.
+    // A stale ready file must never override the most recent failed refresh.
+    const failure = this.preferredSessionFailure(meta.sessionId);
+    if (failure) license = {...license, mode: 'shadow', reason: license.reason === 'seat_revoked' ? 'seat_revoked' : failure,
+      ...((failure === 'seat_revoked' || license.reason === 'seat_revoked') ? {seatRevoked: true} : {})};
+    return {config: this.policyValue, license, orgPolicy: org?.envelope ?? null,
+      mode: license.paid && license.mode !== 'shadow' ? (this.policyValue.mode ?? 'enforce') : 'shadow'};
   }
   licenseMetadata(decision, license, mode) {
-    const reason = license.paid ? null : license.reason === 'seat_limit' ? 'seat_limit' : 'license_required';
+    const reason = license.reason && (license.mode === 'shadow' || !license.paid) ? license.reason : license.paid ? null : 'license_required';
     decision.enforcementMode = mode;
     decision.plugin.license = {paid: license.paid === true, tier: license.tier ?? 'free',
       seatsUsed: license.seatsUsed ?? null, seatLimit: license.seatLimit ?? null,
@@ -238,7 +281,8 @@ class Engine {
     if (tiers.indexOf(capability) < tiers.indexOf(minimumClassification)) capability = minimumClassification;
     let reason;
     for (const scope of [config, session]) {
-      if (scope.allowedTools && !matches(scope.allowedTools, meta.toolName)) reason = 'tool_not_allowlisted';
+      const allowlists = scope.allowedToolGroups ?? (scope.allowedTools === undefined ? [] : [scope.allowedTools]);
+      if (allowlists.some(patterns => !matches(patterns, meta.toolName))) reason = 'tool_not_allowlisted';
       if (matches(scope.deniedTools, meta.toolName)) reason = 'tool_denied';
       if (matches(scope.ethicalWall, meta.toolName)) reason = 'ethical_wall';
       if (scope.maxCapability && tiers.indexOf(capability) > tiers.indexOf(scope.maxCapability)) reason = 'capability_tier_exceeded';

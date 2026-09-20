@@ -21,7 +21,7 @@ function context(t, policy = {}) {
   const previous = Object.fromEntries([...new Set([...Object.keys(values), ...matrix.envKeys])].map(key => [key, process.env[key]]));
   Object.assign(process.env, values);
   matrix.environment(process.env, data);
-  seedPaidLicense(values.AGENTGUARD_HOME);
+  seedPaidLicense(values.AGENTGUARD_HOME, LICENSE_KEY, data);
   fs.writeFileSync(values.AGENTGUARD_PLUGIN_POLICY, JSON.stringify({ licenseKey: LICENSE_KEY, version: 1, tenantId: 'local', mode: 'enforce', maxCapability: 'payment_execute', caps: [], ...policy }));
   t.after(() => {
     for (const [key, value] of Object.entries(previous)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }

@@ -51,7 +51,7 @@ function fixture(t) {
     if (relative.startsWith('hooks/')) fs.writeFileSync(path.join(legacy, relative), bytes);
   }
   const env = {...process.env, PLUGIN_DATA: data, AGENTGUARD_HOME: path.join(temporary, 'burn'), AGENTGUARD_LICENSE_KEY: '', AGENTGUARD_NO_BEACON: '1', AGENTGUARD_TELEMETRY: '0'};
-  seedPaidLicense(env.AGENTGUARD_HOME);
+  seedPaidLicense(env.AGENTGUARD_HOME, LICENSE_KEY, data);
   delete env.NODE_PATH;
   delete env.AGENTGUARD_PLUGIN_POLICY;
   const invoke = (legacyHook, name, raw) => spawnSync(process.execPath, [path.join(legacyHook ? legacy : root, 'hooks', `${name}.cjs`)],

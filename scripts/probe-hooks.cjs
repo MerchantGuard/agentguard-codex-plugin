@@ -85,6 +85,9 @@ async function runProbe({callsPerGate = 12, diskDelayMs = 0} = {}) {
     fs.mkdirSync(home, {mode: 0o700});
     fs.writeFileSync(path.join(home, `license-${digest(KEY)}.json`), JSON.stringify({fetchedAt: Date.now(),
       status: {valid: true, tier: 'growth', seats: 50, expiresAt: new Date(Date.now() + 86400000).toISOString(), features: {maxActiveSeats: 50}}}), {mode: 0o600});
+    // Model a successful org endpoint 204 without any network in the probe.
+    fs.writeFileSync(path.join(data, 'org-policy-status.json'), JSON.stringify({license_fingerprint: digest(KEY),
+      status: 'none', reason: null, org_policy_sha256: null, updated_at: new Date().toISOString()}), {mode: 0o600});
     fs.writeFileSync(path.join(data, 'policy.json'), JSON.stringify({version: 1, licenseKey: KEY,
       tenantId: 'synthetic-probe', mode: 'enforce', hookBudgetMs: 250, maxCapability: 'payment_execute',
       deniedTools: ['^mcp__synthetic__save_document$'], caps: [], toolRules: [], sessions: {}}), {mode: 0o600});

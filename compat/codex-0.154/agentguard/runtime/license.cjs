@@ -1,7 +1,7 @@
 'use strict';
 
-// Network resolution belongs to session startup or explicit activation. Hooks
-// call readSessionLicense only, which reads a content-free local snapshot.
+// Only the detached worker invokes network resolution, including activation.
+// Hooks call readSessionLicense only, reading a content-free local snapshot.
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
@@ -84,7 +84,9 @@ function effective(value, now) {
   if (Number.isNaN(at) || (at !== null && now >= at + GRACE_MS)) {
     return {...value, paid: false, mode: 'shadow', reason: 'license_required', offlineGrace: false};
   }
-  return {...value, mode: 'enforce', reason: null, offlineGrace: at !== null && now >= at};
+  if (value.seatRevoked) return {...value, mode: 'shadow', reason: 'seat_revoked', offlineGrace: at !== null && now >= at};
+  return {...value, mode: value.mode === 'shadow' ? 'shadow' : 'enforce',
+    reason: value.mode === 'shadow' ? value.reason || 'license_unavailable' : null, offlineGrace: at !== null && now >= at};
 }
 function writeStatus(file, value) {
   fs.mkdirSync(path.dirname(file), {recursive: true, mode: 0o700});
@@ -96,7 +98,7 @@ function readSessionLicense(options) {
   const id = identity(options);
   const now = nowOf(options.now);
   const value = readJson(id.file);
-  if (matchStatus(value, id) && value.source !== 'resolving') return effective(value, now);
+  if (matchStatus(value, id) && (value.source !== 'resolving' || value.resolvingShadow === true || value.seatRevoked)) return effective(value, now);
   // Session startup resolves remotely outside hooks. A previously validated
   // paid customer retains cached access while that detached refresh starts.
   const cached = id.key ? cachedStatus(id) : null;
@@ -146,6 +148,7 @@ async function refresh(options, id) {
   const aborted = new Promise((resolve, reject) => {
     controller.signal.addEventListener('abort', () => reject(new Error('License refresh timed out.')), {once: true});
   });
+  aborted.catch(() => {});
   // The same deadline covers validation and seat registration, including a
   // transport that is injected by an embedding runtime or test.
   const timer = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);
@@ -163,7 +166,7 @@ async function refresh(options, id) {
       source = 'offline_cache';
     }
     const paid = eligible(status, now, source === 'offline_cache');
-    if (!paid) return snapshot(id, status, now, {source});
+    if (!paid) return snapshot(id, status, now, {source, ...(options.previousSeatRevoked ? {seatRevoked: true, reason: 'seat_revoked'} : {})});
     // The SDK provides the existing installation identity and seat protocol.
     // Its validation callback reuses this session's result, so only one actual
     // validation request is made and cached paid seats are still registered.
@@ -173,7 +176,8 @@ async function refresh(options, id) {
           if (new URL(url).pathname === '/api/license/validate') return status;
           try {
             registeredIdentity = seatIdentity(id, payload);
-            seat = await transport(SEAT_ENDPOINT, {...payload, machine_fingerprint: registeredIdentity.machineFingerprint, process_id: registeredIdentity.processId});
+            seat = await transport(SEAT_ENDPOINT, {license_key: id.key, machine_fingerprint: registeredIdentity.machineFingerprint, process_id: registeredIdentity.processId,
+              org_policy_sha256: /^[a-f0-9]{64}$/.test(options.orgPolicySha256 || '') ? options.orgPolicySha256 : null});
             return seat;
           }
           catch (error) { seatFailure = true; throw error; }
@@ -187,14 +191,17 @@ async function refresh(options, id) {
     const overLimit = seat?.ok === false || (seatsUsed !== null && seatsUsed > seatLimit);
     const at = expiry(status);
     const observation = seatFields(seat, now);
-    return snapshot(id, status, now, {paid: !overLimit, mode: overLimit ? 'shadow' : 'enforce',
-      reason: overLimit ? (seat?.error === 'license_not_found' ? 'license_required' : 'seat_limit') : null,
+    const seatRevoked = seat?.revoked === true || (options.previousSeatRevoked === true && !(observation.valid && seat?.revoked === false));
+    const reason = seatRevoked ? 'seat_revoked' : overLimit ? (seat?.error === 'license_not_found' ? 'license_required' : 'seat_limit')
+      : source === 'offline_cache' ? 'license_unavailable' : seatFailure ? 'seat_unavailable' : null;
+    return snapshot(id, status, now, {paid: !overLimit || seatRevoked, mode: reason ? 'shadow' : 'enforce', reason, seatRevoked,
+      seatRevocationConfirmed: observation.valid && typeof seat?.revoked === 'boolean' ? seat.revoked : null,
       seatsUsed, seatLimit, seatStorage: observation.seatStorage, seatsVerified: observation.seatsVerified,
       seatRefreshedAt: observation.seatRefreshedAt ?? null,
       ...(registeredIdentity ? {seatIdentity: registeredIdentity} : {}), source, offlineGrace: at !== null && now >= at,
       seatStatus: overLimit ? 'denied' : seatFailure ? 'unavailable' : 'registered'});
   } catch {
-    return snapshot(id, null, now, {source: 'unavailable'});
+    return snapshot(id, null, now, {source: 'unavailable', ...(options.previousSeatRevoked ? {seatRevoked: true, reason: 'seat_revoked'} : {})});
   } finally {
     clearTimeout(timer);
     controller.abort();
@@ -237,16 +244,16 @@ async function resolveSessionLicense(options) {
       return readSessionLicense(options);
     }
     fs.closeSync(fd);
-    writeStatus(id.file, snapshot(id, null, now, {source: 'resolving'}));
-    const value = await refresh(options, id);
-    writeStatus(id.file, value);
+    writeStatus(id.file, existing?.mode === 'shadow' && existing.reason ? {...existing, source: 'resolving', resolvingShadow: true} : snapshot(id, null, now, {source: 'resolving'}));
+    const value = await refresh({...options, previousSeatRevoked: existing?.seatRevoked}, id);
+    try { writeStatus(id.file, value); } catch { const error = new Error('License state unavailable.'); error.code = value.seatRevoked ? 'seat_revoked' : 'license_unavailable'; throw error; }
     return effective(value, nowOf(options.now));
   })();
   pending.set(id.file, work);
   try { return await work; } finally { pending.delete(id.file); }
 }
 
-// Only the worker or explicit session resolver calls this function. Hook-side
+// Only the detached worker calls this function. Hook-side
 // reads remain synchronous and never perform a registration or heartbeat.
 async function heartbeatSessionSeat(options) {
   const policy = options.policy || require('./policy-file.cjs').readPolicy(options.data).policy;
@@ -265,6 +272,7 @@ async function heartbeatSessionSeat(options) {
     const aborted = new Promise((resolve, reject) => {
       controller.signal.addEventListener('abort', () => reject(new Error('Seat heartbeat timed out.')), {once: true});
     });
+    aborted.catch(() => {});
     timer = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);
     const deadline = Date.now() + REFRESH_TIMEOUT_MS;
     try {
@@ -273,26 +281,33 @@ async function heartbeatSessionSeat(options) {
       registeredIdentity = seatIdentity(id, {}, initial.seatIdentity);
       seat = await Promise.race([
         Promise.resolve().then(() => (options.postJson || httpPostJson)(SEAT_ENDPOINT,
-          {license_key: id.key, machine_fingerprint: registeredIdentity.machineFingerprint, process_id: registeredIdentity.processId},
+          {license_key: id.key, machine_fingerprint: registeredIdentity.machineFingerprint, process_id: registeredIdentity.processId,
+            org_policy_sha256: /^[a-f0-9]{64}$/.test(options.orgPolicySha256 || '') ? options.orgPolicySha256 : null},
           {signal: controller.signal, deadline})),
         aborted,
       ]);
-    } catch { /* A heartbeat observes seats and never changes authorization. */ }
+    } catch { /* Failed licensing observations become shadow, never a tool denial. */ }
     finally { clearTimeout(timer); controller.abort(); aborted.catch(() => {}); }
     const observation = seatFields(seat, now);
     const latest = readJson(id.file);
     // Explicit activation owns entitlement changes. A late heartbeat must not
     // overwrite a new startup or activation result for the same key.
     if (!matchStatus(latest, id) || latest.source === 'resolving' || latest.refreshedAt !== initial.refreshedAt) return readSessionLicense(opts);
-    const updated = {...latest, seatHeartbeatAt: new Date(now).toISOString(),
+    const seatRevoked = seat?.revoked === true || (latest.seatRevoked === true && !(observation.valid && seat?.revoked === false));
+    let reason = latest.reason;
+    if (seatRevoked) reason = 'seat_revoked';
+    else if (!observation.valid) reason = 'seat_unavailable';
+    else if (!seat.ok) reason = seat?.error === 'license_not_found' ? 'license_required' : 'seat_limit';
+    else if (['seat_revoked', 'seat_unavailable'].includes(reason) || (latest.paid && reason === 'seat_limit')) reason = null;
+    const updated = {...latest, seatRevoked, seatRevocationConfirmed: observation.valid && typeof seat?.revoked === 'boolean' ? seat.revoked : null, mode: reason || !latest.paid ? 'shadow' : 'enforce', reason, seatHeartbeatAt: new Date(now).toISOString(),
       seatStorage: observation.seatStorage, seatsVerified: observation.seatsVerified,
       seatStatus: observation.valid ? (seat.ok ? 'registered' : 'denied') : 'unavailable',
       seatHeartbeatError: observation.valid ? (seat.ok ? null : 'seat_denied') : 'unavailable',
       ...(registeredIdentity ? {seatIdentity: registeredIdentity} : {}),
       ...(observation.valid ? {seatsUsed: observation.seatsUsed, seatLimit: observation.seatLimit,
         seatRefreshedAt: observation.seatRefreshedAt} : {})};
-    writeStatus(id.file, updated);
-    return updated;
+    try { writeStatus(id.file, updated); } catch { const error = new Error('Seat state unavailable.'); error.code = seatRevoked ? 'seat_revoked' : 'seat_unavailable'; throw error; }
+    return effective(updated, now);
   })();
   heartbeatPending.set(id.file, work);
   try { return await work; } finally { heartbeatPending.delete(id.file); }

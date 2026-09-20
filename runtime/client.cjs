@@ -38,10 +38,11 @@ function workerReady(loc) {
   } catch { return false; }
 }
 async function request(message, options = {}) {
-  const loc = locations(); ensurePrivateIpc(loc);
+  const loc = locations(options.data);
   if (message.meta && !message.meta.requestId) message.meta.requestId = crypto.randomUUID();
   const warm = workerReady(loc);
   if (options.startWorker === false && !warm) return {};
+  ensurePrivateIpc(loc);
   const id = `${Date.now().toString().padStart(16, '0')}-${process.hrtime.bigint()}-${crypto.randomUUID()}`;
   const input = path.join(loc.ipc, id + '.request');
   const output = path.join(loc.ipc, id + '.response');

@@ -23,7 +23,7 @@ async function setup(t, policy = {}) {
   matrix.environment(process.env, data);
   process.env.AGENTGUARD_HOME = path.join(data, 'burn');
   process.env.AGENTGUARD_LICENSE_KEY = '';
-  seedPaidLicense(process.env.AGENTGUARD_HOME);
+  seedPaidLicense(process.env.AGENTGUARD_HOME, LICENSE_KEY, data);
   delete process.env.AGENTGUARD_PLUGIN_POLICY;
   fs.writeFileSync(path.join(data, 'policy.json'), JSON.stringify({ ...base, ...policy }));
   const loc = locations();

@@ -2,7 +2,7 @@
 'use strict';
 const {locations} = require('./common.cjs');
 const {readPolicy} = require('./policy-file.cjs');
-const {resolveSessionLicense} = require('./license.cjs');
+const {readSessionLicense} = require('./license.cjs');
 const {findHost} = require('./live-sessions.cjs');
 async function track(sessionId, parentPid, captured) {
   const host = captured ?? findHost(parentPid);
@@ -12,10 +12,9 @@ async function start(sessionId, parentPid) {
   const host = findHost(parentPid);
   const {data} = locations();
   const {policy} = readPolicy(data);
-  const result = await resolveSessionLicense({data, sessionId, policy});
-  // The lifecycle process may use the network. The hook has already returned.
-  if (result.seatIdentity) await track(sessionId, parentPid, host).catch(() => {});
-  return result;
+  // Lifecycle helpers use private file IPC only. The worker owns every fetch.
+  await track(sessionId, parentPid, host).catch(() => {});
+  return readSessionLicense({data, sessionId, policy});
 }
 module.exports = {start, track};
 if (require.main === module) start(process.argv[2] || 'local', process.argv[3]).catch(() => { process.exitCode = 1; });

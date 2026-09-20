@@ -41,13 +41,36 @@ async function main() {
   health.recordPending();
   engine = new Engine(); await engine.init();
   live = new (require('./live-sessions.cjs').LiveSessions)({data: loc.data});
-  heartbeats = new (require('./seat-heartbeat.cjs').SeatHeartbeatScheduler)({data: loc.data, isLive: id => live.confirmHost(id)});
+  const starts = new Map();
+  function loadOrg(sessionId) { engine.clearSessionFailure(sessionId, 'org'); try { engine.context({sessionId}); } catch { engine.orgPolicyDigests?.delete(sessionId); } }
+  heartbeats = new (require('./seat-heartbeat.cjs').SeatHeartbeatScheduler)({data: loc.data, isLive: id => live.confirmHost(id),
+    orgPolicyDigest: id => engine.orgPolicyDigests?.get(id) ?? null, onOrgRefresh: loadOrg,
+    onOrgFailure: (id, reason) => engine.setSessionFailure(id, 'org', reason),
+    onSeatRefresh: (id, value) => require('./worker-session.cjs').recoverSeatState(engine, id, value),
+    onSeatFailure: (id, reason) => engine.setSessionFailure(id, 'seat', reason)});
+  function beginSession(message) {
+    const policy = require('./policy-file.cjs').readPolicy(loc.data).policy;
+    const key = require('./license.cjs').configuredKey(policy);
+    const tag = JSON.stringify([message.sessionId, key]);
+    if (message.control === 'license-refresh') starts.delete(tag);
+    if (!starts.has(tag)) {
+      // A restarted worker must not trust a previously ready disk file before
+      // it has re-observed the seat, including revocations it could not save.
+      engine.setSessionFailure(message.sessionId, 'startup', engine.preferredSessionFailure(message.sessionId) === 'seat_revoked' ? 'seat_revoked' : 'license_unavailable');
+      const work = require('./worker-session.cjs').refreshWorkerSession({data: loc.data, sessionId: message.sessionId, policy,
+        forceActivation: true, orgPolicySha256: engine.orgPolicyDigests?.get(message.sessionId) ?? null})
+        .then(status => { if (starts.get(tag) !== work) return status; require('./worker-session.cjs').recoverSessionState(engine, message.sessionId, status); loadOrg(message.sessionId); observe(message.sessionId, message.ownerPid, message.ownerIdentity); return status; });
+      starts.set(tag, work);
+      work.catch(error => { if (starts.get(tag) !== work) return; starts.delete(tag); engine.setSessionFailure(message.sessionId, 'startup', error?.code === 'seat_revoked' ? 'seat_revoked' : error?.source === 'org' ? 'org_policy_unavailable' : 'license_unavailable'); });
+    }
+    return starts.get(tag);
+  }
   function observe(sessionId, ownerPid, ownerIdentity) {
     live.observe(sessionId, ownerPid, ownerIdentity);
     try { heartbeats.observe(sessionId, require('./policy-file.cjs').readPolicy(loc.data).policy); } catch {}
   }
   for (const id of live.ids()) {
-    try { heartbeats.observe(id, require('./policy-file.cjs').readPolicy(loc.data).policy); } catch {}
+    try { heartbeats.observe(id, require('./policy-file.cjs').readPolicy(loc.data).policy); void beginSession({control: 'session-start', sessionId: id}).catch(() => {}); } catch {}
   }
   // Network renewal runs independently of gate handling and never delays replies.
   heartbeatTimer = setInterval(() => {
@@ -72,10 +95,27 @@ async function main() {
         try { fs.unlinkSync(input); } catch (error) { if (error.code === 'ENOENT') continue; throw error; }
         touch();
         if (message.control === 'stop') return stop(output);
-        if (message.control === 'session-start' || message.control === 'session-end') {
-          if (message.control === 'session-start') observe(message.sessionId, message.ownerPid, message.ownerIdentity);
-          else { live.forget(message.sessionId); heartbeats.forget(message.sessionId); }
-          writeMessage(output, {}); void live.persist().catch(() => {}); continue;
+        if (message.control === 'effective-license') {
+          try {
+            const state = engine.context({sessionId: message.sessionId});
+            writeMessage(output, {license: {...state.license, mode: state.mode, orgPolicySha256: state.orgPolicy?.sha256 ?? null, orgPolicyVersion: state.orgPolicy?.version ?? null}});
+          } catch { writeMessage(output, {license: {mode: 'shadow', reason: 'policy_invalid'}}); }
+          continue;
+        }
+        if (['session-start', 'session-end', 'license-refresh'].includes(message.control)) {
+          if (message.control === 'session-end') { for (const tag of starts.keys()) { if (JSON.parse(tag)[0] === message.sessionId) starts.delete(tag); } live.forget(message.sessionId); heartbeats.forget(message.sessionId); engine.orgPolicyDigests?.delete(message.sessionId); writeMessage(output, {}); }
+          else {
+            observe(message.sessionId, message.ownerPid, message.ownerIdentity);
+            // Never await a network operation in the gate drain. Activation
+            // receives a later file reply; SessionStart returns immediately.
+            const activation = message.control === 'license-refresh';
+            try {
+              void beginSession(message).then(status => { if (activation) writeMessage(output, {license: status}); })
+                .catch(() => { if (activation) writeMessage(output, {license: {paid: false, mode: 'shadow', tier: 'free', reason: 'license_unavailable'}}); });
+            } catch { if (activation) writeMessage(output, {license: {paid: false, mode: 'shadow', tier: 'free', reason: 'license_unavailable'}}); }
+            if (!activation) writeMessage(output, {});
+          }
+          void live.persist().catch(() => {}); continue;
         }
         try {
           health.recordPending();

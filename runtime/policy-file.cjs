@@ -9,6 +9,6 @@ function readPolicy(data) {
   const teamFile = process.env.AGENTGUARD_PLUGIN_POLICY || personal.teamPolicyFile;
   if (!teamFile || path.resolve(data, teamFile) === path.resolve(local)) return {policy: personal, personal, team: false};
   const shared = JSON.parse(fs.readFileSync(path.resolve(data, teamFile), 'utf8'));
-  return {policy: {...personal, ...shared, ...(personal.licenseKey ? {licenseKey: personal.licenseKey} : {})}, personal, team: true};
+  return {policy: {...personal, ...shared, ...(personal.licenseKey ? {licenseKey: personal.licenseKey} : {})}, personal, shared, team: true};
 }
 module.exports = {readPolicy};

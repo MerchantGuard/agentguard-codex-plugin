@@ -180,11 +180,57 @@ Seat renewal belongs to the worker, outside the hook processes. It sends a
 bounded heartbeat every five minutes while the session remains live and
 stops on SessionEnd or identified host process exit. Hosts without an
 identifiable process use a fifteen minute lease renewed by tool activity.
-Heartbeat failures and later seat-limit responses do not change the current
-session's mode. Startup still applies its seat admission result.
+Heartbeat failures and later seat-limit responses select shadow with a
+reason. Revocation selects `seat_revoked`; it remains in shadow through
+failed requests until a successful heartbeat explicitly restores the seat.
 
 MDM delivery does not turn fail-open hooks into fail-closed authorization.
 AgentGuard still allows a tool call on an internal hook error or timeout.
 Free licenses and unavailable entitlement checks still select shadow mode
 according to the documented cache and grace rules. A firm that needs
 fail-closed authorization must enforce it at its tool or service boundary.
+
+
+## Organization policy distribution
+
+The organization owner publishes a policy on the Team or 50-seat dashboard.
+The detached worker alone fetches it at session start and every fifth
+heartbeat. Session startup and explicit activation use private file IPC to
+that worker; hook processes never open a socket. A validated, license-bound
+copy remains in `${PLUGIN_DATA}/org-policy.json` through failed refreshes
+and the seven-day offline license grace. Every licensing or org-state
+failure selects shadow with a reason; retaining a file never authorizes a
+denied tool call during an outage.
+
+The org policy is above the shared team file and local policy. Allowlists
+intersect by regular-expression matching, deny patterns and ethical walls
+union, capability ceilings take the minimum, and caps append at root and
+session scope. Org enforce mode cannot be lowered locally. Org tool-rule
+fields and actor mappings take precedence so local prices, matter mappings
+or tenant settings cannot bypass an org cap. If the server returns 204,
+there is no org policy and the existing shared-file behavior applies.
+
+For example, an org policy with `allowedTools: ["^mcp__documents__read$"]`,
+`maxCapability: "read_only"`, `mode: "enforce"` and a daily 500-cent configured
+cap remains restricted to that tool and ceiling when a local file sets
+`allowedTools: [".*"]`, `maxCapability: "payment_execute"`, `mode: "shadow"`
+and a 50000-cent cap. Both caps apply. The complete JSON root still requires
+`version: 1`. These are configured accounting units, not provider bills.
+
+Use only the fields in the [Policy file reference](https://agentguard.run/docs/codex/#policy).
+Local license keys and team file paths cannot be published. The server and
+plugin use the same strict nested allowlist and canonical JSON SHA256.
+The [wire contract](ORG_FEATURES_CONTRACT.md) lists accepted fields, errors,
+heartbeat metadata and the revocation behavior for review.
+
+Worker heartbeats contain exactly `license_key`, `machine_fingerprint`,
+`process_id` and `org_policy_sha256`. They send no usage counts, tool input,
+output, prompt, file content or signed receipt. A matching hash does not
+attest enforcement. The server distributes policy and records licensed
+seats and their last reported policy versions.
+Admin-authored policy identifiers and expressions, seat labels and invite
+emails are stored on the server. Labels never travel to workers. Invites
+share the existing org license key; acceptance is not attributable to an
+individual. Revoking a registration selects shadow at its next heartbeat;
+restoring it takes effect on a successful heartbeat. This is not a remote
+kill switch or a data proxy.
