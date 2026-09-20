@@ -1,6 +1,6 @@
 {
   "schema": "agentguard.directory-review.v1",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "fixturePolicy": {
     "version": 1,
     "tenantId": "tenant-SYNTHETIC-review",

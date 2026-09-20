@@ -51,11 +51,15 @@ function metadata(raw, gate) {
   // A failure's error text is counted in memory, never retained in metadata.
   const output = JSON.stringify(hostContext().host === 'claude-code' && raw.hook_event_name === 'PostToolUseFailure' ? raw.error ?? null : response ?? null);
   const toolName = identifier(raw.tool_name);
+  const guard = gate === 'spend' && !SPAWN.has(toolName) || gate === 'burn' && SPAWN.has(toolName)
+    ? require('./guard-pack.cjs').scanGuardPack(toolName, raw.tool_input, {cwd: raw.cwd}) : {ruleIds: []};
   return { schema: 'agentguard.codex.v1', host: hostContext().host, requestId: crypto.randomUUID(), gate, toolName,
     toolUseId: identifier(raw.tool_use_id, crypto.randomUUID()), sessionId: identifier(raw.session_id, hostContext().sessionId ?? 'unknown'),
     ...(raw.agent_id ? { agentId: identifier(raw.agent_id) } : {}),
     inputSha256: crypto.createHash('sha256').update(input).digest('hex'),
     inputBytes: Buffer.byteLength(input), inputKeys: raw.tool_input && typeof raw.tool_input === 'object' ? Object.keys(raw.tool_input).length : 0,
+    ...(guard.ruleIds.length ? {guardRuleIds: guard.ruleIds} : {}),
+    ...(guard.reason ? {guardScanReason: guard.reason} : {}),
     startedAt: new Date().toISOString(),
     ...(gate === 'receipt' ? { outputBytes: Buffer.byteLength(output),
       success: outcomeSuccess(raw, toolName),

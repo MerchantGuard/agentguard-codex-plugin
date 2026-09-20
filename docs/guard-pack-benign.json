@@ -1,0 +1,16 @@
+{
+  "corpus_size": 356,
+  "unique_commands": 356,
+  "match_count": 0,
+  "date": "2026-09-20T19:16:42.758Z",
+  "node": "v22.17.1",
+  "machine": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M2 Max"
+  },
+  "corpus_sha256": "b2dca4e79ab1bd7f9a1a6d2b2037372254f87ba0051356664c7ec9f015ba447a",
+  "rulepack_sha256": "41df9c9c7445f4945b44e542cdf4ce45a296d6d961e4091b5355d442ea77bab9",
+  "scope": "Static command strings scanned locally; no commands executed. Git reset examples use an explicit feature-branch context.",
+  "matches": []
+}

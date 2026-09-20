@@ -2,7 +2,8 @@
 // Shared verbatim with the control-plane publisher. This module has no I/O.
 const {createHash} = require('node:crypto');
 const TIERS = ['read_only', 'data_write', 'payment_initiate', 'payment_execute'];
-const ROOT_FIELDS = ['version', 'tenantId', 'mode', 'hookBudgetMs', 'defaultMatterId', 'maxCapability', 'allowedTools', 'deniedTools', 'ethicalWall', 'paymentPattern', 'toolRules', 'caps', 'sessions'];
+const ROOT_FIELDS = ['version', 'tenantId', 'mode', 'hookBudgetMs', 'defaultMatterId', 'maxCapability', 'allowedTools', 'deniedTools', 'ethicalWall', 'paymentPattern', 'toolRules', 'caps', 'sessions', 'guardPack'];
+const GUARD_RULE_IDS = Array.from({length: 14}, (_, index) => `GP${String(index + 1).padStart(3, '0')}`);
 const SESSION_FIELDS = ['matterId', 'agentId', 'allowedTools', 'deniedTools', 'ethicalWall', 'maxCapability', 'caps'];
 const CAP_FIELDS = ['window', 'amountCents', 'action', 'selector', 'reason'];
 const SELECTOR_FIELDS = ['tenantId', 'agentId', 'taskId', 'sessionId', 'provider', 'userId', 'teamId'];
@@ -11,6 +12,29 @@ const FORBIDDEN = new Set(['__proto__', 'prototype', 'constructor']);
 const identifier = value => typeof value === 'string' && /^[A-Za-z0-9_./:@-]{1,128}$/.test(value);
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value)
   && [Object.prototype, null].includes(Object.getPrototypeOf(value));
+function validateGuardPack(value) {
+  if (value === undefined) return [];
+  if (!object(value)) return ['policy.guardPack must be an object.'];
+  const errors = [];
+  if (Object.keys(value).some(key => key !== 'rules')) errors.push('policy.guardPack accepts only rules.');
+  if (value.rules !== undefined) {
+    if (!object(value.rules)) errors.push('policy.guardPack.rules must be an object of built-in rule IDs.');
+    else for (const [id, mode] of Object.entries(value.rules)) {
+      if (!GUARD_RULE_IDS.includes(id)) errors.push('policy.guardPack.rules contains an unknown built-in rule ID.');
+      if (!['stop', 'warn', 'off'].includes(mode)) errors.push('Each guardPack rule must be stop, warn or off.');
+    }
+  }
+  return errors;
+}
+function mergeGuardPack(personal = {}, team, org) {
+  for (const layer of [personal, team, org].filter(Boolean)) if (validateGuardPack(layer.guardPack).length) throw new Error('guard_policy_invalid');
+  const authority = org ?? team;
+  const rules = Object.fromEntries(GUARD_RULE_IDS.map(id => [id, authority?.guardPack?.rules?.[id] ?? 'stop']));
+  // Personal files can tighten an admin choice but cannot authorize a downgrade.
+  const rank = {off: 0, warn: 1, stop: 2};
+  for (const lower of [personal, ...(org && team ? [team] : [])]) for (const [id, mode] of Object.entries(lower.guardPack?.rules ?? {})) if (rank[mode] > rank[rules[id]]) rules[id] = mode;
+  return {rules};
+}
 function validateOrgPolicy(policy) {
   const errors = [];
   function fields(value, permitted, at) {
@@ -50,6 +74,7 @@ function validateOrgPolicy(policy) {
   if (policy.mode !== undefined) enumeration(policy.mode, ['enforce', 'shadow'], 'policy.mode');
   if (policy.hookBudgetMs !== undefined) integer(policy.hookBudgetMs, 'policy.hookBudgetMs', 1);
   if (policy.paymentPattern !== undefined) regex(policy.paymentPattern, 'policy.paymentPattern');
+  errors.push(...validateGuardPack(policy.guardPack));
   constraints(policy, 'policy');
   if (policy.toolRules !== undefined) array(policy.toolRules, 'policy.toolRules', (rule, at) => {
     if (!fields(rule, RULE_FIELDS, at)) return;
@@ -87,4 +112,4 @@ function validateEnvelope(value) {
   if (!/^[a-f0-9]{64}$/.test(value.sha256 ?? '') || (!policyErrors.length && value.sha256 !== hashPolicy(value.policy))) errors.push('The organization policy SHA256 does not match its canonical JSON.');
   return errors;
 }
-module.exports = {validateOrgPolicy, canonicalize, hashPolicy, validateEnvelope, TIERS, ROOT_FIELDS, SESSION_FIELDS, CAP_FIELDS, SELECTOR_FIELDS, RULE_FIELDS};
+module.exports = {validateOrgPolicy, validateGuardPack, mergeGuardPack, GUARD_RULE_IDS, canonicalize, hashPolicy, validateEnvelope, TIERS, ROOT_FIELDS, SESSION_FIELDS, CAP_FIELDS, SELECTOR_FIELDS, RULE_FIELDS};

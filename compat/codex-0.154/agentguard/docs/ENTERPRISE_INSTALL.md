@@ -193,6 +193,13 @@ fail-closed authorization must enforce it at its tool or service boundary.
 
 ## Organization policy distribution
 
+The root policy can include `guardPack: {rules: {GP003: "warn", GP014: "off"}}`.
+Only fixed built-in IDs GP001 through GP014 and `stop`, `warn`, `off` values are
+accepted. Rules default to STOP in paid enforce mode and WARN in shadow mode.
+Only org or team policy can authorize a downgrade; personal-only downgrades
+have no effect. Org omissions remain STOP, and lower files may tighten an
+explicit downgrade. See [the guard pack](GUARD_PACK.md) for matching limits.
+
 The organization owner publishes a policy on the Team or 50-seat dashboard.
 The detached worker alone fetches it at session start and every fifth
 heartbeat. Session startup and explicit activation use private file IPC to

@@ -35,7 +35,7 @@ const permission = result => result.output.hookSpecificOutput.permissionDecision
 const rows = engine => fs.readFileSync(engine.logStore.filePath, 'utf8').trim().split('\n').map(JSON.parse);
 
 test('org contract allows exactly documented nonlocal root and nested fields', () => {
-  const policy = {version: 1, tenantId: 'tenant/example', mode: 'enforce', hookBudgetMs: 250, defaultMatterId: 'matter-1', maxCapability: 'payment_execute',
+  const policy = {version: 1, guardPack: {rules: {}}, tenantId: 'tenant/example', mode: 'enforce', hookBudgetMs: 250, defaultMatterId: 'matter-1', maxCapability: 'payment_execute',
     allowedTools: ['^Read$'], deniedTools: ['^Write$'], ethicalWall: ['^mcp__conflict__'], paymentPattern: 'payment|charge',
     toolRules: [{pattern: '^Read$', capability: 'read_only', requiredCapability: 'read_only', unitCostCents: 1}],
     caps: [{window: 'per_day', amountCents: 10, action: 'block', reason: 'daily_limit', selector: {tenantId: 'tenant/example', agentId: 'agent-1', taskId: 'matter-1', sessionId: 'session-example', provider: 'codex', userId: 'user-1', teamId: 'team-1'}}],

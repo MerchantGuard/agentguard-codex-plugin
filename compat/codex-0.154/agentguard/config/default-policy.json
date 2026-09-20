@@ -8,6 +8,7 @@
   "caps": [],
   "deniedTools": [],
   "ethicalWall": [],
+  "guardPack": {"rules": {}},
   "sessions": {},
   "hookBudgetMs": 250
 }

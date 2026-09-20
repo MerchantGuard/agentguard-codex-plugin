@@ -9,6 +9,7 @@ const { generateKeyPairSync } = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const sdk = require('@agentguard-run/spend');
 const { createReader, handleRpc, TOOLS } = require('../runtime/mcp.cjs');
+const {guardResult} = require('../runtime/guard-pack.cjs');
 
 const licenseHomes = new WeakMap();
 async function fixture(t, specs = [{ action: 'allow', projectedCents: 5 }]) {
@@ -55,6 +56,29 @@ test('MCP exposes exactly four read-only tools and negotiates initialization', a
   assert.equal(response.result.protocolVersion, '2025-06-18');
   assert.deepEqual(response.result.capabilities, { tools: {} });
   assert.equal(await handleRpc({ jsonrpc: '2.0', method: 'notifications/initialized' }, {}), null);
+});
+test('MCP verifies and exports content-free guard decisions and scan reasons', async t => {
+  const specs = ['enforce', 'shadow'].map(mode => {
+    const guard = guardResult(['GP001', 'GP014'], {rules: {GP014: 'off'}}, mode);
+    return {plugin: {event: 'decision', guardRuleIds: ['GP001', 'GP014'], guardPack: guard.matches, guardPackMessage: guard.message}};
+  });
+  specs.push({plugin: {event: 'decision', guardScanReason: 'guard_scan_incomplete'}});
+  const {reader} = await fixture(t, specs);
+  assert.equal((await reader.call('verify_chain')).ok, true);
+  const output = await reader.call('export_receipts');
+  assert.equal(output.entries.length, 3);
+  assert.deepEqual(output.entries[0].decision.plugin.guardRuleIds, ['GP001', 'GP014']);
+});
+test('MCP rejects unknown rule metadata and arbitrary guard message content', async t => {
+  for (const plugin of [
+    {guardRuleIds: ['GP999']}, {guardRuleIds: ['GP001', 'GP001']},
+    {guardScanReason: 'private content'}, {guardPack: [{id: 'GP001', action: 'allow'}]},
+    {guardPack: [{id: 'GP001', action: 'warn', command: 'private command'}]},
+    {guardPackMessage: 'private command'}, {guardPack: [{id: 'GP001', action: 'warn'}], guardPackMessage: 'arbitrary text'},
+  ]) {
+    const {reader} = await fixture(t, [{plugin}]);
+    await assert.rejects(reader.call('export_receipts'), /Guard .* metadata is invalid/);
+  }
 });
 
 test('MCP daily status counts unit spend once and includes blocks and fail-open events', async t => {

@@ -1,3 +1,8 @@
+## 0.3.2
+
+- Add 14 built-in local guard rules across seven categories. Raw arguments stay in hook memory; signed records contain rule IDs and applied modes. Free/shadow warns, paid enforce stops, and only org/team policy can authorize downgrades.
+- Measure hook overhead locally with scripts/measure-overhead.cjs; the result is written to docs/overhead.json for the site.
+
 ## 0.3.1
 
 - Fetch the organization policy published in the dashboard through the detached worker and merge it as the root layer above team and local policy files; org enforce cannot be loosened locally.

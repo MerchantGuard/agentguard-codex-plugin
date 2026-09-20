@@ -11,6 +11,8 @@ const burn = require('./dependencies.cjs').loadDependency('@agentguard-run/burn'
 const { OwnedLogStore } = require('./owned-log.cjs');
 const { readSessionLicense, configuredKey } = require('./license.cjs');
 const { readCachedOrgPolicy, mergeOrgPolicy, orgEnabled } = require('./org-policy.cjs');
+const {validateGuardPack, mergeGuardPack} = require('./org-policy-contract.cjs');
+const {guardResult} = require('./guard-pack.cjs');
 const { locations, allow, deny, SPAWN, hostContext, runBurnHook, matchingExternalBurn, outcomeFlow, minimumCapability } = require('./common.cjs');
 const tiers = ['read_only', 'data_write', 'payment_initiate', 'payment_execute'];
 const durations = { per_minute: 60000, per_hour: 3600000, per_day: 86400000, per_month: 2592000000 };
@@ -24,9 +26,11 @@ const matches = (patterns, name) => (patterns ?? []).some(pattern => new RegExp(
 function validatePolicy(policy) {
   if (!policy || typeof policy !== 'object' || Array.isArray(policy)) throw new Error('policy_invalid');
   if (policy.version !== 1 || !['enforce', 'shadow'].includes(policy.mode ?? 'enforce')) throw new Error('policy_invalid');
+  if (validateGuardPack(policy.guardPack).length) throw new Error('guard_policy_invalid');
   const configs = [policy, ...Object.values(policy.sessions ?? {})];
   for (const config of configs) {
     if (!config || typeof config !== 'object') throw new Error('policy_invalid');
+    if (config !== policy && config.guardPack !== undefined) throw new Error('guard_policy_invalid');
     if (config.maxCapability !== undefined && !tiers.includes(config.maxCapability)) throw new Error('policy_invalid');
     for (const group of config.allowedToolGroups ?? []) {
       if (!Array.isArray(group)) throw new Error('policy_invalid');
@@ -138,6 +142,11 @@ class Engine {
       }
       if (org.reason) license = {...license, mode: 'shadow', reason: license.reason || org.reason};
     }
+    selected = {...selected, guardPack: mergeGuardPack(source.personal, license.paid ? source.shared : null, org?.envelope?.policy)};
+    if (meta.guardScanReason) {
+      if (!['guard_branch_unknown', 'guard_scan_incomplete'].includes(meta.guardScanReason)) throw new Error('guard_scan_reason_invalid');
+      license = {...license, mode: 'shadow', reason: license.reason || meta.guardScanReason};
+    }
     const text = JSON.stringify(selected);
     if (text !== this.policyText) { this.policyValue = validatePolicy(selected); this.policyText = text; this.guards.clear(); }
     if (org?.envelope) this.orgPolicyDigests.set(meta.sessionId, org.envelope.sha256);
@@ -183,14 +192,18 @@ class Engine {
   async close() { return this.logStore.close(); }
   async failure(meta, reasonCode) {
     const key = `${meta.gate}:${callKey(meta)}`;
-    if (this.failures.has(key)) return { output: meta.gate === 'receipt' ? {} : allow(), warning: true, cause: reasonCode };
+    let guard;
+    try { guard = guardResult(meta.guardRuleIds ?? [], {}, 'shadow'); } catch { guard = {matches: [], warning: false}; }
+    const output = meta.gate === 'receipt' ? {} : {...allow(), ...(guard.warning ? {systemMessage: guard.message} : {})};
+    if (this.failures.has(key)) return { output, warning: true, cause: reasonCode };
     const decision = this.basic(meta, 'allow', reasonCode);
     decision.plugin.event = 'fail_open';
+    if (guard.matches.length) { decision.plugin.guardPack = guard.matches; decision.plugin.guardPackMessage = guard.message; }
     this.failureLicense(decision, meta);
     await this.append(decision);
     this.failures.add(key);
     if (governs(meta)) { this.pending.set(callKey(meta), decision); this.completed.set(key, decision); }
-    return { output: meta.gate === 'receipt' ? {} : allow(), warning: true, cause: reasonCode };
+    return { output, warning: true, cause: reasonCode };
   }
   async drainSpool() {
     const batch = this.loc.spool + '.recovering';
@@ -211,7 +224,7 @@ class Engine {
       if (meta.gate === 'spend' && SPAWN.has(meta.toolName)) return { output: allow() };
       const previous = this.completed.get(`${meta.gate}:${callKey(meta)}`);
       if (previous) {
-        if (previous.action !== 'block') return {output: allow()};
+        if (previous.action !== 'block') return {output: {...allow(), ...(previous.plugin.guardPackMessage ? {systemMessage: previous.plugin.guardPackMessage} : {})}};
         // A prior denial must not survive a downgrade to free shadow mode.
         const {mode} = this.context(meta);
         if (mode === 'enforce') return {output: deny(previous.reasons.join('; '))};
@@ -221,15 +234,24 @@ class Engine {
     } catch { return await this.failure(meta, 'policy_or_runtime_error'); }
   }
   async burn(meta, transcriptPath, workingDirectory) {
-    const {license, mode} = this.context(meta);
+    const {config, license, mode} = this.context(meta);
+    const guard = guardResult(meta.guardRuleIds ?? [], config.guardPack, mode);
+    if (guard.stop) {
+      const blocked = this.basic(meta, 'block', 'guard_pack'); blocked.reasons = [guard.message];
+      blocked.plugin.guardPack = guard.matches; blocked.plugin.guardPackMessage = guard.message;
+      this.licenseMetadata(blocked, license, mode); await this.append(blocked);
+      this.completed.set(`burn:${callKey(meta)}`, blocked);
+      return {output: deny(guard.message)};
+    }
     if (matchingExternalBurn(meta, workingDirectory)) {
       if (SPAWN.has(meta.toolName)) {
         const mirror = this.basic(meta, 'shadow', 'burn_external_hook');
+        if (guard.matches.length) { mirror.plugin.guardPack = guard.matches; mirror.plugin.guardPackMessage = guard.message; }
         this.licenseMetadata(mirror, license, mode);
         await this.append(mirror); this.completed.set(`burn:${callKey(meta)}`, mirror);
         this.pending.set(callKey(meta), mirror);
       }
-      return {output: allow()};
+      return {output: {...allow(), ...(guard.warning ? {systemMessage: guard.message} : {})}};
     }
     if (!this.gateway) this.gateway = new burn.Gateway(process.env.AGENTGUARD_HOME || path.join(os.homedir(), '.agentguard'));
     let decision;
@@ -256,15 +278,18 @@ class Engine {
       const mirror = this.basic(meta, license.paid ? (decision.blocked ? 'block' : decision.wouldBlock ? 'shadow' : 'allow') : 'shadow', `burn_${decision.verdict.toLowerCase()}`);
       mirror.enforcementMode = decision.mode;
       mirror.plugin.burnReceiptId = decision.receipt?.receiptId ?? decision.decisionId;
+      if (guard.matches.length) { mirror.plugin.guardPack = guard.matches; mirror.plugin.guardPackMessage = guard.message; }
       this.licenseMetadata(mirror, license, decision.mode);
       await this.append(mirror); this.completed.set(`burn:${callKey(meta)}`, mirror);
       if (!decision.blocked) this.pending.set(callKey(meta), mirror);
     }
     if (output.hookSpecificOutput?.permissionDecision === 'deny') return { output: deny(output.hookSpecificOutput.permissionDecisionReason) };
-    return { output: { ...allow(), ...(output.systemMessage ? { systemMessage: output.systemMessage.replace(/[\r\n]+/g, ' ') } : {}) } };
+    const messages = [output.systemMessage, guard.warning ? guard.message : null].filter(Boolean);
+    return { output: { ...allow(), ...(messages.length ? { systemMessage: messages.join(' ').replace(/[\r\n]+/g, ' ') } : {}) } };
   }
   async spend(meta) {
     const {config, license, mode} = this.context(meta), session = config.sessions?.[meta.sessionId] ?? {};
+    const guard = guardResult(meta.guardRuleIds ?? [], config.guardPack, mode);
     const match = /^mcp__(.+?)__(.+)$/.exec(meta.toolName);
     const provider = match?.[1] ?? meta.host ?? hostContext().host, model = match?.[2] ?? meta.toolName;
     const actor = { tenantId: config.tenantId ?? 'local', sessionId: meta.sessionId, agentId: meta.agentId ?? session.agentId ?? meta.sessionId,
@@ -279,7 +304,7 @@ class Engine {
       requiredCapability = rule.requiredCapability ?? requiredCapability;
     }
     if (tiers.indexOf(capability) < tiers.indexOf(minimumClassification)) capability = minimumClassification;
-    let reason;
+    let reason = guard.stop ? guard.message : undefined;
     for (const scope of [config, session]) {
       const allowlists = scope.allowedToolGroups ?? (scope.allowedTools === undefined ? [] : [scope.allowedTools]);
       if (allowlists.some(patterns => !matches(patterns, meta.toolName))) reason = 'tool_not_allowlisted';
@@ -311,6 +336,7 @@ class Engine {
         decision.action = 'shadow';
       }
       if (!license.paid || (reason && mode === 'shadow')) decision.action = 'shadow';
+      if (guard.warning && decision.action === 'allow') decision.action = 'shadow';
     }
     const windows = new Map();
     if (decision.action !== 'block') for (const cap of caps) {
@@ -321,10 +347,11 @@ class Engine {
     decision.plugin = { ...meta, event: 'decision', capabilityTier: capability, unitCostCents,
       chargedCents: decision.action === 'block' ? 0 : unitCostCents, chargedWindows: [...windows.values()],
       ...(reason ? { reasonCode: reason } : {}) };
+    if (guard.matches.length) { decision.plugin.guardPack = guard.matches; decision.plugin.guardPackMessage = guard.message; decision.reasons.push(...guard.matches.filter(item => item.action !== 'off').map(item => `guard_pack:${item.id}:${item.action}`)); }
     this.licenseMetadata(decision, license, mode);
     await this.append(decision); this.completed.set(`spend:${callKey(meta)}`, decision);
     if (decision.action !== 'block') this.pending.set(callKey(meta), decision);
-    return { output: decision.action === 'block' ? deny(decision.reasons.join('; ')) : allow() };
+    return { output: decision.action === 'block' ? deny(decision.reasons.join('; ')) : {...allow(), ...(guard.warning ? {systemMessage: guard.message} : {})} };
   }
   async receipt(meta) {
     const original = this.pending.get(callKey(meta));

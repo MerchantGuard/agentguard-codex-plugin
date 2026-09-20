@@ -42,6 +42,11 @@ scripts/build-compat.cjs
 scripts/provision-dependencies.cjs
 scripts/print-trust-state.cjs
 scripts/probe-hooks.cjs
+scripts/measure-overhead.cjs
+scripts/measure-benign.cjs
+docs/overhead.json
+docs/guard-pack-benign.json
+docs/GUARD_PACK.md
 docs/ENTERPRISE_INSTALL.md
 docs/ORG_FEATURES_CONTRACT.md
 docs/CLAUDE_CODE.md
@@ -62,6 +67,7 @@ runtime/verify.cjs
 runtime/client.cjs
 runtime/dependencies.cjs
 runtime/common.cjs
+runtime/guard-pack.cjs
 runtime/control.cjs
 runtime/daemon.cjs
 runtime/engine.cjs
@@ -118,6 +124,10 @@ tests/claude-host.test.cjs
 tests/claude-helpers.test.cjs
 tests/helper-host-matrix.cjs
 tests/public-sync.test.cjs
+tests/overhead.test.cjs
+tests/guard-pack.test.cjs
+tests/guard-pack-engine.test.cjs
+tests/fixtures/guard-pack-benign.cjs
 tests/fixtures/codex-0.151.0-pretooluse.json
 tests/fixtures/codex-plugin-pretooluse.json
 tests/fixtures/claude-code-2.1.275-hooks.json

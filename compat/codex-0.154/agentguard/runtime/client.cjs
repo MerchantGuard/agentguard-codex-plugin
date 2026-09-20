@@ -109,7 +109,14 @@ async function run(gate, options = {}) {
     const cause = ['worker_timeout', 'worker_start', 'worker_response', 'ipc_directory_not_private', 'ipc_file_not_private'].includes(error?.message) ? error.message : 'hook_internal_error';
     spoolFailure(meta, cause);
     process.stderr.write('agentguard: internal error; allowed tool call; audit recovery queued when storage is writable.\n');
-    process.stdout.write(JSON.stringify(hookOutput(gate === 'receipt' ? {} : allow(), options)) + '\n');
+    const output = gate === 'receipt' ? {} : allow();
+    if (gate !== 'receipt') {
+      try {
+        const guard = require('./guard-pack.cjs').guardResult(meta.guardRuleIds ?? [], {}, 'shadow');
+        if (guard.warning) output.systemMessage = guard.message;
+      } catch { /* Only validated built-in IDs can become a warning. */ }
+    }
+    process.stdout.write(JSON.stringify(hookOutput(output, options)) + '\n');
   }
 }
 module.exports = { request, run, hookOutput, ensurePrivateIpc, readPrivate, writeMessage, workerReady };

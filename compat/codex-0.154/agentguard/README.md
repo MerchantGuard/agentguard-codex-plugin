@@ -262,6 +262,29 @@ Making a repository public does not submit the plugin to the universal
 directory. Workspace-wide publication through the administrative Plugins
 interface is also a separate administrator action.
 
+### Built-in guard pack
+
+Every installation includes 14 deterministic local rules across remote shell
+execution, broad recursive deletion, Git history, infrastructure changes,
+credential writes and secret arguments, system security, and package sources.
+Free or shadow mode reports WARN with the rule ID. Paid enforce mode reports
+STOP by default. Raw arguments stay in the hook process. Matching rule IDs
+and scan-status reasons join the existing content-free metadata sent to the
+local worker and signed records. Errors allow the tool with a reason.
+
+An org policy or shared team file can set, for example,
+`"guardPack":{"rules":{"GP003":"warn","GP014":"off"}}`. Only the fixed
+IDs and `stop`, `warn`, `off` values are accepted. Personal-only downgrades have
+no effect; an omitted org rule remains STOP. Lower files may tighten a downgrade.
+See [the rules, merge behavior and matching limits](docs/GUARD_PACK.md).
+
+From the source checkout, run `node scripts/measure-benign.cjs` for the corpus
+result and `node scripts/measure-overhead.cjs` for 1,000 real command-policy PreToolUse
+invocations over six fixed synthetic calls. The latter includes Node startup,
+file IPC and signing, and excludes one worker warmup, the separate Burn hook
+and session startup. Model calls and sockets are forbidden. Measured reports
+are in `docs/guard-pack-benign.json` and `docs/overhead.json`.
+
 ### Configure policy
 
 The runtime reads `policy.json` in the host's plugin data directory. Codex

@@ -2,7 +2,7 @@
 // Policy loading and merging are synchronous local reads, including in hooks.
 const fs = require('node:fs');
 const path = require('node:path');
-const {validateEnvelope, TIERS} = require('./org-policy-contract.cjs');
+const {validateEnvelope, mergeGuardPack, TIERS} = require('./org-policy-contract.cjs');
 const orgEnabled = license => /^(?:startup|growth)(?:_pro)?$/.test(license?.tier ?? '');
 function readJson(file) { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; } }
 function readCachedOrgPolicy(data, {keyFingerprint} = {}) {
@@ -41,6 +41,7 @@ function mergeLayers(lower, upper) {
 function mergeOrgPolicy(personal, team, orgPolicy) {
   const lower = team ? mergeLayers(personal, team) : personal;
   const result = mergeLayers(lower, orgPolicy);
+  result.guardPack = mergeGuardPack(personal, team, orgPolicy);
   result.mode = (orgPolicy.mode ?? 'enforce') === 'enforce' ? 'enforce' : (lower.mode ?? 'enforce');
   // An org's omitted tenant/payment expression has the documented default.
   // Lower files must not redirect the actor away from an org-scoped cap or

@@ -10,6 +10,7 @@ const sdk = require('./dependencies.cjs').loadDependency('@agentguard-run/spend'
 const { locations, hostContext } = require('./common.cjs');
 const {readPolicy} = require('./policy-file.cjs');
 const {readHealth} = require('./health.cjs');
+const {RULES} = require('./guard-pack.cjs');
 const {readSessionLicense, readLatestLicenseStatus} = require('./license.cjs');
 
 const MAX_LEDGER_BYTES = 64 * 1024 * 1024;
@@ -33,6 +34,20 @@ const ENTRY_KEYS = new Set(['sequence', 'decision', 'previousHash', 'entryHash',
 const DECISION_KEYS = new Set(['decisionId', 'timestamp', 'action', 'triggeredCap', 'triggeredScopeKey', 'projectedCents', 'windowSpendBefore', 'windowSpendAfter', 'provider', 'modelRequested', 'modelResolved', 'policyId', 'policyVersion', 'enforcementMode', 'reasons', 'entryType', 'originalDecisionId', 'actor', 'costBasis', 'provenance', 'outcomeReceipt', 'governanceReceipt', 'estimatedInputTokens', 'estimatedOutputTokens', 'actualInputTokens', 'actualOutputTokens', 'actualCents', 'deltaCents', 'partial', 'plugin']);
 const PLUGIN_KEYS = new Set(['schema', 'event', 'toolName', 'inputSha256', 'inputBytes', 'inputKeys', 'toolUseId', 'sessionId', 'agentId', 'capabilityTier', 'unitCostCents', 'chargedCents', 'chargedWindows', 'startedAt', 'durationMs', 'durationSource', 'outputBytes', 'success', 'decisionId', 'gate', 'reasonCode', 'burnReceiptId', 'license', 'policyReasonCode', 'requestId', 'integrity', 'host']);
 const FORBIDDEN_KEY = /^(?:tool_input|tool_response|tool_output|input|output|prompt|completion|content|messages|text|body|raw|privateKey|private_key|signingKey|signing_key|secret|secretKey|secret_key|accessToken|access_token|authorization|apiKey|api_key|licenseKey|license_key)$/i;
+for (const key of ['guardRuleIds', 'guardScanReason', 'guardPack', 'guardPackMessage']) PLUGIN_KEYS.add(key);
+const GUARD_RULES = new Map(RULES.map(rule => [rule.id, rule]));
+
+function validateGuardMetadata(metadata) {
+  if (!metadata) return;
+  const ids = metadata.guardRuleIds, matches = metadata.guardPack;
+  if (ids !== undefined && (!Array.isArray(ids) || ids.length > RULES.length || new Set(ids).size !== ids.length || ids.some(id => !GUARD_RULES.has(id)))) throw new Error('Guard rule metadata is invalid.');
+  if (metadata.guardScanReason !== undefined && !['guard_branch_unknown', 'guard_scan_incomplete'].includes(metadata.guardScanReason)) throw new Error('Guard scan metadata is invalid.');
+  if (matches !== undefined && (!Array.isArray(matches) || matches.length > RULES.length || matches.some(match => !match || typeof match !== 'object' || Array.isArray(match) || Object.keys(match).some(key => !['id', 'action'].includes(key)) || !GUARD_RULES.has(match.id) || !['stop', 'warn', 'off'].includes(match.action)) || new Set(matches.map(match => match.id)).size !== matches.length)) throw new Error('Guard decision metadata is invalid.');
+  if (metadata.guardPackMessage !== undefined) {
+    const expected = (matches ?? []).filter(match => match.action !== 'off').map(match => `AgentGuard ${match.action === 'stop' ? 'STOP' : 'WARN'} ${match.id}: ${GUARD_RULES.get(match.id).reason}`).join(' ');
+    if (typeof metadata.guardPackMessage !== 'string' || metadata.guardPackMessage !== expected) throw new Error('Guard message metadata is invalid.');
+  }
+}
 
 function metadataOnly(value, depth = 0) {
   if (depth > 12) throw new Error('Ledger metadata nesting is invalid.');
@@ -54,6 +69,7 @@ function validateEntry(entry) {
   for (const metadata of [decision.plugin, decision.outcomeReceipt?.plugin]) {
     if (metadata !== undefined && (!metadata || typeof metadata !== 'object' || Array.isArray(metadata) || Object.keys(metadata).some(key => !PLUGIN_KEYS.has(key)))) throw new Error('Plugin metadata schema is invalid.');
     if (metadata?.host !== undefined && (typeof metadata.host !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(metadata.host))) throw new Error('Plugin host metadata is invalid.');
+    validateGuardMetadata(metadata);
     if (metadata?.integrity !== undefined && (!metadata.integrity || typeof metadata.integrity !== 'object' || Array.isArray(metadata.integrity) || Object.keys(metadata.integrity).some(key => !['reason', 'confirmedSequence', 'confirmedHash', 'recoveredHeadHash', 'recoveredRows', 'truncatedBytes', 'checkpointMissing'].includes(key)))) throw new Error('Integrity metadata schema is invalid.');
     if (metadata?.chargedWindows !== undefined && (!Array.isArray(metadata.chargedWindows) || metadata.chargedWindows.some(window => !window || typeof window !== 'object' || Array.isArray(window) || Object.keys(window).some(key => !['scopeKey', 'window', 'windowStart'].includes(key))))) throw new Error('Plugin budget metadata schema is invalid.');
   }
