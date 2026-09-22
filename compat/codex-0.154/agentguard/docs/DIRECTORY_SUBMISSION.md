@@ -667,7 +667,7 @@ This preparation leaves the token unset. An HTTP 404 proves the empty configurat
 
 All countries and regions offered by the submission portal. Listing and support language: English.
 
-## Release notes for 0.3.3
+## Release notes for 0.3.4
 
 Make Enforce free on one machine without a key. Solo adds three machines and paid features; Team retains ten seats, org policy and its card trial. Preserve all failed-license fallbacks, paid receipts export and existing signed chains.
 

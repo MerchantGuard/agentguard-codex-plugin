@@ -71,6 +71,7 @@ runtime/guard-pack.cjs
 runtime/control.cjs
 runtime/daemon.cjs
 runtime/engine.cjs
+runtime/notify-stop.cjs
 runtime/mcp.cjs
 runtime/mcp-legacy.cjs
 runtime/owned-log.cjs
@@ -95,6 +96,8 @@ assets/icon-128.png
 assets/logo-256.png
 assets/logo-512.png
 tests/budget.test.cjs
+tests/helper-notifications.cjs
+tests/notify-stop.test.cjs
 tests/durability.test.cjs
 tests/health.test.cjs
 tests/latency-probe.test.cjs

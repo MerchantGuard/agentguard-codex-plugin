@@ -2,6 +2,7 @@
   "version": 1,
   "tenantId": "local",
   "mode": "enforce",
+  "notifyOnStop": true,
   "maxCapability": "payment_execute",
   "paymentPattern": "payment|pay_|charge|transfer|checkout|purchase",
   "toolRules": [],

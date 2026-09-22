@@ -1,3 +1,8 @@
+## 0.3.4 - 2026-09-22
+
+- On an enforced STOP on macOS, post a local notification with the rule ids and the resume command (policy flag notifyOnStop, default true; no-op elsewhere; never network). The notifier is detached so the hook never waits on it; AGENTGUARD_NOTIFY_SUPPRESS=1 silences it for tests and rehearsals.
+- Team licenses carry the Stripe seat quantity: three or more seats, validated, cached and registered as paid seats.
+
 ## 0.3.2
 
 ## 0.3.3 - 2026-09-21

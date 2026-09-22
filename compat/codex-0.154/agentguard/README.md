@@ -102,7 +102,8 @@ machines, the dashboard, receipts export and email support. A fourth active
 machine selects shadow with `seat_limit`. Multiple sessions on one Solo
 machine share its allowance.
 
-Team is $199 per month or $1,990 per year for ten seats: one org policy every
+Team starts at three seats, at $19.90 per seat per month or $199 per seat per year.
+Ten seats remain $199 per month or $1,990 per year: one org policy every
 seat runs, seats you add and revoke, one invoice. Team keeps its card trial
 and is the only trial. Existing Growth and Pro keys remain supported.
 
@@ -320,7 +321,7 @@ enforce commands.
 
 ### Published org policy
 
-Team (ten seats) and 50-seat owners can publish a versioned policy in the
+Team (three or more seats) and 50-seat owners can publish a versioned policy in the
 [dashboard](https://agentguard.run/dashboard/org-policy). Solo has no published
 org policy. The detached worker fetches the root policy at session start,
 alongside license refresh, and every fifth five-minute heartbeat. Hooks,
@@ -578,3 +579,7 @@ for this governance workflow; the cited packaging page provides no dedicated
 security category. Asset sizes are listed in [assets/README.md](assets/README.md).
 
 The license terms are the same as the Spend package; see [LICENSE](LICENSE).
+
+## Local STOP notifications
+
+On macOS, an enforced STOP posts a local desktop notification with the rule ID and `resume with agentguard-burn resume`. Set `notifyOnStop: false` in the plugin policy to disable it; the default is `true`. Other platforms do not notify. Notifications use only local `osascript`, with no network requests, and cannot change the tool decision. Repeated delivery of the same signed decision does not notify again. Burn resume permits a Burn action; spend caps and other rules must be changed in the policy that stopped the call.

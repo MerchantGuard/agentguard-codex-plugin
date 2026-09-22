@@ -96,6 +96,7 @@ async function request(message, options = {}) {
 function hookOutput(output, options = {}) { return normalizeHookOutput(output, options); }
 
 async function run(gate, options = {}) {
+  if (process.env.AGENTGUARD_BENCHMARK === '1') return require('./benchmark.cjs').run(gate);
   let meta = { schema: 'agentguard.codex.v1', host: hostContext().host, requestId: crypto.randomUUID(), gate, toolName: 'unknown', sessionId: 'unknown', toolUseId: require('node:crypto').randomUUID(), startedAt: new Date().toISOString() };
   try {
     const raw = JSON.parse(fs.readFileSync(0, 'utf8'));

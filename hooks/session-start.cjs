@@ -5,6 +5,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const {spawn} = require('node:child_process');
+if (process.env.AGENTGUARD_BENCHMARK === '1') {
+  require('../runtime/benchmark.cjs').run('session-start');
+} else {
 try {
   const raw = JSON.parse(fs.readFileSync(0, 'utf8'));
   const sessionId = raw.session_id || raw.sessionId;
@@ -15,3 +18,4 @@ try {
   child.unref();
 } catch { process.stderr.write('agentguard: session startup unavailable; cached license or shadow mode applies.\n'); }
 process.stdout.write('{}\n');
+}

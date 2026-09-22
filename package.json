@@ -1,6 +1,6 @@
 {
   "name": "@agentguard-run/codex-plugin",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Local tool policy hooks and content-free signed records for Codex, ChatGPT Work and Claude Code.",
   "license": "SEE LICENSE IN LICENSE",
   "type": "commonjs",
@@ -8,12 +8,12 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test --test-concurrency=1 tests/*.test.cjs",
+    "test": "node --require ./tests/helper-notifications.cjs --test --test-concurrency=1 tests/*.test.cjs",
     "start": "node runtime/mcp.cjs",
     "build:compat": "node scripts/build-compat.cjs",
     "check:compat": "node scripts/build-compat.cjs --check",
     "postinstall": "node scripts/provision-dependencies.cjs",
-    "test:claude": "AGENTGUARD_TEST_HOST=claude-code node --test --test-concurrency=1 tests/*.test.cjs",
+    "test:claude": "AGENTGUARD_TEST_HOST=claude-code node --require ./tests/helper-notifications.cjs --test --test-concurrency=1 tests/*.test.cjs",
     "test:hosts": "npm test && npm run test:claude"
   },
   "dependencies": {

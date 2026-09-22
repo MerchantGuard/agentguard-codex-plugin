@@ -204,4 +204,4 @@ function runBurnHook(burn, gateway, meta, transcriptPath) {
   return warnings.some(Boolean) ? {systemMessage: warnings.filter(Boolean).join('\n')} : {};
 }
 module.exports = { locations, allow, deny, metadata, identifier, spoolFailure, writeWorkerPid, SPAWN,
-  hostContext, normalizeHookOutput, outcomeFlow, minimumCapability, matchingExternalBurn, standaloneBurnCommand, runBurnHook };
+  hostContext, normalizeHookOutput, outcomeFlow, outcomeSuccess, minimumCapability, matchingExternalBurn, standaloneBurnCommand, runBurnHook };

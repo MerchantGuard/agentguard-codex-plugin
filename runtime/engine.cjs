@@ -13,6 +13,7 @@ const { readSessionLicense, configuredKey } = require('./license.cjs');
 const { readCachedOrgPolicy, mergeOrgPolicy, orgEnabled } = require('./org-policy.cjs');
 const {validateGuardPack, mergeGuardPack} = require('./org-policy-contract.cjs');
 const {guardResult} = require('./guard-pack.cjs');
+const {notifyStop} = require('./notify-stop.cjs');
 const { locations, allow, deny, SPAWN, hostContext, runBurnHook, matchingExternalBurn, outcomeFlow, minimumCapability } = require('./common.cjs');
 const tiers = ['read_only', 'data_write', 'payment_initiate', 'payment_execute'];
 const durations = { per_minute: 60000, per_hour: 3600000, per_day: 86400000, per_month: 2592000000 };
@@ -26,6 +27,7 @@ const matches = (patterns, name) => (patterns ?? []).some(pattern => new RegExp(
 function validatePolicy(policy) {
   if (!policy || typeof policy !== 'object' || Array.isArray(policy)) throw new Error('policy_invalid');
   if (policy.version !== 1 || !['enforce', 'shadow'].includes(policy.mode ?? 'enforce')) throw new Error('policy_invalid');
+  if (policy.notifyOnStop !== undefined && typeof policy.notifyOnStop !== 'boolean') throw new Error('policy_invalid');
   if (validateGuardPack(policy.guardPack).length) throw new Error('guard_policy_invalid');
   const configs = [policy, ...Object.values(policy.sessions ?? {})];
   for (const config of configs) {
@@ -58,6 +60,7 @@ function validatePolicy(policy) {
 class Engine {
   constructor(options = {}) {
     this.licenseReader = options.licenseReader ?? readSessionLicense;
+    this.stopNotifier = options.stopNotifier ?? notifyStop;
     this.logOptions = options.logOptions ?? {};
     this.loc = locations(); this.spendStore = new sdk.InMemorySpendStore(); this.pending = new Map(); this.completed = new Map(); this.failures = new Set();
     this.outcomes = new sdk.SpendGuard({ policy: basePolicy, spendStore: this.spendStore, licensePostJson: offline });
@@ -190,6 +193,10 @@ class Engine {
   afterReply() { this.logStore.afterReply(); }
   async flush() { return this.logStore.flush(); }
   async close() { return this.logStore.close(); }
+  notifyStop(config, decision, ruleIds) {
+    try { this.stopNotifier({mode: decision.enforcementMode, stopped: decision.action === 'block', ruleIds, notifyOnStop: config.notifyOnStop ?? true}); }
+    catch { /* Desktop notification failure must never change a signed decision. */ }
+  }
   async failure(meta, reasonCode) {
     const key = `${meta.gate}:${callKey(meta)}`;
     let guard;
@@ -241,6 +248,7 @@ class Engine {
       blocked.plugin.guardPack = guard.matches; blocked.plugin.guardPackMessage = guard.message;
       this.licenseMetadata(blocked, license, mode); await this.append(blocked);
       this.completed.set(`burn:${callKey(meta)}`, blocked);
+      this.notifyStop(config, blocked, guard.matches.filter(rule => rule.action === 'stop').map(rule => rule.id));
       return {output: deny(guard.message)};
     }
     if (matchingExternalBurn(meta, workingDirectory)) {
@@ -281,6 +289,7 @@ class Engine {
       if (guard.matches.length) { mirror.plugin.guardPack = guard.matches; mirror.plugin.guardPackMessage = guard.message; }
       this.licenseMetadata(mirror, license, decision.mode);
       await this.append(mirror); this.completed.set(`burn:${callKey(meta)}`, mirror);
+      if (decision.verdict === 'STOP' && decision.blocked) this.notifyStop(config, mirror, decision.report.findings.filter(finding => finding.verdict === 'STOP').map(finding => finding.detector));
       if (!decision.blocked) this.pending.set(callKey(meta), mirror);
     }
     if (output.hookSpecificOutput?.permissionDecision === 'deny') return { output: deny(output.hookSpecificOutput.permissionDecisionReason) };
@@ -350,6 +359,10 @@ class Engine {
     if (guard.matches.length) { decision.plugin.guardPack = guard.matches; decision.plugin.guardPackMessage = guard.message; decision.reasons.push(...guard.matches.filter(item => item.action !== 'off').map(item => `guard_pack:${item.id}:${item.action}`)); }
     this.licenseMetadata(decision, license, mode);
     await this.append(decision); this.completed.set(`spend:${callKey(meta)}`, decision);
+    if (decision.action === 'block' && mode === 'enforce') {
+      const ids = guard.matches.filter(rule => rule.action === 'stop').map(rule => rule.id);
+      this.notifyStop(config, decision, ids.length ? ids : [decision.triggeredCap ? `cap:${decision.triggeredCap.window}` : reason || 'tool_policy']);
+    }
     if (decision.action !== 'block') this.pending.set(callKey(meta), decision);
     return { output: decision.action === 'block' ? deny(decision.reasons.join('; ')) : {...allow(), ...(guard.warning ? {systemMessage: guard.message} : {})} };
   }

@@ -55,7 +55,7 @@ effective mode, and reason. An unavailable value is unknown, not zero.
 Free uses the local policy, default enforce, on one machine without a key or
 account. It includes local signed receipts and Burn. Add a key for Solo or Team:
 Solo adds up to three machines, the dashboard, receipts export and email support;
-Team adds ten seats and org policy. Team is the only trial, with a card.
+Team adds org policy and seats from three people. Team is the only trial, with a card.
 Existing Growth and Pro keys remain supported. A policy requesting shadow
 remains shadow. A configured invalid or expired key selects shadow with
 `license_required`; an exceeded seat limit selects shadow with `seat_limit`.
@@ -149,3 +149,7 @@ conflicts. Configure separate service-side access controls as needed:
 
 Preserve any existing global wall. Report the edited file, relevant rules,
 validation performed, and the fail-open consequence of runtime errors.
+
+## Local STOP notifications
+
+On macOS, an enforced STOP posts a local desktop notification with the rule ID and `resume with agentguard-burn resume`. Set `notifyOnStop: false` in the plugin policy to disable it; the default is `true`. Other platforms do not notify. Notifications use only local `osascript`, with no network requests, and cannot change the tool decision. Repeated delivery of the same signed decision does not notify again. Burn resume permits a Burn action; spend caps and other rules must be changed in the policy that stopped the call.

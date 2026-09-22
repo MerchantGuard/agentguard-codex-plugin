@@ -2,6 +2,9 @@
 'use strict';
 const fs = require('node:fs');
 const {request} = require('../runtime/client.cjs');
+if (process.env.AGENTGUARD_BENCHMARK === '1') {
+  require('../runtime/benchmark.cjs').run('session-end');
+} else {
 (async () => {
   try {
     const raw = JSON.parse(fs.readFileSync(0, 'utf8'));
@@ -11,3 +14,4 @@ const {request} = require('../runtime/client.cjs');
   } catch { /* Host liveness and the activity lease also stop renewal. */ }
   process.stdout.write('{}\n');
 })();
+}
