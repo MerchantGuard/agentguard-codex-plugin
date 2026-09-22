@@ -18,7 +18,7 @@ claude plugin install agentguard@agentguard
 npm ci
 ```
 
-AgentGuard records signed tool decisions in Codex, ChatGPT Work and Claude Code, with free shadow mode and licensed policy enforcement.
+AgentGuard records signed tool decisions in Codex, ChatGPT Work and Claude Code, with free Enforce on one machine and optional paid features.
 
 [Watch the Burn 0.2.5 usage clip](assets/burn-usage-preview.mp4).
 
@@ -90,15 +90,27 @@ authorization and recorded activity; they make no claim about legal analysis
 or model accuracy. Tool names and actor identifiers can still be sensitive
 metadata, so the firm controls access to the policy, signing key, and records.
 
-### Free and paid modes
+### Free and paid features
 
-Free mode signs and records every decision in shadow mode, blocks no tool
-calls, and includes Burn why and pace. Any valid Solo, Startup or Growth
-license, including Pro variants, enables enforce mode, team policy files,
-receipts export and seat metering. These are the existing licenses; the
-plugin has no separate plan. A paid policy can still choose shadow mode.
+Free is $0 for one machine, with no account or license key: full Enforce,
+local signed receipts and Burn. It has no dashboard, receipts export or org
+policy. The local policy selects the mode, default enforce. Shadow is a
+fallback after a failure, or an explicit policy choice, not a plan.
 
-At session start, the detached worker resolves the license through
+Solo is $19 per month or $190 per year. Its license key adds up to three
+machines, the dashboard, receipts export and email support. A fourth active
+machine selects shadow with `seat_limit`. Multiple sessions on one Solo
+machine share its allowance.
+
+Team is $199 per month or $1,990 per year for ten seats: one org policy every
+seat runs, seats you add and revoke, one invoice. Team keeps its card trial
+and is the only trial. Existing Growth and Pro keys remain supported.
+
+A key adds features and seats; it does not unlock enforcement. A present but
+invalid, expired, revoked or over-limit key still selects shadow with its
+existing reason. Removing a key explicitly returns to the local Free policy.
+
+With a key, at session start the detached worker resolves the license through
 the Spend SDK. It makes one refresh attempt for that session, with a two
 second deadline covering validation and seat registration. Hook processes
 read only the local result and never open a socket. Without a usable cached
@@ -115,12 +127,13 @@ again. The activation helper receives the key on standard input, never in
 command arguments or ledger entries. The environment variable takes
 precedence over the saved key.
 
-Without a usable license, each decision records `license_required` and the
-engine forces shadow regardless of the requested mode. Seat registration
+With a failed configured license, each decision records its failure reason
+and the engine forces shadow regardless of the requested mode. No key means
+Free Enforce, with no license request or anonymous seat registration. Seat registration
 uses the existing license seat endpoint at session start. An exceeded startup
 seat limit selects shadow with `seat_limit`. Licensing never denies a tool call.
 
-The shared KV service counts a license's active heartbeats across machines
+The shared KV service counts Solo's active machines and Team's active heartbeats across machines
 within a fifteen minute window. Its storage key has a twenty four hour
 lifetime renewed by a heartbeat. The worker sends a bounded heartbeat every
 five minutes for each live session, outside hook processes and without
@@ -267,7 +280,7 @@ interface is also a separate administrator action.
 Every installation includes 14 deterministic local rules across remote shell
 execution, broad recursive deletion, Git history, infrastructure changes,
 credential writes and secret arguments, system security, and package sources.
-Free or shadow mode reports WARN with the rule ID. Paid enforce mode reports
+Shadow mode reports WARN with the rule ID. Free and paid enforce mode report
 STOP by default. Raw arguments stay in the hook process. Matching rule IDs
 and scan-status reasons join the existing content-free metadata sent to the
 local worker and signed records. Errors allow the tool with a reason.
@@ -297,7 +310,7 @@ A paid operator can set `teamPolicyFile` in that file, or launch the host with
 paths resolve from the host plugin data directory. The local license key remains local;
 free sessions use the local policy without the shared rules. A missing policy
 uses the packaged default: local decisions with no configured monetary charge
-or cap. The license gate controls whether enforcement is available; hook
+or cap. The license gate controls paid features and selects shadow on a failed key; hook
 processes only read its local snapshot. Existing license/cache files remain
 under the user's configured AgentGuard home. A corrupt policy causes a
 recorded fail-open, not a guessed policy.

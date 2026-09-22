@@ -5,8 +5,8 @@ arguments in memory, emits matching rule IDs into local worker IPC, and discards
 the arguments. Neither the scanner nor the hook opens a socket or calls a model.
 The existing metadata hashes and byte counts remain content-free.
 
-Free licenses and effective shadow mode produce WARN with the rule ID. A valid
-paid license in enforce mode produces STOP by default. A scan, policy, license
+Effective shadow mode produces WARN with the rule ID. Enforce mode on every
+tier, including Free without a key, produces STOP by default. A scan, policy, license
 or worker failure allows the tool and records a shadow or fail-open reason
 when local storage is writable.
 An off rule produces no warning. Existing tool policy and Burn checks still

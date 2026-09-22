@@ -135,7 +135,7 @@ test('directory catalog supplies five positive and three negative cases plus six
   assert.doesNotMatch(JSON.stringify(catalog), /[\u2013\u2014\u00ae\u2122]|--|Agent Guard/);
 });
 
-test('P1: provisioned plugin has registry dependencies and records a free shadow decision', async t => {
+test('P1: provisioned plugin has registry dependencies and records a Free enforce decision', async t => {
   const manifest = require('../plugin.json');
   const pack = require('../package.json');
   assert.equal(manifest.name, 'agentguard');
@@ -148,9 +148,9 @@ test('P1: provisioned plugin has registry dependencies and records a free shadow
   const f = await setup(t, {fixtureData: review('P1')});
   assert.equal(await f.gate(f.caseMeta()), 'allow');
   const row = f.rows()[0];
-  assert.equal(row.decision.action, 'shadow');
-  assert.equal(row.decision.enforcementMode, 'shadow');
-  assert.equal(row.decision.plugin.reasonCode, 'license_required');
+  assert.equal(row.decision.action, 'allow');
+  assert.equal(row.decision.enforcementMode, 'enforce');
+  assert.equal(row.decision.plugin.license.reason, null);
   const verification = await f.reader.call('verify_chain');
   assert.equal(verification.ok, true);
   assert.equal(verification.entries, 1);
@@ -315,15 +315,15 @@ test('P2: an ethical-wall denial remains signed and does not rewrite the policy'
   assert.equal(fs.readFileSync(path.join(f.data, 'policy.json'), 'utf8'), before);
 });
 
-test('supplemental S4: free export is refused while verification and ordinary shadow calls remain available', async t => {
+test('supplemental S4: free export is refused while verification and local enforcement remain available', async t => {
   const f = await setup(t, {paid: false, patch: {ethicalWall: ['^mcp__synthetic_docs__save_document$']}});
-  assert.equal(await f.gate(f.meta(WRITE)), 'allow');
+  assert.equal(await f.gate(f.meta(WRITE)), 'deny');
   const result = await f.rpc('export_receipts', {sessionId: SESSION});
   assert.equal(result.result.isError, true);
   assert.match(result.result.content[0].text, /^license_required:/);
   assert.equal((await f.reader.call('verify_chain')).ok, true);
-  assert.equal((await f.reader.call('get_status', {sessionId: SESSION})).license.mode, 'shadow');
-  assert.equal(f.rows()[0].decision.plugin.reasonCode, 'license_required');
+  assert.equal((await f.reader.call('get_status', {sessionId: SESSION})).license.mode, 'enforce');
+  assert.equal(f.rows()[0].decision.plugin.reasonCode, 'ethical_wall');
 });
 
 test('supplemental S5: actor tampering fails verification and export without rewriting the altered record', async t => {

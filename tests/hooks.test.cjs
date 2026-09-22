@@ -203,21 +203,23 @@ test('warm IPC decisions meet the 250ms budget without fail-open and report subp
 });
 
 
-test('free shadow decisions and their signed outcomes both retain license_required without blocking', async t => {
+test('Free decisions enforce local denies and their signed outcomes retain the Free status', async t => {
   const f = await setup(t, {licenseKey: null, deniedTools: ['^mcp__imanage__save_document$']});
   const raw = payload('mcp__imanage__save_document');
   const result = await f.handle(raw);
-  assert.equal(allowed(result.output), true);
+  assert.equal(allowed(result.output), false);
   assert.equal(result.warning, undefined);
-  await f.handle({...raw, tool_response: {isError: false}, duration_ms: 5}, 'receipt');
+  const read = payload('Read');
+  await f.handle(read);
+  await f.handle({...read, tool_response: {isError: false}, duration_ms: 5}, 'receipt');
   const rows = f.rows();
-  assert.equal(rows.length, 2);
-  assert.equal(rows[0].decision.action, 'shadow');
-  assert.equal(rows[1].decision.entryType, 'outcome');
+  assert.equal(rows.length, 3);
+  assert.equal(rows[0].decision.action, 'block');
+  assert.equal(rows[2].decision.entryType, 'outcome');
   for (const row of rows) {
-    assert.equal(row.decision.enforcementMode, 'shadow');
-    assert.ok(row.decision.reasons.includes('license_required'));
-    assert.equal(row.decision.plugin.license.reason, 'license_required');
+    assert.equal(row.decision.enforcementMode, 'enforce');
+    assert.equal(row.decision.reasons.includes('license_required'), false);
+    assert.equal(row.decision.plugin.license.reason, null);
   }
   assert.equal((await sdk.verifyChain(rows, f.engine.publicKey)).ok, true);
 });

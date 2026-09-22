@@ -1,5 +1,13 @@
 ## 0.3.2
 
+## 0.3.3 - 2026-09-21
+
+- Free Enforce follows the local policy on one machine with no account or key.
+- Solo adds up to three machines, dashboard, receipts export and email support.
+- Failed configured keys, seat denials and refresh failures retain shadow fallback and their reasons. Paid export and Team org policy gates remain.
+- Update both hosts, status guidance and the Codex compatibility build for the new ladder.
+
+
 - Add 14 built-in local guard rules across seven categories. Raw arguments stay in hook memory; signed records contain rule IDs and applied modes. Free/shadow warns, paid enforce stops, and only org/team policy can authorize downgrades.
 - Measure hook overhead locally with scripts/measure-overhead.cjs; the result is written to docs/overhead.json for the site.
 

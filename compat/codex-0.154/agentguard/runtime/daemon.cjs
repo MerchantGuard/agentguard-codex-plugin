@@ -49,7 +49,7 @@ async function main() {
     onSeatRefresh: (id, value) => require('./worker-session.cjs').recoverSeatState(engine, id, value),
     onSeatFailure: (id, reason) => engine.setSessionFailure(id, 'seat', reason)});
   function beginSession(message) {
-    const policy = require('./policy-file.cjs').readPolicy(loc.data).policy;
+    const {policy, personal} = require('./policy-file.cjs').readPolicy(loc.data);
     const key = require('./license.cjs').configuredKey(policy);
     const tag = JSON.stringify([message.sessionId, key]);
     if (message.control === 'license-refresh') starts.delete(tag);
@@ -57,7 +57,7 @@ async function main() {
       // A restarted worker must not trust a previously ready disk file before
       // it has re-observed the seat, including revocations it could not save.
       engine.setSessionFailure(message.sessionId, 'startup', engine.preferredSessionFailure(message.sessionId) === 'seat_revoked' ? 'seat_revoked' : 'license_unavailable');
-      const work = require('./worker-session.cjs').refreshWorkerSession({data: loc.data, sessionId: message.sessionId, policy,
+      const work = require('./worker-session.cjs').refreshWorkerSession({data: loc.data, sessionId: message.sessionId, policy, personalPolicy: personal,
         forceActivation: true, orgPolicySha256: engine.orgPolicyDigests?.get(message.sessionId) ?? null})
         .then(status => { if (starts.get(tag) !== work) return status; require('./worker-session.cjs').recoverSessionState(engine, message.sessionId, status); loadOrg(message.sessionId); observe(message.sessionId, message.ownerPid, message.ownerIdentity); return status; });
       starts.set(tag, work);

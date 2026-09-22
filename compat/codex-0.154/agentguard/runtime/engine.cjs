@@ -128,7 +128,7 @@ class Engine {
   context(meta) {
     this.orgPolicyDigests.set(meta.sessionId, null);
     const source = require('./policy-file.cjs').readPolicy(this.loc.data);
-    let license = this.licenseReader({data: this.loc.data, sessionId: meta.sessionId, policy: source.policy});
+    let license = this.licenseReader({data: this.loc.data, sessionId: meta.sessionId, policy: source.policy, personalPolicy: source.personal});
     let selected = license.paid || !source.team ? source.policy : source.personal;
     let org = null;
     if (orgEnabled(license)) {
@@ -156,10 +156,10 @@ class Engine {
     if (failure) license = {...license, mode: 'shadow', reason: license.reason === 'seat_revoked' ? 'seat_revoked' : failure,
       ...((failure === 'seat_revoked' || license.reason === 'seat_revoked') ? {seatRevoked: true} : {})};
     return {config: this.policyValue, license, orgPolicy: org?.envelope ?? null,
-      mode: license.paid && license.mode !== 'shadow' ? (this.policyValue.mode ?? 'enforce') : 'shadow'};
+      mode: (license.paid || license.mode === 'enforce') && license.mode !== 'shadow' ? (this.policyValue.mode ?? 'enforce') : 'shadow'};
   }
   licenseMetadata(decision, license, mode) {
-    const reason = license.reason && (license.mode === 'shadow' || !license.paid) ? license.reason : license.paid ? null : 'license_required';
+    const reason = license.reason || null;
     decision.enforcementMode = mode;
     decision.plugin.license = {paid: license.paid === true, tier: license.tier ?? 'free',
       seatsUsed: license.seatsUsed ?? null, seatLimit: license.seatLimit ?? null,
@@ -225,7 +225,7 @@ class Engine {
       const previous = this.completed.get(`${meta.gate}:${callKey(meta)}`);
       if (previous) {
         if (previous.action !== 'block') return {output: {...allow(), ...(previous.plugin.guardPackMessage ? {systemMessage: previous.plugin.guardPackMessage} : {})}};
-        // A prior denial must not survive a downgrade to free shadow mode.
+        // A prior denial must not survive a switch to shadow mode.
         const {mode} = this.context(meta);
         if (mode === 'enforce') return {output: deny(previous.reasons.join('; '))};
       }
@@ -275,7 +275,7 @@ class Engine {
     finally { this.gateway.beforeSpawn = original; process.stderr.write = stderrWrite; if (mode === 'shadow') policyModule.exports.loadPolicy = loadPolicy; }
     if (decision?.failedClosed || observationFailed) throw new Error('burn_internal_error');
     if (decision) {
-      const mirror = this.basic(meta, license.paid ? (decision.blocked ? 'block' : decision.wouldBlock ? 'shadow' : 'allow') : 'shadow', `burn_${decision.verdict.toLowerCase()}`);
+      const mirror = this.basic(meta, mode === 'shadow' && !license.paid ? 'shadow' : (decision.blocked ? 'block' : decision.wouldBlock ? 'shadow' : 'allow'), `burn_${decision.verdict.toLowerCase()}`);
       mirror.enforcementMode = decision.mode;
       mirror.plugin.burnReceiptId = decision.receipt?.receiptId ?? decision.decisionId;
       if (guard.matches.length) { mirror.plugin.guardPack = guard.matches; mirror.plugin.guardPackMessage = guard.message; }
@@ -329,13 +329,13 @@ class Engine {
       decision.reasons = [reason ?? (decision.action === 'block' ? 'spend_or_capability_policy_blocked' : decision.action === 'shadow' ? 'shadow_policy_would_block' : 'tool_policy_allowed')];
       if (mode === 'shadow' && decision.action === 'block') {
         // Capability gates normally fail closed even in the SDK's shadow mode.
-        // The free plugin observes every tool, including these calls, and keeps
+        // The shadow fallback observes every tool, including these calls, and keeps
         // their actual configured unit cost in its shared window accounting.
         await sdk.adjustPolicyWindowSpend(policy, this.spendStore, unitCostCents, call);
         decision.projectedCents = unitCostCents;
         decision.action = 'shadow';
       }
-      if (!license.paid || (reason && mode === 'shadow')) decision.action = 'shadow';
+      if (mode === 'shadow' && (!license.paid || reason)) decision.action = 'shadow';
       if (guard.warning && decision.action === 'allow') decision.action = 'shadow';
     }
     const windows = new Map();

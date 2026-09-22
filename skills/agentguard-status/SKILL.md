@@ -32,8 +32,9 @@ is an earlier observation; preserve that qualification. Report
 that field while the count and its response time remain unchanged. Report
 `seatHeartbeatError` as a reason code when present. Do not show the
 license key. Unknown seats or expiry must stay unknown; do not infer them from
-ledger activity. A paid license permits enforcement but does not override a
-policy set to shadow.
+ledger activity. Free enforces the local policy on one machine without a key. Solo adds up to
+three machines, dashboard and export; Team adds org policy and ten seats. A
+key does not override a policy set to shadow.
 
 The worker sends bounded heartbeats every five minutes for live sessions.
 Those calls happen outside hook processes and do not delay a tool decision.
@@ -46,8 +47,9 @@ A revoked seat stays shadow with `seat_revoked` until a successful heartbeat
 explicitly reports `revoked: false`. Explain that an admin can restore it from
 the Seats panel. Revocation never denies a tool call.
 
-Explain `license_required` as free shadow mode: decisions are signed and
-recorded, but no tool call is blocked. Explain `seat_limit` as shadow mode
+Explain `license_required` as a failed configured license fallback: decisions
+are signed and recorded, but no tool call is blocked. No key selects the
+local Free policy, default enforce, with `reason: null`. Explain `seat_limit` as shadow mode
 because the license's active seat limit was exceeded. These reason codes
 are not tool denials. License refresh happens once per session outside the
 hooks, with a two second timeout. Previously valid cached status can remain

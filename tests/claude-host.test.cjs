@@ -35,7 +35,7 @@ async function fixture(t, options = {}) {
   fs.writeFileSync(transcriptPath, JSON.stringify({uuid: 'synthetic-usage-1', type: 'assistant', timestamp: new Date().toISOString(),
     message: {role: 'assistant', usage: {input_tokens: 20, cache_creation_input_tokens: 30, cache_read_input_tokens: 40, output_tokens: 10},
       content: [{type: 'text', text: 'SYNTHETIC_TRANSCRIPT_CONTENT_MUST_NOT_APPEAR'}]}}) + '\n');
-  const engine = new Engine({licenseReader: () => options.free ? {paid: false, tier: 'free', reason: 'license_required'} : paid});
+  const engine = new Engine({licenseReader: () => options.free ? {paid: false, mode: 'enforce', tier: 'free', reason: null} : paid});
   await engine.init();
   const loc = locations();
   t.after(async () => {
@@ -149,16 +149,16 @@ test('Claude native usage, cache creation, spawn cap and receipts use the shared
   await f.verify();
 });
 
-test('Claude free mode shadows Burn stops without changing the installed Burn policy', async t => {
+test('Claude free mode enforces Burn stops without changing the installed Burn policy', async t => {
   const f = await fixture(t, {free: true, sustained: {warnTokens: 50, stopTokens: 80}});
   const before = fs.readFileSync(path.join(f.home, 'burn-policy.json'));
   const output = await f.handle(f.raw('Agent'), 'burn');
-  assert.equal(output.hookSpecificOutput?.permissionDecision, undefined);
-  assert.equal(f.rows()[0].decision.action, 'shadow');
-  assert.ok(f.rows()[0].decision.reasons.includes('license_required'));
+  assert.equal(output.hookSpecificOutput?.permissionDecision, 'deny');
+  assert.equal(f.rows()[0].decision.action, 'block');
+  assert.equal(f.rows()[0].decision.plugin.license.reason, null);
   const receipt = f.receipts()[0];
-  assert.equal(receipt.payload.policy.mode, 'shadow');
-  assert.equal(receipt.payload.blocked, false);
+  assert.equal(receipt.payload.policy.mode, 'enforce');
+  assert.equal(receipt.payload.blocked, true);
   assert.equal(receipt.payload.verdict, 'STOP');
   assert.equal(fs.readFileSync(path.join(f.home, 'burn-policy.json')).equals(before), true);
   await f.verify();

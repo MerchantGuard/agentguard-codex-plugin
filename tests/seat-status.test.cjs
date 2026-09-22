@@ -98,7 +98,8 @@ test('MCP status treats malformed or legacy seat evidence as unverified', async 
 test('MCP free and corrupt-policy status always supply unknown seat provenance', async t => {
   const f = fixture(t, null, {version: 1, mode: 'enforce'});
   let license = await f.status();
-  assert.equal(license.mode, 'shadow');
+  assert.equal(license.mode, 'enforce');
+  assert.equal(license.reason, null);
   assert.equal(license.seatStorage, null);
   assert.equal(license.seatsVerified, false);
   fs.writeFileSync(path.join(f.data, 'policy.json'), '{');

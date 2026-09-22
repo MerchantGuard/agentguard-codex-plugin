@@ -36,20 +36,20 @@ test('activation reads a key from stdin flow, writes private local policy and re
   assert.equal(JSON.stringify(status).includes(key), false);
   assert.equal(fs.existsSync(path.join(data, 'ledger')), false);
 });
-test('SessionStart acknowledges without waiting for a network resolver and persists missing-key shadow', async t => {
+test('SessionStart acknowledges without waiting for a network resolver and persists Free enforcement', async t => {
   const data = fixture(t);
   const child = spawnSync(process.execPath, ['hooks/session-start.cjs'], {cwd: root, env: process.env,
     input: JSON.stringify(matrix.payload({session_id: 'synthetic-start', hook_event_name: 'SessionStart'}, 'SessionStart')), encoding: 'utf8', timeout: 1000});
   assert.equal(child.status, 0, child.stderr); assert.deepEqual(JSON.parse(child.stdout), {});
   const filename = licenseStatusPath({data, sessionId: 'synthetic-start', policy: {}});
   for (let n=0; n<100 && !fs.existsSync(filename); n++) await new Promise(resolve => setTimeout(resolve, 10));
-  assert.equal(JSON.parse(fs.readFileSync(filename)).reason, 'license_required');
+  assert.equal(JSON.parse(fs.readFileSync(filename)).reason, null);
 });
 test('free verification succeeds while both CLI export spellings refuse to create a file', async t => {
   const data = fixture(t); const reader = createReader({dataDir: data});
   assert.equal((await reader.call('verify_chain')).ok, true);
   const status = await reader.call('get_status');
-  assert.equal(status.license.mode, 'shadow'); assert.equal(status.license.reason, 'license_required');
+  assert.equal(status.license.mode, 'shadow'); assert.equal(status.license.reason, 'status_unavailable');
   for (const flag of ['export', '--export']) {
     const output = path.join(data, flag.replace(/-/g, '') + '.json');
     await assert.rejects(run([flag, output], {reader}), {code: 'license_required'});

@@ -11,10 +11,10 @@ async function track(sessionId, parentPid, captured) {
 async function start(sessionId, parentPid) {
   const host = findHost(parentPid);
   const {data} = locations();
-  const {policy} = readPolicy(data);
+  const {policy, personal} = readPolicy(data);
   // Lifecycle helpers use private file IPC only. The worker owns every fetch.
   await track(sessionId, parentPid, host).catch(() => {});
-  return readSessionLicense({data, sessionId, policy});
+  return readSessionLicense({data, sessionId, policy, personalPolicy: personal});
 }
 module.exports = {start, track};
 if (require.main === module) start(process.argv[2] || 'local', process.argv[3]).catch(() => { process.exitCode = 1; });

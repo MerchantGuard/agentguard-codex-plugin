@@ -14,7 +14,7 @@ field; relative paths resolve from the host plugin data directory. Preserve the 
 key while editing shared rules. Do not modify Burn's policy unless the user
 separately requests it.
 
-## Activate a license
+## Add a key for Solo or Team
 
 For the operator request `activate license <KEY>`, choose the command for the
 current host below. Supply the key through standard input. Never place it in
@@ -52,12 +52,15 @@ environment variable selects a different key, explain the precedence without
 revealing either key. Report the returned tier, seats used and limit, expiry,
 effective mode, and reason. An unavailable value is unknown, not zero.
 
-A valid Solo, Startup or Growth license, including Pro variants, permits
-enforce mode, team policy files, receipt export and seat metering. A policy
-that requests shadow mode remains shadow. Missing or unusable licenses force
-shadow with `license_required`; an exceeded seat limit forces shadow with
-`seat_limit`. Licensing never denies a tool call. Free mode still signs and
-records every decision, blocks nothing, and includes Burn why and pace.
+Free uses the local policy, default enforce, on one machine without a key or
+account. It includes local signed receipts and Burn. Add a key for Solo or Team:
+Solo adds up to three machines, the dashboard, receipts export and email support;
+Team adds ten seats and org policy. Team is the only trial, with a card.
+Existing Growth and Pro keys remain supported. A policy requesting shadow
+remains shadow. A configured invalid or expired key selects shadow with
+`license_required`; an exceeded seat limit selects shadow with `seat_limit`.
+These failures retain their reasons and never gain Free enforcement. Licensing
+never denies a tool call. Shadow is a fallback state, not the Free tier.
 
 ## Edit policy
 
@@ -79,7 +82,7 @@ records every decision, blocks nothing, and includes Burn why and pace.
 Use `get_status` to check the effective mode before describing an edited rule
 as enforced. Set `teamPolicyFile` to share a policy file across paid sessions;
 relative paths resolve from the host plugin data directory. Free sessions use the local policy
-instead. In free shadow mode,
+instead. In shadow fallback mode,
 the operator can review signed decisions, but an allowlist, cap or ethical
 wall does not block a tool call.
 

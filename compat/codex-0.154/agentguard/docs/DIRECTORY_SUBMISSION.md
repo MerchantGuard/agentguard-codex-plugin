@@ -41,7 +41,7 @@ The current final form permits three starters, each at most 128 characters, and 
 
 AgentGuard applies operator-defined policies to supported local tool calls in Codex, ChatGPT Work and Claude Code. Set capability tiers, tool allowlists, ethical-wall denies and budgets based on configured unit costs. Burn handles subagent fan-out and sustained usage. Signed local decisions and outcome records retain tool names, identifiers, input digests and sizes, without retaining tool input or output text.
 
-Free sessions run in shadow mode: decisions are signed and recorded, and tools are not blocked. Free verification and Burn why and pace remain available. An existing valid Solo, Startup or Growth license, including Pro variants, enables enforcement, team policy files, receipt export and seat metering. A paid policy may still request shadow mode.
+Free provides full Enforce, local signed receipts and Burn on one machine, with no key or account. Solo is $19 per month or $190 per year for up to three machines, the dashboard, receipts export and email support. Team is $199 per month or $1,990 per year for ten seats, org policy, seats you add and revoke, and one invoice. Team is the only trial. Existing Growth and Pro licenses remain supported. Shadow is a fallback state or an explicit local policy choice; a failed paid license keeps its shadow reason.
 
 The status skill and read-only MCP tools explain the effective mode, license expiry, seat count and verification state, daily decisions, configured spend and fail-open events. The verification skill checks the signed chain; paid users can export a bundle for their own records.
 
@@ -142,7 +142,7 @@ The eight cases below are exact catalog entries. Their prompts describe reviewer
 
 Prompt: Install AgentGuard from its public marketplace, provision it, review its hooks and record a synthetic read without a license.
 
-Expected: The installed package loads its registry dependencies. After hook review, a free call is allowed and recorded as a signed shadow decision. Required fixture: `install_shadow`.
+Expected: The installed package loads its registry dependencies. After hook review, a Free call follows the local policy and is recorded as a signed decision. Required fixture: `install_free`.
 
 Fixture data, merged with the catalog's base policy. Event IDs and timestamps are generated for each run; the test license key is synthetic.
 
@@ -175,9 +175,9 @@ Shape:
 ```json
 {
   "permissionDecision": "allow",
-  "action": "shadow",
-  "mode": "shadow",
-  "reason": "license_required",
+  "action": "allow",
+  "mode": "enforce",
+  "reason": null,
   "entries": 1,
   "chainOk": true
 }
@@ -191,7 +191,7 @@ codex plugin add agentguard@agentguard
 npm ci
 ```
 
-Run `npm ci` in the installed plugin root. Start a new session, inspect `/hooks` and trust the reviewed definitions. The offline test checks the provisioned files and signed shadow result; it does not substitute for that live install and trust flow.
+Run `npm ci` in the installed plugin root. Start a new session, inspect `/hooks` and trust the reviewed definitions. The offline test checks the provisioned files and signed Free enforce result; it does not substitute for that live install and trust flow.
 
 ### Positive P2: ethical-wall denial
 
@@ -667,7 +667,11 @@ This preparation leaves the token unset. An HTTP 404 proves the empty configurat
 
 All countries and regions offered by the submission portal. Listing and support language: English.
 
-## Release notes for 0.3.0
+## Release notes for 0.3.3
+
+Make Enforce free on one machine without a key. Solo adds three machines and paid features; Team retains ten seats, org policy and its card trial. Preserve all failed-license fallbacks, paid receipts export and existing signed chains.
+
+### Previous 0.3.0 notes
 
 Add Claude Code marketplace packaging, host metadata and failed-tool receipts to the shared runtime. Preserve the public package name, Codex compatibility installation and existing signed chains. Claude allows keep normal host permission checks; standalone Burn coexistence avoids duplicate spawn accounting.
 

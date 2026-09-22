@@ -34,7 +34,7 @@ const permission = result => result.output.hookSpecificOutput?.permissionDecisio
 const entries = engine => fs.readFileSync(engine.logStore.filePath, 'utf8').trim().split('\n').map(JSON.parse);
 for (const [name, options, decision] of [
   ['paid enforce', {}, 'deny'],
-  ['free', {status: {paid: false, mode: 'shadow', tier: 'free', reason: 'license_required'}}, 'allow'],
+  ['free', {status: {paid: false, mode: 'enforce', tier: 'free', reason: null}}, 'deny'],
   ['paid shadow', {local: {mode: 'shadow'}}, 'allow'],
   ['revoked seat', {status: {...paid, mode: 'shadow', reason: 'seat_revoked'}}, 'allow'],
   ['failed refresh', {status: {...paid, mode: 'shadow', reason: 'license_unavailable'}}, 'allow'],

@@ -180,7 +180,7 @@ function createReader(options = {}) {
     try { config = readPolicy(dataDir); }
     catch { return {tier: 'free', mode: 'shadow', reason: 'license_required', paid: false, seatsUsed: null, seatLimit: null, seatStorage: null, seatsVerified: false, expiresAt: null, source: 'policy_unavailable'}; }
     const sessionId = args.sessionId || hostContext().sessionId || entries.at(-1)?.decision.plugin?.sessionId || 'local';
-    const parameters = {data: dataDir, sessionId, policy: config.policy};
+    const parameters = {data: dataDir, sessionId, policy: config.policy, personalPolicy: config.personal};
     const status = !args.sessionId && !hostContext().sessionId && !entries.length && args.displayOnly
       ? readLatestLicenseStatus(parameters) : readSessionLicense(parameters);
     const {orgEnabled, readCachedOrgPolicy, mergeOrgPolicy} = require('./org-policy.cjs');
@@ -193,7 +193,7 @@ function createReader(options = {}) {
     }
     try { require('./engine.cjs').validatePolicy(effectivePolicy); } catch { reason = reason || 'policy_invalid'; }
     return {...status, ...seatEvidence(status), orgPolicySha256, orgPolicyVersion, reason,
-      mode: status.paid && status.mode !== 'shadow' && !reason ? effectivePolicy.mode || 'enforce' : 'shadow'};
+      mode: status.mode === 'enforce' && !reason ? effectivePolicy.mode || 'enforce' : 'shadow'};
   }
 
   async function effectiveStatus(args, entries) {

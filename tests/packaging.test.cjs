@@ -100,7 +100,7 @@ test('public README opens with three public install commands and keeps details b
   assert.ok(clip, 'the install section needs a packaged clip');
   const bytes = fs.readFileSync(path.join(root, clip));
   assert.equal(bytes.subarray(4, 8).toString(), 'ftyp', 'the clip must be an MP4');
-  for (const heading of ['Coverage and limits', 'Free and paid modes', 'Install', 'Configure policy', 'Publishing']) {
+  for (const heading of ['Coverage and limits', 'Free and paid features', 'Install', 'Configure policy', 'Publishing']) {
     assert.ok(text.indexOf(`### ${heading}`) > text.indexOf('\n## Details\n'), heading);
   }
   assert.match(text, /docs\/ENTERPRISE_INSTALL\.md/);

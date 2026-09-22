@@ -12,7 +12,7 @@ const NOW = Date.parse('2026-09-18T12:00:00.000Z');
 const KEY = 'ag_SYNTHETIC_LICENSE_KEY_NEVER_IN_LEDGER';
 const DAY = 86400000;
 function status(tier = 'solo', expiresAt = new Date(NOW + DAY).toISOString()) {
-  const seats = tier.startsWith('growth') ? 50 : tier.startsWith('startup') ? 5 : 1;
+  const seats = tier.startsWith('growth') ? 50 : tier.startsWith('startup') ? 10 : 3;
   return {valid: true, tier, seats, expiresAt, features: {maxActiveSeats: seats}};
 }
 function fixture(t, opts = {}) {
@@ -60,11 +60,12 @@ test('each existing paid tier resolves through the SDK and registers one active 
   }
 });
 
-test('missing license forces shadow without anonymous seat registration or a network call', async t => {
+test('missing license enforces without anonymous seat registration or a network call', async t => {
   const f = fixture(t, {policy: {mode: 'enforce'}});
   const value = await resolveSessionLicense(f.options);
-  assert.equal(value.mode, 'shadow');
-  assert.equal(value.reason, 'license_required');
+  assert.equal(value.mode, 'enforce');
+  assert.equal(value.reason, null);
+  assert.equal(value.seatLimit, 1);
   assert.equal(value.tier, 'free');
   assert.equal(value.paid, false);
   assert.equal(f.calls.length, 0);
@@ -269,4 +270,32 @@ test('latest session status is selected only for display and never grants a diff
   await resolveSessionLicense({...f.options, sessionId: 'latest', now: NOW, postJson: async url => url.endsWith('/validate') ? status() : {ok: false, activeSeats: 2, maxActiveSeats: 1}});
   assert.equal(readLatestLicenseStatus({...f.options, sessionId: 'different'}).reason, 'seat_limit');
   assert.equal(readSessionLicense({...f.options, sessionId: 'earlier'}).paid, true);
+});
+
+
+test('Free reads current local mode and ignores legacy no-key snapshots without networking', async t => {
+  const f = fixture(t, {policy: {}});
+  const filename = licenseStatusPath(f.options);
+  await resolveSessionLicense(f.options);
+  const prior = JSON.parse(fs.readFileSync(filename));
+  fs.writeFileSync(filename, JSON.stringify({...prior, mode: 'shadow', reason: 'license_required'}));
+  assert.equal(readSessionLicense(f.options).mode, 'enforce');
+  assert.equal((await resolveSessionLicense(f.options)).reason, null);
+  const shadow = {...f.options, policy: {mode: 'shadow'}};
+  assert.equal(readSessionLicense(shadow).mode, 'shadow');
+  assert.equal((await resolveSessionLicense(shadow)).mode, 'shadow');
+  assert.equal(readSessionLicense({...shadow, personalPolicy: {mode: 'enforce'}}).mode, 'enforce');
+  assert.equal(f.calls.length, 0);
+});
+
+test('Solo registers three machines and a fourth selects seat_limit', async t => {
+  const f = fixture(t);
+  for (let machine = 1; machine <= 4; machine++) {
+    const result = await resolveSessionLicense({...f.options, sessionId: `machine-${machine}`,
+      postJson: async url => url.endsWith('/validate') ? status('solo') : {ok: machine <= 3, activeSeats: machine, maxActiveSeats: 3}});
+    assert.equal(result.mode, machine <= 3 ? 'enforce' : 'shadow');
+    assert.equal(result.reason, machine <= 3 ? null : 'seat_limit');
+    assert.equal(result.paid, machine <= 3);
+    assert.equal(result.seatLimit, 3);
+  }
 });

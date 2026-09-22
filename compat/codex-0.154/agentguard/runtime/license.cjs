@@ -64,7 +64,7 @@ function seatFields(seat, now) {
 }
 function limits(status) {
   return count(status?.features?.maxActiveSeats) ?? count(status?.seats)
-    ?? (String(status?.tier).startsWith('growth') ? 50 : String(status?.tier).startsWith('startup') ? 5 : 1);
+    ?? (String(status?.tier).startsWith('growth') ? 50 : String(status?.tier).startsWith('startup') ? 10 : String(status?.tier).startsWith('solo') ? 3 : 1);
 }
 function snapshot(id, status, now, values = {}) {
   const at = status ? expiry(status) : null;
@@ -77,6 +77,11 @@ function snapshot(id, status, now, values = {}) {
 function matchStatus(value, id) {
   return value?.schema === SCHEMA && value.sessionFingerprint === id.sessionFingerprint
     && value.keyFingerprint === id.keyFingerprint;
+}
+function freeStatus(id, now, options) {
+  const policy = options.personalPolicy || options.policy || {};
+  return snapshot(id, null, now, {mode: policy.mode === 'shadow' ? 'shadow' : 'enforce',
+    reason: null, source: 'local', seatLimit: 1, seatStatus: 'local'});
 }
 function effective(value, now) {
   if (!value.paid || !PAID_TIERS.has(value.tier)) return {...value, paid: false, mode: 'shadow'};
@@ -97,6 +102,9 @@ function writeStatus(file, value) {
 function readSessionLicense(options) {
   const id = identity(options);
   const now = nowOf(options.now);
+  // Free follows the current local policy, including after an upgrade from
+  // an older no-key snapshot. A configured key always uses the paid checks.
+  if (!id.key) return freeStatus(id, now, options);
   const value = readJson(id.file);
   if (matchStatus(value, id) && (value.source !== 'resolving' || value.resolvingShadow === true || value.seatRevoked)) return effective(value, now);
   // Session startup resolves remotely outside hooks. A previously validated
@@ -114,6 +122,7 @@ function readSessionLicense(options) {
 // tool in a different session using the most recently opened session's seat.
 function readLatestLicenseStatus(options) {
   const id = identity(options);
+  if (!id.key) return readSessionLicense(options);
   let files;
   try { files = fs.readdirSync(id.directory); } catch { return readSessionLicense(options); }
   const suffix = `-${id.keyFingerprint || 'free'}.json`;
@@ -214,15 +223,15 @@ async function refresh(options, id) {
 async function resolveSessionLicense(options) {
   const id = identity(options);
   const now = nowOf(options.now);
+  if (!id.key) {
+    const free = freeStatus(id, now, options);
+    writeStatus(id.file, free);
+    return free;
+  }
   const existing = readJson(id.file);
   if (!options.forceActivation && matchStatus(existing, id) && existing.source !== 'resolving') return effective(existing, now);
   if (pending.has(id.file)) return pending.get(id.file);
   const work = (async () => {
-    if (!id.key) {
-      const free = snapshot(id, null, now);
-      writeStatus(id.file, free);
-      return free;
-    }
     fs.mkdirSync(id.directory, {recursive: true, mode: 0o700});
     const claim = `${id.file}.claim`;
     if (options.forceActivation) {

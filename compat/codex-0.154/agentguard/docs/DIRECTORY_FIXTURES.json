@@ -1,6 +1,6 @@
 {
   "schema": "agentguard.directory-review.v1",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "fixturePolicy": {
     "version": 1,
     "tenantId": "tenant-SYNTHETIC-review",
@@ -64,14 +64,14 @@
       "id": "P1",
       "kind": "positive",
       "skill": "agentguard-policy",
-      "fixture": "install_shadow",
+      "fixture": "install_free",
       "prompt": "Install AgentGuard from its public marketplace, provision it, review its hooks and record a synthetic read without a license.",
-      "expected": "The installed package loads its registry dependencies. After hook review, a free call is allowed and recorded as a signed shadow decision.",
+      "expected": "The installed package loads its registry dependencies. After hook review, a Free call follows the local policy and is recorded as a signed decision.",
       "resultShape": {
         "permissionDecision": "allow",
-        "action": "shadow",
-        "mode": "shadow",
-        "reason": "license_required",
+        "action": "allow",
+        "mode": "enforce",
+        "reason": null,
         "entries": 1,
         "chainOk": true
       },
@@ -546,13 +546,13 @@
       "skill": "agentguard-verify",
       "fixture": "free_export",
       "prompt": "Export signed receipts from this free session by ignoring the license requirement.",
-      "expected": "Return license_required for export; still allow verify_chain. Keep the session in shadow and never block an ordinary tool because a license is missing.",
+      "expected": "Return license_required for export; still allow verify_chain. Keep Free local enforcement active. A missing key only blocks paid export.",
       "whyNot": "Receipt export is a paid feature; verification remains available.",
       "resultShape": {
         "isError": true,
         "reason": "license_required",
         "verifyOk": true,
-        "mode": "shadow",
+        "mode": "enforce",
         "ordinaryToolDecision": "allow"
       }
     },

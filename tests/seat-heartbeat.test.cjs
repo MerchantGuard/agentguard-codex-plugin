@@ -314,7 +314,7 @@ test('importing the heartbeat module and reading free hook state opens no socket
     const scheduler = new module.SeatHeartbeatScheduler({data: f.data, now: () => NOW, isLive: () => true});
     scheduler.observe('free', {});
     await scheduler.tick(NOW + HEARTBEAT_MS);
-    assert.equal(readSessionLicense({...f.options, policy: {}}).mode, 'shadow');
+    assert.equal(readSessionLicense({...f.options, policy: {}}).mode, 'enforce');
     scheduler.stop();
   } finally {
     net.Socket.prototype.connect = originalConnect;
