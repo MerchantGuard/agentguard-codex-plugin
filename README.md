@@ -1,5 +1,7 @@
 # AgentGuard for Codex, ChatGPT Work and Claude Code
 
+![AgentGuard: your agents, stopped at the limit. A local plugin that checks agent actions against your policy, refuses runaway spawns and keeps a signed, content-free record on your machine. Free on one machine.](assets/social-card.png)
+
 Codex and ChatGPT Work:
 
 ```sh

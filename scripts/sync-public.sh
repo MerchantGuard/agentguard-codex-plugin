@@ -111,6 +111,7 @@ assets/icon-32.png
 assets/icon-128.png
 assets/logo-256.png
 assets/logo-512.png
+assets/social-card.png
 tests/budget.test.cjs
 tests/helper-notifications.cjs
 tests/notify-stop.test.cjs
