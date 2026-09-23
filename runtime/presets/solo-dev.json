@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "mode": "enforce",
+  "caps": [],
+  "commandRules": [],
+  "guardPack": {"rules": {"inbox-reset-codes": "off"}}
+}

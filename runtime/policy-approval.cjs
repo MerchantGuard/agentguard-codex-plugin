@@ -1,0 +1,62 @@
+'use strict';
+// Held Codex calls wait for the operator. A ticket is bound to the exact session,
+// tool, input hash and policy, and it is approved only from the operator's own
+// terminal. The token is never shown to the model: the deny message tells the
+// model that the operator decides, and `policy-cli pending` lists the tokens.
+const fs = require('node:fs');
+const path = require('node:path');
+const {randomBytes} = require('node:crypto');
+const {hashPolicy} = require('./org-policy-contract.cjs');
+const binding = (meta, config) => hashPolicy({sessionId: meta.sessionId, toolName: meta.toolName, inputSha256: meta.inputSha256, policy: config});
+function directory(data) { return path.join(data, 'policy-approvals'); }
+function ticketFile(data, token) {
+  if (!/^[a-f0-9]{32}$/.test(token ?? '')) throw new Error('Invalid approval token.');
+  return path.join(directory(data), token + '.json');
+}
+function read(file) { return JSON.parse(require('./client.cjs').readPrivate(file, 2048)); }
+function requestApproval(data, meta, config, now = Date.now(), ruleId = null) {
+  fs.mkdirSync(directory(data), {recursive: true, mode: 0o700});
+  const token = randomBytes(16).toString('hex');
+  // Content-free description for the operator's listing: no arguments, only the
+  // tool name, session, rule and input digest the approval is bound to.
+  fs.writeFileSync(ticketFile(data, token), JSON.stringify({binding: binding(meta, config), expires: now + 300000, approved: false, created: now,
+    toolName: meta.toolName, sessionId: meta.sessionId, inputSha256: meta.inputSha256, ruleId}), {flag: 'wx', mode: 0o600});
+  return token;
+}
+function approve(data, token, now = Date.now()) {
+  const file = ticketFile(data, token), value = read(file);
+  if (value.expires < now || value.approved) throw new Error('Approval expired or already granted.');
+  require('./client.cjs').writeMessage(file, {...value, approved: true});
+}
+function pending(data, now = Date.now()) {
+  let files;
+  try { files = fs.readdirSync(directory(data)); } catch { return []; }
+  const list = [];
+  for (const name of files.sort()) {
+    if (!/^[a-f0-9]{32}\.json$/.test(name)) continue;
+    try {
+      const value = read(path.join(directory(data), name));
+      if (value.expires < now || value.approved) continue;
+      list.push({token: name.slice(0, 32), ruleId: value.ruleId ?? null, toolName: value.toolName ?? null, sessionId: value.sessionId ?? null,
+        inputSha256: value.inputSha256 ?? null, expiresInSeconds: Math.max(0, Math.round((value.expires - now) / 1000))});
+    } catch { /* Unreadable tickets are not listed and cannot grant permission. */ }
+  }
+  return list;
+}
+function consume(data, meta, config, now = Date.now()) {
+  let files;
+  try { files = fs.readdirSync(directory(data)); } catch { return false; }
+  for (const name of files) {
+    if (!/^[a-f0-9]{32}\.json$/.test(name)) continue;
+    const file = path.join(directory(data), name);
+    try {
+      const value = read(file);
+      if (value.expires < now) { fs.unlinkSync(file); continue; }
+      if (!value.approved || value.binding !== binding(meta, config)) continue;
+      // Only the one worker consumes tickets. Retire before admitting the call.
+      fs.unlinkSync(file); return true;
+    } catch { /* Invalid tickets cannot grant permission. */ }
+  }
+  return false;
+}
+module.exports = {requestApproval, approve, consume, pending};

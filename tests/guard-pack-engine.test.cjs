@@ -62,30 +62,49 @@ for (const [name, local, team, org, action] of [
   if (action === 'warn') assert.match(result.output.systemMessage, /WARN GP001/);
   if (action === 'off') assert.equal(result.output.systemMessage, undefined);
 });
-test('unknown branch and bounded scanner errors force paid calls into shadow', async t => {
+test('unknown branch and bounded scanner errors preserve enforce mode and scan reasons', async t => {
+  // A scan the hook could not finish keeps the call in enforce: raw-text guard
+  // matches still stop and command rules and caps apply; only history rules
+  // soften when the branch is unknown.
   const {engine} = await fixture(t);
   for (const [index, command] of ['git reset --hard HEAD', 'x'.repeat(262145)].entries()) {
     const result = await engine.handle({meta: meta(command, String(index))}); assert.equal(permission(result), 'allow');
-    assert.equal(entries(engine).at(-1).decision.enforcementMode, 'shadow');
-    assert.match(entries(engine).at(-1).decision.plugin.license.reason, /^guard_/);
+    assert.equal(entries(engine).at(-1).decision.enforcementMode, 'enforce');
+    assert.match(entries(engine).at(-1).decision.plugin.guardScanReason, /^guard_/);
+    assert.ok(entries(engine).at(-1).decision.reasons.some(reason => /^guard_scan:guard_/.test(reason)));
   }
+  assert.match((await engine.handle({meta: meta('git reset --hard HEAD', 'warned')})).output.systemMessage ?? '', /WARN GP004/);
+});
+test('scan uncertainty cannot disable a tool denial or unrelated guard match', async t => {
+  const {engine} = await fixture(t, {local: {deniedTools: ['^Bash$']}});
+  assert.equal(permission(await engine.handle({meta: meta("printf '", 'incomplete-denied')})), 'deny');
+  assert.equal(permission(await engine.handle({meta: meta('git reset --hard HEAD', 'branch-denied')})), 'deny');
+});
+test('unknown branch warns for history rules while definite matches still stop', async t => {
+  const {engine} = await fixture(t);
+  const result = await engine.handle({meta: meta('rm -rf ~; git reset --hard HEAD', 'mixed-branch')});
+  assert.equal(permission(result), 'deny');
+  assert.deepEqual(entries(engine).at(-1).decision.plugin.guardPack, [{id: 'GP002', action: 'stop'}, {id: 'GP004', action: 'warn'}]);
 });
 test('guard WARN survives repeated hook delivery without another ledger entry', async t => {
   const {engine} = await fixture(t, {local: {mode: 'shadow'}}), message = {meta: meta()};
   await engine.handle(message); const repeated = await engine.handle(message);
   assert.match(repeated.output.systemMessage, /WARN GP001/); assert.equal(entries(engine).length, 1);
 });
-test('bad policy is fail-open and forged raw fields cannot trigger a guard decision', async t => {
+test('bad policy keeps a definite guard STOP, fails open otherwise, and forged raw fields cannot trigger a guard decision', async t => {
   const {engine, data} = await fixture(t);
   const safe = metadata({tool_name: 'Bash', tool_input: {command: 'git status'}, guardRuleIds: ['GP001'], session_id: 'guard-session', tool_use_id: 'safe'}, 'spend');
   assert.equal(permission(await engine.handle({meta: safe})), 'allow');
   fs.writeFileSync(path.join(data, 'policy.json'), '{broken');
-  const failed = await engine.handle({meta: meta()}); assert.equal(permission(failed), 'allow'); assert.match(failed.output.systemMessage, /WARN GP001/);
+  // The built-in guard pack at its defaults still applies while the policy is unreadable.
+  const failed = await engine.handle({meta: meta()}); assert.equal(permission(failed), 'deny'); assert.match(failed.output.hookSpecificOutput.permissionDecisionReason, /STOP GP001/);
+  assert.equal(entries(engine).at(-1).decision.plugin.event, 'fail_closed'); assert.equal(failed.warning, true);
+  const clean = await engine.handle({meta: meta('git status', 'clean-after-break')}); assert.equal(permission(clean), 'allow');
   assert.equal(entries(engine).at(-1).decision.plugin.event, 'fail_open');
 });
 test('secret in a spawn argument is enforced by the owning Burn gate without retaining it', async t => {
   const {engine} = await fixture(t);
-  const secret = 'ghp_' + 'A'.repeat(36);
+  const secret = 'ghp_' + 'Fk7mQ2pZ9rT4wX8bN3vL6cH1jY5sD0gA2eR7uK9t';
   const raw = {tool_name: 'spawn_agent', tool_input: {prompt: secret}, tool_use_id: 'spawn', session_id: 'guard-session'};
   assert.equal(metadata(raw, 'spend').guardRuleIds, undefined);
   const result = await engine.handle({meta: metadata(raw, 'burn')}); assert.equal(permission(result), 'deny');
@@ -98,7 +117,8 @@ test('worker timeouts allow with known-rule warnings, no sockets and no raw argu
   fs.mkdirSync(loc.ipc, {mode: 0o700});
   fs.writeFileSync(loc.lock, String(process.pid), {mode: 0o600}); fs.writeFileSync(loc.ready, JSON.stringify({pid: process.pid}), {mode: 0o600});
   t.after(() => { fs.rmSync(loc.ipc, {recursive: true, force: true}); fs.rmSync(data, {recursive: true, force: true}); });
-  fs.writeFileSync(path.join(data, 'policy.json'), JSON.stringify({version: 1, hookBudgetMs: 25}));
+  // The smallest budget validation accepts; the fake ready file never answers, so the hook times out.
+  fs.writeFileSync(path.join(data, 'policy.json'), JSON.stringify({version: 1, hookBudgetMs: 250}));
   const attempts = path.join(data, 'forbidden-attempts'), blocker = path.join(data, 'no-network.cjs');
   fs.writeFileSync(blocker, `const fs = require('node:fs'); const blocked = () => { fs.appendFileSync(${JSON.stringify(attempts)}, 'attempt\\n'); throw new Error('forbidden'); };
     const net = require('node:net'); net.connect = net.createConnection = net.createServer = blocked; net.Socket.prototype.connect = net.Server.prototype.listen = blocked;

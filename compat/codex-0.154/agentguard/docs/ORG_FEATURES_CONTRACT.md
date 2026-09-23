@@ -4,7 +4,7 @@ This contract is shared by the site and canonical plugin. It is a control plane 
 
 ## Publication and retrieval
 
-`GET /api/org/policy` authenticates a license key in the Bearer header using the same license mapping, tier normalization and expiration check as license validation. Invalid or expired keys receive 401; store failures receive 503. Team and 50-seat licenses, including their existing Pro variants, receive the published envelope. Solo and licenses with no published org policy receive 204.
+`GET /api/org/policy` authenticates a license key in the Bearer header using the same license mapping, tier normalization and expiration check as license validation. Invalid or expired keys receive 401; store failures receive 503. Team and 50-seat licenses, including their existing Pro variants, receive the published envelope. Solo receives its personal policy through the same contract. Licenses with no published policy receive 204.
 
 `POST /api/dashboard/org-policy` accepts exactly `{policy: object}`. It requires a verified session for the account that owns a valid Team or 50-seat license. Neither an email query parameter, an asserted tier, nor possession of another account's shared license is admin authority. The endpoint validates every field, computes the hash, increments the published version atomically and stores the envelope. Its authenticated GET variant reads the same envelope for administration. Validation returns 400 with an `errors` array of sentences; ownership failures return 403.
 
@@ -12,17 +12,34 @@ The response is exactly `{version, published_at, sha256, policy}`. The envelope 
 
 The same pure CommonJS contract module is copied byte-for-byte into both repos. The server and worker validate it independently. Server storage requires the configured KV store in production; unavailable storage does not silently acknowledge an in-memory publication.
 
+Solo also supports `PUT /api/org/policy` with `Authorization: Bearer <Solo key>`,
+`Content-Type: application/json` and exactly `{"policy":{...}}`, at most 64 KB.
+Only the detached worker sends this explicit CLI push. It projects the local
+configuration onto the shared field allowlist and does not upload the local
+file, licenseKey, unrelated settings or session content. Team keys cannot use
+PUT; their owner still publishes through the dashboard. Both GET and PUT are
+limited to 120 requests per IP per minute, plus 60 GETs or 10 PUTs per license
+per minute. A rate limit returns 429 with Retry-After 60. Invalid bodies return
+400, excessive bodies 413, and unsupported content types 415.
+
 ## Accepted policy fields
 
 | Scope | Fields |
 | --- | --- |
-| Root | version, tenantId, mode, hookBudgetMs, defaultMatterId, maxCapability, allowedTools, deniedTools, ethicalWall, paymentPattern, toolRules, caps, sessions |
+| Root | version, tenantId, mode, hookBudgetMs, defaultMatterId, maxCapability, allowedTools, deniedTools, ethicalWall, paymentPattern, toolRules, caps, sessions, guardPack, commandRules |
 | Tool rule | pattern, capability, requiredCapability, unitCostCents |
 | Cap | window, amountCents, action, selector, reason |
 | Selector | tenantId, agentId, taskId, sessionId, provider, userId, teamId |
 | Session | matterId, agentId, allowedTools, deniedTools, ethicalWall, maxCapability, caps |
 
 These are the fields in the site's Policy file reference. Its local-only `licenseKey` and `teamPolicyFile` fields are rejected by org publication. Unknown fields and prototype-related keys are rejected at every level. Identifiers allow 1 to 128 letters, digits, underscores, dots, slashes, colons, at signs or hyphens. Tool expressions must compile as case-insensitive JavaScript regex and have at most 512 characters. Each list and session map has at most 256 entries. Capability, mode, cap action and cap window values use the documented enums. Monetary units are nonnegative safe integers; hookBudgetMs is a positive safe integer with the existing runtime clamp.
+
+Command rules accept an identifier, an action of allow, block or ask, and
+exactly one regex pattern or built-in match. Built-in matches are force-push,
+deploy, outside-workspace-delete, network and package-publish. Guard Pack
+accepts GP001 through GP014 and inbox-reset-codes, with stop, warn or off.
+The inbox rule defaults off; the other rules retain their existing defaults.
+Cap windows include per_session in addition to the existing windows.
 
 ## Root merge
 
@@ -36,13 +53,13 @@ These are the fields in the site's Policy file reference. Its local-only `licens
 | toolRules | Local rules, then shared team rules, then org rules. Later matching org fields are authoritative. |
 | Actor mappings and paymentPattern | Org fields win, with documented default tenant and payment classification. Lower mappings cannot redirect an explicit org default matter or session mapping. |
 
-Without a published org policy, the existing paid shared-file replacement behavior remains. Solo ignores org cache files. Paid policy restrictions can block a tool call when the effective mode is enforce; licensing, revocation, availability and validation failures cannot.
+Without a published org policy, the existing paid shared-file replacement behavior remains. Solo applies a healthy, license-bound personal snapshot as a replacement of its policy settings; it retains its machine-local key and preferences. A failed Solo sync selects its original local policy instead. Team merges remain as described above. Paid policy restrictions can block a tool call when the effective mode is enforce; licensing, revocation, availability and validation failures cannot.
 
 ## Worker and cache
 
 Only the detached worker makes license, seat or org-policy requests. Hook processes, SessionStart helpers, activation helpers and status reads use private file IPC or synchronous local reads. Status asks the already running worker over private file IPC for its effective mode, including in-memory failure latches. If that worker cannot answer, status says current worker status is unavailable and reports shadow with reason status_unavailable; cached license details are labeled as cached. Fetching runs outside the tool admission queue. License refresh has its existing two-second deadline and the separate org GET has a two-second deadline. Org fetch occurs at session start alongside license refresh and every fifth live-session heartbeat. Heartbeats run every five minutes, so the periodic policy interval is approximately twenty five minutes.
 
-A validated envelope and local license fingerprint are written atomically to `${PLUGIN_DATA}/org-policy.json`; status is stored separately. The hash is the hash of policy alone, not the local fingerprint. Failures retain the last good copy, including the existing seven-day offline license grace, but select shadow with a reason. A successful 204 unbinds any retained policy. No failed request or late response may clear known revocation. An unwritable cache also keeps the worker in shadow; a successful relevant refresh is needed to clear that failure.
+A validated envelope and local license fingerprint are written atomically to `${PLUGIN_DATA}/org-policy.json`; status is stored separately. The hash is the hash of policy alone, not the local fingerprint. Team failures retain the last good copy, including the existing seven-day offline license grace, but select shadow with a reason. Solo retains the cached file for inspection but selects its original local policy after any failed sync, including an unwritable status file reported by the worker. A successful 204 unbinds any retained policy. No failed request or late response may clear known revocation. An unwritable cache also keeps the worker in shadow; a successful relevant refresh is needed to clear that failure.
 
 ## Seats and invitations
 
@@ -58,4 +75,4 @@ The server stores licensed registrations and each registration's last reported p
 
 ## Review boundary
 
-New server-held data is admin-authored policy identifiers and expressions, published versions and hashes, admin labels, invite addresses and sent dates, existing registration identifiers, and each seat's last reported policy hash. Those identifiers may still be sensitive. Local policy files are not uploaded. None of these operations forwards tool or model content. Existing local MCP receipt export remains a paid feature and can report an entitlement error; it is separate from the hook's rule that licensing never denies a tool invocation. Tests and screenshots use synthetic accounts and mocked mail. No live invitation was sent.
+New server-held data is admin-authored policy identifiers and expressions, published versions and hashes, admin labels, invite addresses and sent dates, existing registration identifiers, and each seat's last reported policy hash. Those identifiers may still be sensitive. Solo explicitly uploads only validated policy configuration through PUT; local files and unrelated fields are not uploaded. None of these operations forwards tool or model content. Existing local MCP receipt export remains a paid feature and can report an entitlement error; it is separate from the hook's rule that licensing never denies a tool invocation. Tests and screenshots use synthetic accounts and mocked mail. No live invitation was sent.

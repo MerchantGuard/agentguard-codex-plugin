@@ -53,7 +53,15 @@ function metadata(raw, gate) {
   const toolName = identifier(raw.tool_name);
   const guard = gate === 'spend' && !SPAWN.has(toolName) || gate === 'burn' && SPAWN.has(toolName)
     ? require('./guard-pack.cjs').scanGuardPack(toolName, raw.tool_input, {cwd: raw.cwd}) : {ruleIds: []};
-  return { schema: 'agentguard.codex.v1', host: hostContext().host, requestId: crypto.randomUUID(), gate, toolName,
+  let commands = {};
+  if (gate === 'spend' && !SPAWN.has(toolName)) {
+    try {
+      const sessionId = identifier(raw.session_id, hostContext().sessionId ?? 'unknown');
+      const {config} = require('./policy-state.cjs').policyState(locations().data, sessionId);
+      commands = require('./command-policy.cjs').scanCommands(config, toolName, raw.tool_input, {cwd: raw.cwd, workspace: process.env.CLAUDE_PROJECT_DIR});
+    } catch { commands = {commandScanFailed: true}; }
+  }
+  return { ...commands, schema: 'agentguard.codex.v1', host: hostContext().host, requestId: crypto.randomUUID(), gate, toolName,
     toolUseId: identifier(raw.tool_use_id, crypto.randomUUID()), sessionId: identifier(raw.session_id, hostContext().sessionId ?? 'unknown'),
     ...(raw.agent_id ? { agentId: identifier(raw.agent_id) } : {}),
     inputSha256: crypto.createHash('sha256').update(input).digest('hex'),

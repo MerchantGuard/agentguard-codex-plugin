@@ -70,9 +70,11 @@ receipt is not evidence that a tool was never used. The host can continue after
 a hook failure or timeout. Do not use this plugin as the sole access control
 for a client document system or payment service.
 
-The warm worker deadline defaults to 250 ms. Set `hookBudgetMs` to a positive
-integer in `policy.json` to change it; values above 1900 ms are capped to leave
-100 ms before the host's two second hook timeout. Cold worker startup keeps
+The warm worker deadline defaults to 250 ms. Set `hookBudgetMs` to an integer
+from 250 to 1900 in `policy.json` to change it; values above 1900 ms are capped
+to leave 100 ms before the host's two second hook timeout, and a value below
+250 is refused by policy validation (a smaller deadline would time out on
+ordinary calls and fail open). Cold worker startup keeps
 its 1500 ms deadline. These are response budgets, not wall time guarantees:
 process startup, scheduling and a stalled operating system can add delay.
 
@@ -98,7 +100,7 @@ policy. The local policy selects the mode, default enforce. Shadow is a
 fallback after a failure, or an explicit policy choice, not a plan.
 
 Solo is $19 per month or $190 per year. Its license key adds up to three
-machines, the dashboard, receipts export and email support. A fourth active
+machines with personal policy sync, the dashboard, receipts export and email support. A fourth active
 machine selects shadow with `seat_limit`. Multiple sessions on one Solo
 machine share its allowance.
 
@@ -278,13 +280,27 @@ interface is also a separate administrator action.
 
 ### Built-in guard pack
 
-Every installation includes 14 deterministic local rules across remote shell
+Every installation includes 14 default-on deterministic local rules across remote shell
 execution, broad recursive deletion, Git history, infrastructure changes,
 credential writes and secret arguments, system security, and package sources.
 Shadow mode reports WARN with the rule ID. Free and paid enforce mode report
 STOP by default. Raw arguments stay in the hook process. Matching rule IDs
 and scan-status reasons join the existing content-free metadata sent to the
-local worker and signed records. Errors allow the tool with a reason.
+local worker and signed records. Errors allow the tool with a reason. The optional
+`inbox-reset-codes` rule denies email and messaging connector searches for
+authentication codes or account access links. It is off by default and on in
+the careful and strict presets.
+
+GP004 (a hard reset) stops when the branch is known to be shared and warns
+when the hook cannot tell, which is the default on a fresh checkout, a
+detached head or a repository the hook cannot read. A static scan cannot
+know whether the discarded commits exist anywhere else, and on the public
+coding corpus the shape is almost always a local cleanup of the agent's own
+work (24 warnings across 32,161 successful runs, none a shared branch), so a
+hard stop by default would cost far more interrupted sessions than it would
+save; the git-history incident it maps to was recoverable by the reporter's
+own account. An org that wants a hard stop sets `"GP004":"stop"`, and the
+careful preset maps an unknown branch to a stop.
 
 An org policy or shared team file can set, for example,
 `"guardPack":{"rules":{"GP003":"warn","GP014":"off"}}`. Only the fixed
@@ -318,6 +334,82 @@ recorded fail-open, not a guessed policy.
 Burn continues using its existing user policy and ledger under
 `AGENTGUARD_HOME` or `~/.agentguard`; this plugin does not run Burn init or
 enforce commands.
+
+### Customize your policy
+
+Run `node runtime/policy-cli.cjs` from the installed plugin directory with the
+current host's plugin data environment. The policy skill supplies those paths.
+A new session gives the preset hint once per installation.
+
+- `preset solo-dev`: original defaults, no cap, inbox guard off.
+- `preset careful`: block force pushes, recognized deploys and rm outside the workspace; $15 daily cap; inbox guard on.
+- `preset strict`: $5 daily cap; ask for network, deploy or package publish; retain the force push and outside-workspace rm blocks; inbox guard on.
+- `show`: effective policy in plain words, including its source and cap basis.
+- `set-cap 15 per_day` or `set-cap 5 per_session`: set a dollar cap.
+- `block '\bgit\s+push\b[^;\n]*\bmain\b'`: block shell commands matching a JavaScript regular expression.
+- `allow '<pattern>'`: allow that command pattern within the current command-rule layer. Built-in guards and Team restrictions still apply.
+- `explain inbox-reset-codes` or another rule ID: explain the effective rule.
+- `push`: explicitly sync policy configuration to your Solo machines.
+- `pending`: list the Codex calls that are held for approval, with their tokens, in the operator's own terminal.
+- `approve <token>`: approve one exact held Codex call after operator confirmation, in the operator's own terminal.
+- `quiet on`: permanently dismiss the weekly STOP invitation, monthly Burn summary and per-version announcement on this machine.
+
+Writes validate before an atomic replacement and print a before and after
+diff. Presets replace mode, caps, command rules and guard settings, preserving
+licenseKey and unrelated fields. Daily caps use UTC; session caps persist by
+host session ID. They count configured tool prices, not provider bills;
+unpriced tools still count as zero. Matching is deterministic, not a shell
+sandbox or analysis of arbitrary programs and aliases.
+
+Strict asks for all shell and connector calls because they can open a network
+connection. Claude Code uses its native approval prompt. Codex's hook API does
+not support ask, so the call is held and the model is told that the operator
+decides. The token is not shown to the model. The operator runs `pending` and
+then `approve <token>` in their own terminal. Approval expires in five minutes,
+is consumed once, and is bound to the exact session, tool, input hash and
+policy. Other rules and caps still apply. Only the exact packaged `show` and
+`explain` commands, run by the same Node binary with no wrapper, assignment or
+quoting, are exempt from the strict ask.
+
+What this guarantees on Codex: approval comes only from the operator's own
+terminal. The agent's shell cannot run `approve`, `pending`, `preset`,
+`set-cap`, `block`, `allow`, `push` or `quiet`, and any shell command or file
+write that reaches the plugin's data directory, the Burn home or the hook IPC
+directory is stopped on every host before policy runs. The stop recognizes the
+helper and those paths as the shell would see them: after backslash removal,
+brace and glob expansion, the current user's tilde form and real-path
+resolution with canonical case, in any spelling of a variable that names them,
+in a node one-liner, and whenever a command names the policy modules. A
+pattern the scan will not walk (a recursive or deep wildcard) is judged by the
+directory it starts from. It does not analyze arbitrary programs: a program
+that assembles the path at run time from parts the command never spells out is
+outside what a hook can see, as is any tool the hooks never see. When a
+command cannot be fully parsed, the built-in categories fall back to a
+conservative raw-text pass that can over-match ordinary text, and the decision
+records scan_incomplete. Keep the data directory outside the workspace and
+rely on the host sandbox for that boundary.
+
+`push` uploads a Solo policy through the detached worker. Free prints:
+
+```text
+Policy sync is part of Solo: your policy on up to three machines. agentguard.run/pricing
+```
+
+The request is `PUT https://agentguard.run/api/org/policy`, with
+`Authorization: Bearer <Solo key>`, `Content-Type: application/json`, and
+`{"policy":{...}}`. Only allowed configuration fields are selected; licenseKey,
+local paths, unrelated settings, receipts, prompts, tool calls and file contents
+are excluded. The payload limit is 64 KB. The server returns the existing
+`{version,published_at,sha256,policy}` envelope. The CLI and hooks open no sockets.
+
+Solo machines pull from the existing bodyless Bearer GET at session start and
+every fifth five-minute heartbeat. The verified snapshot replaces personal
+policy settings while preserving machine-local licensing and preferences.
+The on-disk local policy is retained for fallback; failed, invalid or unavailable
+Solo sync selects it. A sync error itself never denies a call. Failed licenses
+still retain their original shadow behavior. The dashboard shows the synced
+configuration and each machine's last reported hash. A hash is not proof of
+enforcement. After local changes, push again to update the synced policy.
 
 ### Published org policy
 
@@ -583,3 +675,5 @@ The license terms are the same as the Spend package; see [LICENSE](LICENSE).
 ## Local STOP notifications
 
 On macOS, an enforced STOP posts a local desktop notification with the rule ID and `resume with agentguard-burn resume`. Set `notifyOnStop: false` in the plugin policy to disable it; the default is `true`. Other platforms do not notify. Notifications use only local `osascript`, with no network requests, and cannot change the tool decision. Repeated delivery of the same signed decision does not notify again. Burn resume permits a Burn action; spend caps and other rules must be changed in the policy that stopped the call.
+
+Free upgrade moments are local display only. After an enforced STOP, one Team line can appear separately from the block reason, at most once in a rolling seven-day window. Burn status shows UTC month-to-date local counts and one Team invitation per month. SessionStart announces each plugin version once. `quiet on` shares a permanent local marker with Burn under `AGENTGUARD_HOME` or the default AgentGuard home; presets do not reset it. No request, decision reason or receipt contains upgrade copy.

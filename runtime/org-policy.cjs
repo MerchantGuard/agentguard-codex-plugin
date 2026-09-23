@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {validateEnvelope, mergeGuardPack, TIERS} = require('./org-policy-contract.cjs');
 const orgEnabled = license => /^(?:startup|growth)(?:_pro)?$/.test(license?.tier ?? '');
+const soloEnabled = license => license?.paid === true && /^solo(?:_pro)?$/.test(license?.tier ?? '');
 function readJson(file) { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; } }
 function readCachedOrgPolicy(data, {keyFingerprint} = {}) {
   const status = readJson(path.join(data, 'org-policy-status.json'));
@@ -18,6 +19,8 @@ function readCachedOrgPolicy(data, {keyFingerprint} = {}) {
 }
 function mergeScope(lower = {}, upper = {}) {
   const result = {...lower, ...upper};
+  const commandGroups = [...(lower.commandRuleGroups ?? (lower.commandRules ? [lower.commandRules] : [])), ...(upper.commandRuleGroups ?? (upper.commandRules ? [upper.commandRules] : []))];
+  if (commandGroups.length) result.commandRuleGroups = commandGroups;
   const groups = [...(lower.allowedToolGroups ?? (lower.allowedTools === undefined ? [] : [lower.allowedTools])),
     ...(upper.allowedToolGroups ?? (upper.allowedTools === undefined ? [] : [upper.allowedTools]))];
   if (groups.length) result.allowedToolGroups = groups;
@@ -55,4 +58,4 @@ function mergeOrgPolicy(personal, team, orgPolicy) {
   if (personal.licenseKey) result.licenseKey = personal.licenseKey;
   return result;
 }
-module.exports = {readCachedOrgPolicy, mergeOrgPolicy, mergeScope, orgEnabled};
+module.exports = {readCachedOrgPolicy, mergeOrgPolicy, mergeScope, orgEnabled, soloEnabled};

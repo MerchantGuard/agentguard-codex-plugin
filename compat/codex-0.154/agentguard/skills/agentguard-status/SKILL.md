@@ -33,7 +33,7 @@ that field while the count and its response time remain unchanged. Report
 `seatHeartbeatError` as a reason code when present. Do not show the
 license key. Unknown seats or expiry must stay unknown; do not infer them from
 ledger activity. Free enforces the local policy on one machine without a key. Solo adds up to
-three machines, dashboard and export; Team adds org policy and ten seats. A
+three machines with personal policy sync, dashboard and export; Team adds org policy and ten seats. A
 key does not override a policy set to shadow.
 
 The worker sends bounded heartbeats every five minutes for live sessions.
@@ -121,3 +121,5 @@ recorded session. If no session can be identified, label the aggregate view.
 Claude Code routes WebFetch and WebSearch through tool hooks. Codex hosted
 tools do not use the same coverage. Report the actual host's documented
 coverage and keep unknown host rows qualified.
+
+For Solo, a failed personal policy refresh selects the local policy. The loaded policy hash is null until a valid snapshot is applied. Inspect policy with `node runtime/policy-cli.cjs show`; a matching reported hash is not evidence of enforcement.

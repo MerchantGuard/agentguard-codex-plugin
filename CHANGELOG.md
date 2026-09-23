@@ -1,3 +1,35 @@
+## 0.3.6 - 2026-09-23
+
+- Add local policy presets, validated CLI customization, plain-language status and a once-only setup hint on both hosts.
+- Add the optional inbox-reset-codes guard and strict approval for network-capable tools, with native Claude prompts and an operator-approved single call on Codex.
+- Add Solo personal policy push and pull using the existing Team contract, hash, endpoint and refresh cadence. Sync state lives in one status file for the hook and the worker: a refused push touches nothing, a failed upload selects the local policy on both sides, and a pushed personal policy can only tighten Guard Pack rules.
+- Add a weekly Free STOP invitation outside block reasons, one announcement per plugin version, and permanent quiet dismissal shared with the local Burn monthly summary.
+- Held Codex calls are approved only from the operator's own terminal: a new policy-cli pending command lists them, the approval token is never shown to the model, and the show and explain helpers stay usable under strict only in their exact packaged form.
+- A built-in STOP on every host covers tool calls that reach the plugin's own data directory, the Burn home or the hook IPC directory, and policy-cli commands that change policy or approvals.
+- Command rules keep working when a command cannot be fully parsed: pattern rules run on the raw text, built-in matches use a conservative fallback, and the scan is recorded as scan_incomplete.
+- Command patterns are validated as linear (no backreferences, nested quantifiers or quantified alternations) and the scanned text is capped, so a pattern can never take a hook past its budget.
+- Built-in command matches cover more ordinary spellings: force-push flag clusters and the mirror flag, timeout, nohup, exec, time, xargs and eval prefixes, cd with a tilde or HOME, the env and sudo change-directory options, subshells, pushd, find with delete, unlink, rmdir, vercel with a path, vc, bunx vercel, firebase deploy, npm run deploy, bun publish and gh release create.
+- Burn joins unsigned gateway decisions to their plugin mirror once and carries the monthly Team line on the summary so a JSON status prints what it consumed.
+- Preserve failed-license fallbacks, paid receipt export and Team authority. Hooks and the policy CLI remain offline.
+- Benchmark mode applies only with the operator's signed consent for the run (policy-cli benchmark on <run-id> writes one signed ledger row; the hook verifies it and falls through to normal enforcement otherwise). The environment switch alone never weakens Enforce.
+- hookBudgetMs is validated at 250 ms or more and floored in the warm deadline, so a policy file cannot make every hook time out and fail open.
+- A policy the worker cannot read keeps a definite built-in STOP as a stop; a block already decided survives a ledger append failure (the row is kept beside the ledger); MCP move, copy and rename tools count as writes for the plugin-state stop.
+- Org policy refresh: a 204 after a ready snapshot withdraws to shadow with a reason instead of unbinding; an older version with a different hash and a published_at from the future are refused.
+- The command-rule validator refuses a repeated group whose inner quantifier can consume its own separator (the (?:.*,)* family), and keeps ordinary idioms valid.
+- Guard pack scanner: reserved words and wrapper commands on one line no longer hide the command; command substitutions and backticks stay inside their word and are scanned as nested commands, including inside double quotes and as arguments to a shell, eval or interpreter (the installer one-liner shape is GP001); here-strings feeding a shell are scanned; ANSI-C quoting is decoded; a carriage return stays in a word so CRLF heredocs close; nested shell bodies held in a literal variable resolve; long inputs are bounded and linear.
+- GP002 resolves variable-built delete targets (HOME, PWD, pwd, mktemp, literals assigned earlier in the command); an unknown expansion is read both as a path component and as nothing, so a bare variable stops while a deep literal suffix is allowed; a wildcard confined to a generated build or cache directory, or over a generated-artifact extension, is cleanup.
+- GP009 treats credentials.<code extension> as source and .env.example, .env.sample, .env.template and .env.dist as templates; every other env and credential file stays protected.
+- GP010 requires a token boundary before a secret shape (sk- inside task-rest is an identifier) and ignores documented placeholders (EXAMPLE keys, runs of one character); realistic tokens anywhere still stop.
+- GP014 treats a local path or an editable install as a local source; owner/repo shorthand is a GitHub source for the npm family only.
+- Editor tools (str_replace_editor, str_replace_based_edit_tool and any tool named ...editor or ...edit_tool) are write tools; their view command is a read.
+- Evals tooling (scripts/evals, never shipped in the package): the round-two harness, a release mapping in the replay, 236 red-team probes and a metamorphic suite as regression tests, and a freeze manifest at evals/manifest-round2.json.
+
+## 0.3.5 - 2026-09-22
+
+- Parse shell heredoc delimiters and bodies while scanning the surrounding commands, including nested shell calls.
+- Retain local guard rule enforcement when incomplete parsing recovers a match. Clean command and patch data remain allowed.
+- Add heredoc regression cases and measure decisions against pinned public Next.js eval transcripts.
+
 ## 0.3.4 - 2026-09-22
 
 - On an enforced STOP on macOS, post a local notification with the rule ids and the resume command (policy flag notifyOnStop, default true; no-op elsewhere; never network). The notifier is detached so the hook never waits on it; AGENTGUARD_NOTIFY_SUPPRESS=1 silences it for tests and rehearsals.

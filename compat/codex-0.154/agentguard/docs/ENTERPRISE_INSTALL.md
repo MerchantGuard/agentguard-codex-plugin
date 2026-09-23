@@ -194,7 +194,7 @@ fail-closed authorization must enforce it at its tool or service boundary.
 ## Organization policy distribution
 
 The root policy can include `guardPack: {rules: {GP003: "warn", GP014: "off"}}`.
-Only fixed built-in IDs GP001 through GP014 and `stop`, `warn`, `off` values are
+Only fixed built-in IDs GP001 through GP014 and inbox-reset-codes and `stop`, `warn`, `off` values are
 accepted. Rules default to STOP in enforce mode on every tier and WARN in shadow mode.
 Only org or team policy can authorize a downgrade; personal-only downgrades
 have no effect. Org omissions remain STOP, and lower files may tighten an

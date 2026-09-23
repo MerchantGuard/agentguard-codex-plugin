@@ -1,6 +1,6 @@
 {
   "name": "@agentguard-run/codex-plugin",
-  "version": "0.3.4",
+  "version": "0.3.6",
   "description": "Local tool policy hooks and content-free signed records for Codex, ChatGPT Work and Claude Code.",
   "license": "SEE LICENSE IN LICENSE",
   "type": "commonjs",
@@ -14,7 +14,9 @@
     "check:compat": "node scripts/build-compat.cjs --check",
     "postinstall": "node scripts/provision-dependencies.cjs",
     "test:claude": "AGENTGUARD_TEST_HOST=claude-code node --require ./tests/helper-notifications.cjs --test --test-concurrency=1 tests/*.test.cjs",
-    "test:hosts": "npm test && npm run test:claude"
+    "test:hosts": "npm test && npm run test:claude",
+    "setup:public-evals": "npm ci --ignore-scripts --prefix scripts/public-evals-deps",
+    "score:public-evals": "node scripts/score-public-evals.cjs"
   },
   "dependencies": {
     "@agentguard-run/spend": "^0.20.0",
@@ -32,7 +34,13 @@
     "README.md",
     "LICENSE",
     "CHANGELOG.md",
-    "scripts",
+    "scripts/build-compat.cjs",
+    "scripts/measure-benign.cjs",
+    "scripts/measure-overhead.cjs",
+    "scripts/print-trust-state.cjs",
+    "scripts/probe-hooks.cjs",
+    "scripts/provision-dependencies.cjs",
+    "scripts/sync-public.sh",
     "compat",
     ".agents/plugins/marketplace.json",
     "docs",
@@ -43,5 +51,9 @@
     "type": "git",
     "url": "https://github.com/MerchantGuard/agentguard-codex-plugin.git"
   },
-  "homepage": "https://agentguard.run"
+  "homepage": "https://agentguard.run",
+  "devDependencies": {
+    "fast-check": "^4.10.2",
+    "sh-syntax": "^0.6.0"
+  }
 }

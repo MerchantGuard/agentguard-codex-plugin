@@ -52,6 +52,9 @@ async function measure({iterations = 1000, output, receiptOutput} = {}) {
   check(Number.isSafeInteger(iterations) && iterations >= 6 && iterations <= 1000, 'Iterations must be an integer from 6 to 1000.');
   const hookSources = sourceHashes();
   const data = fs.mkdtempSync(path.join(os.tmpdir(), 'agentguard-overhead-'));
+  // The benchmark's working directory is a separate workspace: a write inside
+  // the plugin's own data directory is stopped by design and would not be clean.
+  const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'agentguard-overhead-workspace-'));
   const home = path.join(data, 'burn'), attempts = path.join(data, 'network-attempts');
   const ipc = path.join('/tmp', `ag-plugin-${process.getuid?.() ?? 'local'}-${digest(path.resolve(data)).slice(0, 24)}`);
   const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => !/^(AGENTGUARD_|PLUGIN_|CLAUDE_PLUGIN_|NODE_OPTIONS$)/.test(name)));
@@ -74,7 +77,7 @@ async function measure({iterations = 1000, output, receiptOutput} = {}) {
     const invoke = (index, warmup = false) => {
       const call = CALLS[warmup ? 0 : index % CALLS.length];
       const raw = {hook_event_name: 'PreToolUse', session_id: 'synthetic-overhead',
-        tool_use_id: warmup ? 'overhead-warmup' : `overhead-${index}`, tool_name: call.tool, tool_input: call.input, cwd: data};
+        tool_use_id: warmup ? 'overhead-warmup' : `overhead-${index}`, tool_name: call.tool, tool_input: call.input, cwd: workspace};
       const started = performance.now();
       const child = spawnSync(process.execPath, [path.join(root, 'hooks/spend-gate.cjs')], {
         env, input: JSON.stringify(raw), encoding: 'utf8', timeout: 10000});
@@ -113,7 +116,7 @@ async function measure({iterations = 1000, output, receiptOutput} = {}) {
     const deadline = Date.now() + 2000;
     while (fs.existsSync(path.join(ipc, 'worker.ready')) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 10));
     check(!fs.existsSync(path.join(ipc, 'worker.ready')), 'Benchmark worker did not stop; temporary files retained.');
-    fs.rmSync(data, {recursive: true, force: true}); fs.rmSync(ipc, {recursive: true, force: true});
+    fs.rmSync(data, {recursive: true, force: true}); fs.rmSync(ipc, {recursive: true, force: true}); fs.rmSync(workspace, {recursive: true, force: true});
   }
   return report;
 }

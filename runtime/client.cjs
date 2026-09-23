@@ -96,10 +96,13 @@ async function request(message, options = {}) {
 function hookOutput(output, options = {}) { return normalizeHookOutput(output, options); }
 
 async function run(gate, options = {}) {
-  if (process.env.AGENTGUARD_BENCHMARK === '1') return require('./benchmark.cjs').run(gate);
+  const text = fs.readFileSync(0, 'utf8');
+  // Benchmark mode handles the call only with the operator's signed consent for
+  // this run; otherwise the normal gate below enforces.
+  if (process.env.AGENTGUARD_BENCHMARK === '1' && await require('./benchmark.cjs').run(gate, text)) return;
   let meta = { schema: 'agentguard.codex.v1', host: hostContext().host, requestId: crypto.randomUUID(), gate, toolName: 'unknown', sessionId: 'unknown', toolUseId: require('node:crypto').randomUUID(), startedAt: new Date().toISOString() };
   try {
-    const raw = JSON.parse(fs.readFileSync(0, 'utf8'));
+    const raw = JSON.parse(text);
     meta = metadata(raw, gate);
     const result = await request({ meta, ...(gate === 'burn' && typeof raw.cwd === 'string' ? {workingDirectory: raw.cwd} : {}), ...(gate === 'burn' && typeof raw.transcript_path === 'string' ? { transcriptPath: raw.transcript_path } : {}) });
     if (result.warning) process.stderr.write('agentguard: internal error; allowed tool call; fail-open event recorded.'

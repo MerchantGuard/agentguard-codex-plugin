@@ -40,7 +40,7 @@ test('SessionStart acknowledges without waiting for a network resolver and persi
   const data = fixture(t);
   const child = spawnSync(process.execPath, ['hooks/session-start.cjs'], {cwd: root, env: process.env,
     input: JSON.stringify(matrix.payload({session_id: 'synthetic-start', hook_event_name: 'SessionStart'}, 'SessionStart')), encoding: 'utf8', timeout: 1000});
-  assert.equal(child.status, 0, child.stderr); assert.deepEqual(JSON.parse(child.stdout), {});
+  assert.equal(child.status, 0, child.stderr); assert.match(JSON.parse(child.stdout).systemMessage, /AgentGuard presets/);
   const filename = licenseStatusPath({data, sessionId: 'synthetic-start', policy: {}});
   for (let n=0; n<100 && !fs.existsSync(filename); n++) await new Promise(resolve => setTimeout(resolve, 10));
   assert.equal(JSON.parse(fs.readFileSync(filename)).reason, null);

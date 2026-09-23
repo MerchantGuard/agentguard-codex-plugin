@@ -9,9 +9,7 @@ const crypto = require('node:crypto');
 const sdk = require('./dependencies.cjs').loadDependency('@agentguard-run/spend');
 const burn = require('./dependencies.cjs').loadDependency('@agentguard-run/burn');
 const { OwnedLogStore } = require('./owned-log.cjs');
-const { readSessionLicense, configuredKey } = require('./license.cjs');
-const { readCachedOrgPolicy, mergeOrgPolicy, orgEnabled } = require('./org-policy.cjs');
-const {validateGuardPack, mergeGuardPack} = require('./org-policy-contract.cjs');
+const {readSessionLicense} = require('./license.cjs');
 const {guardResult} = require('./guard-pack.cjs');
 const {notifyStop} = require('./notify-stop.cjs');
 const { locations, allow, deny, SPAWN, hostContext, runBurnHook, matchingExternalBurn, outcomeFlow, minimumCapability } = require('./common.cjs');
@@ -23,51 +21,52 @@ const basePolicy = { id: 'agentguard-codex', name: 'AgentGuard tool policy', sco
 const callKey = meta => JSON.stringify([meta.sessionId, meta.toolUseId]);
 const governs = meta => meta.gate === 'spend' ? !SPAWN.has(meta.toolName) : meta.gate === 'burn' && SPAWN.has(meta.toolName);
 const matches = (patterns, name) => (patterns ?? []).some(pattern => new RegExp(pattern, 'i').test(name));
+const CHARGE_FOLD = 2048;
+const BUILT_IN = {plugin_state: 'AgentGuard protects its own policy, approval and worker files.', policy_cli: 'Policy changes and approvals belong to the operator, in the operator\'s own terminal.'};
 
-function validatePolicy(policy) {
-  if (!policy || typeof policy !== 'object' || Array.isArray(policy)) throw new Error('policy_invalid');
-  if (policy.version !== 1 || !['enforce', 'shadow'].includes(policy.mode ?? 'enforce')) throw new Error('policy_invalid');
-  if (policy.notifyOnStop !== undefined && typeof policy.notifyOnStop !== 'boolean') throw new Error('policy_invalid');
-  if (validateGuardPack(policy.guardPack).length) throw new Error('guard_policy_invalid');
-  const configs = [policy, ...Object.values(policy.sessions ?? {})];
-  for (const config of configs) {
-    if (!config || typeof config !== 'object') throw new Error('policy_invalid');
-    if (config !== policy && config.guardPack !== undefined) throw new Error('guard_policy_invalid');
-    if (config.maxCapability !== undefined && !tiers.includes(config.maxCapability)) throw new Error('policy_invalid');
-    for (const group of config.allowedToolGroups ?? []) {
-      if (!Array.isArray(group)) throw new Error('policy_invalid');
-      for (const pattern of group) { if (typeof pattern !== 'string' || pattern.length > 512) throw new Error('policy_invalid'); new RegExp(pattern, 'i'); }
-    }
-    for (const field of ['allowedTools', 'deniedTools', 'ethicalWall']) {
-      if (config[field] !== undefined && !Array.isArray(config[field])) throw new Error('policy_invalid');
-      for (const pattern of config[field] ?? []) { if (typeof pattern !== 'string' || pattern.length > 512) throw new Error('policy_invalid'); new RegExp(pattern, 'i'); }
-    }
-    for (const cap of config.caps ?? []) {
-      if (!['per_call', ...Object.keys(durations)].includes(cap.window) || !Number.isSafeInteger(cap.amountCents) || cap.amountCents < 0 || (cap.action && !['block', 'shadow', 'allow'].includes(cap.action))) throw new Error('policy_invalid');
-      if (cap.selector && Object.entries(cap.selector).some(([k, v]) => !['tenantId', 'userId', 'teamId', 'agentId', 'taskId', 'sessionId', 'provider'].includes(k) || typeof v !== 'string')) throw new Error('policy_invalid');
-    }
-  }
-  new RegExp(policy.paymentPattern ?? 'payment|pay_|charge|transfer|checkout|purchase', 'i');
-  for (const rule of policy.toolRules ?? []) {
-    if (typeof rule.pattern !== 'string' || rule.pattern.length > 512) throw new Error('policy_invalid');
-    new RegExp(rule.pattern, 'i');
-    if ([rule.capability, rule.requiredCapability].some(v => v !== undefined && !tiers.includes(v))) throw new Error('policy_invalid');
-    if (rule.unitCostCents !== undefined && (!Number.isSafeInteger(rule.unitCostCents) || rule.unitCostCents < 0)) throw new Error('policy_invalid');
-  }
-  return policy;
-}
+const {validatePolicy} = require('./policy-schema.cjs');
 
 class Engine {
   constructor(options = {}) {
     this.licenseReader = options.licenseReader ?? readSessionLicense;
     this.stopNotifier = options.stopNotifier ?? notifyStop;
     this.logOptions = options.logOptions ?? {};
-    this.loc = locations(); this.spendStore = new sdk.InMemorySpendStore(); this.pending = new Map(); this.completed = new Map(); this.failures = new Set();
+    this.loc = locations(); this.spendStore = new sdk.InMemorySpendStore(); this.pending = new Map(); this.completed = new Map(); this.failures = new Set(); this.computedBlocks = new Map();
     this.outcomes = new sdk.SpendGuard({ policy: basePolicy, spendStore: this.spendStore, licensePostJson: offline });
-    this.guards = new Map(); this.orgPolicyDigests = new Map(); this.sessionFailures = new Map();
+    this.sessionCharges = new Map(); this.guards = new Map(); this.orgPolicyDigests = new Map(); this.sessionFailures = new Map();
+  }
+  // Session charges are folded per session so a long session cannot grow the
+  // worker without bound or slow every later cap check.
+  addCharge(actor, cents) {
+    const list = this.sessionCharges.get(actor.sessionId) ?? [];
+    list.push({actor, cents});
+    if (list.length > CHARGE_FOLD) {
+      const folded = new Map();
+      for (const charge of list) { const key = JSON.stringify(charge.actor); folded.set(key, {actor: charge.actor, cents: (folded.get(key)?.cents ?? 0) + charge.cents}); }
+      list.length = 0; list.push(...folded.values());
+    }
+    this.sessionCharges.set(actor.sessionId, list);
+  }
+  chargeCount(sessionId) { return this.sessionCharges.get(sessionId)?.length ?? 0; }
+  charges(sessionId) { return this.sessionCharges.get(sessionId) ?? []; }
+  // A worker-side policy sync failure for a Solo license is written to the
+  // status file so the hook and the worker read one state; Team failures stay
+  // in memory, where a stale ready file must never override them.
+  recordOrgFailure(sessionId, reason) {
+    this.setSessionFailure(sessionId, 'org', reason);
+    try {
+      const source = require('./policy-file.cjs').readPolicy(this.loc.data);
+      const license = this.licenseReader({data: this.loc.data, sessionId, policy: source.policy, personalPolicy: source.personal});
+      if (require('./org-policy.cjs').soloEnabled(license)) require('./org-policy-refresh.cjs').recordSyncFailure(this.loc.data, source.policy, reason);
+    } catch { /* The in-memory failure still applies to this worker. */ }
+  }
+  decorate(output, license) {
+    // A display-only upgrade moment can never turn a deny into an allow.
+    try { return require('./upgrade-moments.cjs').stopMoment(output, license); } catch { return output; }
   }
   async init() {
     fs.mkdirSync(this.loc.data, { recursive: true, mode: 0o700 });
+    require('./upgrade-moments.cjs').registerLedger(this.loc.data);
     const keyFile = path.join(this.loc.data, 'signing-key.hex');
     try { fs.writeFileSync(keyFile, crypto.randomBytes(32).toString('hex'), { flag: 'wx', mode: 0o600 }); } catch (e) { if (e.code !== 'EEXIST') throw e; }
     const seed = fs.readFileSync(keyFile, 'utf8').trim();
@@ -88,6 +87,7 @@ class Engine {
       const decision = entry.decision, meta = decision.plugin;
       if (!meta) continue;
       if (meta.event === 'decision') {
+        if (meta.gate === 'spend' && decision.action !== 'block' && meta.chargedCents) this.addCharge(decision.actor, meta.chargedCents);
         this.completed.set(`${meta.gate}:${callKey(meta)}`, decision);
         if (decision.action !== 'block') this.pending.set(callKey(meta), decision);
         for (const window of decision.action === 'block' ? [] : meta.chargedWindows ?? []) {
@@ -130,36 +130,29 @@ class Engine {
   }
   context(meta) {
     this.orgPolicyDigests.set(meta.sessionId, null);
-    const source = require('./policy-file.cjs').readPolicy(this.loc.data);
-    let license = this.licenseReader({data: this.loc.data, sessionId: meta.sessionId, policy: source.policy, personalPolicy: source.personal});
-    let selected = license.paid || !source.team ? source.policy : source.personal;
-    let org = null;
-    if (orgEnabled(license)) {
-      const key = configuredKey(source.policy);
-      org = readCachedOrgPolicy(this.loc.data, {keyFingerprint: key ? crypto.createHash('sha256').update(key).digest('hex') : null});
-      if (org.envelope) {
-        // Validate each layer before internal merge fields are constructed.
-        validatePolicy(source.personal);
-        if (source.shared) validatePolicy({...source.personal, ...source.shared});
-        selected = mergeOrgPolicy(source.personal, source.shared, org.envelope.policy);
-      }
-      if (org.reason) license = {...license, mode: 'shadow', reason: license.reason || org.reason};
-    }
-    selected = {...selected, guardPack: mergeGuardPack(source.personal, license.paid ? source.shared : null, org?.envelope?.policy)};
-    if (meta.guardScanReason) {
-      if (!['guard_branch_unknown', 'guard_scan_incomplete'].includes(meta.guardScanReason)) throw new Error('guard_scan_reason_invalid');
-      license = {...license, mode: 'shadow', reason: license.reason || meta.guardScanReason};
-    }
+    const failures = this.sessionFailures.get(meta.sessionId);
+    const state = require('./policy-state.cjs').policyState(this.loc.data, meta.sessionId, {licenseReader: this.licenseReader});
+    let {config: selected, license} = state;
+    const org = state.orgPolicy ? {envelope: state.orgPolicy} : null;
+    // A Guard Pack scan the hook could not finish keeps enforce mode: raw-text
+    // matches still stop, and command rules, caps and the built-in stops apply.
+    // A branch the hook could not read warns only for the branch-dependent
+    // history rules (GP003, GP004); nothing else is softened silently.
+    if (meta.guardScanReason && !['guard_branch_unknown', 'guard_scan_incomplete'].includes(meta.guardScanReason)) throw new Error('guard_scan_reason_invalid');
     const text = JSON.stringify(selected);
     if (text !== this.policyText) { this.policyValue = validatePolicy(selected); this.policyText = text; this.guards.clear(); }
     if (org?.envelope) this.orgPolicyDigests.set(meta.sessionId, org.envelope.sha256);
     // The worker can retain a failure even when disk writes themselves fail.
     // A stale ready file must never override the most recent failed refresh.
-    const failure = this.preferredSessionFailure(meta.sessionId);
+    let failure = this.preferredSessionFailure(meta.sessionId);
+    if (require('./org-policy.cjs').soloEnabled(license) && failures instanceof Map) {
+      const reasons = [...failures].filter(([source]) => source !== 'org').map(([, reason]) => reason);
+      failure = reasons.includes('seat_revoked') ? 'seat_revoked' : reasons.at(-1);
+    }
     if (failure) license = {...license, mode: 'shadow', reason: license.reason === 'seat_revoked' ? 'seat_revoked' : failure,
       ...((failure === 'seat_revoked' || license.reason === 'seat_revoked') ? {seatRevoked: true} : {})};
-    return {config: this.policyValue, license, orgPolicy: org?.envelope ?? null,
-      mode: (license.paid || license.mode === 'enforce') && license.mode !== 'shadow' ? (this.policyValue.mode ?? 'enforce') : 'shadow'};
+    const mode = (license.paid || license.mode === 'enforce') && license.mode !== 'shadow' ? (this.policyValue.mode ?? 'enforce') : 'shadow';
+    return {config: this.policyValue, license, orgPolicy: org?.envelope ?? null, mode};
   }
   licenseMetadata(decision, license, mode) {
     const reason = license.reason || null;
@@ -176,7 +169,12 @@ class Engine {
   }
   failureLicense(decision, meta) {
     try { const {license, mode} = this.context(meta); this.licenseMetadata(decision, license, mode); }
-    catch { this.licenseMetadata(decision, {paid: false, reason: 'license_required', tier: 'free'}, 'shadow'); }
+    catch (error) {
+      // A policy file that fails validation is recorded as exactly that, so a
+      // fail-open row never reads as a licensing problem.
+      const reason = /policy|pattern|rule|quantif|ENOENT|EACCES|EISDIR|readable/i.test(error?.message ?? '') ? 'policy_invalid' : 'license_required';
+      this.licenseMetadata(decision, {paid: false, reason, tier: 'free'}, 'shadow');
+    }
     return decision;
   }
   basic(meta, action, reasonCode, actor = { tenantId: 'local', sessionId: meta.sessionId, agentId: meta.agentId ?? meta.sessionId }) {
@@ -184,6 +182,23 @@ class Engine {
       triggeredCap: null, triggeredScopeKey: null, projectedCents: 0, windowSpendBefore: 0, windowSpendAfter: 0,
       provider: meta.host ?? hostContext().host, modelRequested: meta.toolName, modelResolved: meta.toolName, policyId: basePolicy.id,
       policyVersion: 1, enforcementMode: 'enforce', reasons: [reasonCode], plugin: { host: hostContext().host, ...meta, event: 'decision', reasonCode } };
+  }
+  // Operator consent for a benchmark run: one signed ledger row, and a small
+  // file naming that row so the benchmark hook can find and verify it. A later
+  // row with granted false revokes it. Only the daemon writes here.
+  async benchmarkConsent(runId, granted = true) {
+    if (typeof runId !== 'string' || !/^[A-Za-z0-9_.:-]{1,256}$/.test(runId)) throw new Error('benchmark_run_id_invalid');
+    const decision = this.basic({toolName: 'benchmark', sessionId: 'operator', toolUseId: runId, gate: 'control'}, 'allow', granted ? 'benchmark_consent' : 'benchmark_consent_revoked');
+    decision.plugin = {...decision.plugin, event: 'benchmark_consent', runId, granted: granted === true};
+    const sequence = this.sequence;
+    await this.append(decision);
+    const file = path.join(this.loc.data, 'benchmark-consent.json');
+    if (granted) {
+      const temporary = `${file}.${process.pid}.${crypto.randomBytes(4).toString('hex')}.tmp`;
+      fs.writeFileSync(temporary, JSON.stringify({version: 1, run_id: runId, sequence, entry_hash: this.previousHash, issued_at: decision.timestamp}) + '\n', {flag: 'wx', mode: 0o600});
+      fs.renameSync(temporary, file);
+    } else { try { fs.unlinkSync(file); } catch (error) { if (error.code !== 'ENOENT') throw error; } }
+    return {sequence, entryHash: this.previousHash, granted: granted === true};
   }
   async append(decision) {
     const entry = await sdk.signDecision({ sequence: this.sequence, decision, previousHash: this.previousHash, privateKey: this.privateKey, publicKey: this.publicKey });
@@ -199,12 +214,17 @@ class Engine {
   }
   async failure(meta, reasonCode) {
     const key = `${meta.gate}:${callKey(meta)}`;
+    // A policy the worker could not read or validate, or a scan it could not
+    // run, falls back to the built-in guard pack at its defaults in enforce:
+    // a definite STOP match still stops, everything else is allowed with the
+    // failure recorded. Unknown branch evidence softens only the history rules.
     let guard;
-    try { guard = guardResult(meta.guardRuleIds ?? [], {}, 'shadow'); } catch { guard = {matches: [], warning: false}; }
-    const output = meta.gate === 'receipt' ? {} : {...allow(), ...(guard.warning ? {systemMessage: guard.message} : {})};
+    try { guard = guardResult(meta.guardRuleIds ?? [], {}, meta.gate === 'receipt' ? 'shadow' : 'enforce', meta.guardScanReason === 'guard_branch_unknown' ? ['GP003', 'GP004'] : []); } catch { guard = {matches: [], warning: false, stop: false}; }
+    const output = meta.gate === 'receipt' ? {} : guard.stop ? deny(guard.message) : {...allow(), ...(guard.warning ? {systemMessage: guard.message} : {})};
     if (this.failures.has(key)) return { output, warning: true, cause: reasonCode };
-    const decision = this.basic(meta, 'allow', reasonCode);
-    decision.plugin.event = 'fail_open';
+    const decision = this.basic(meta, guard.stop ? 'block' : 'allow', reasonCode);
+    decision.plugin.event = guard.stop ? 'fail_closed' : 'fail_open';
+    if (guard.stop) decision.reasons = [reasonCode, guard.message];
     if (guard.matches.length) { decision.plugin.guardPack = guard.matches; decision.plugin.guardPackMessage = guard.message; }
     this.failureLicense(decision, meta);
     await this.append(decision);
@@ -229,27 +249,47 @@ class Engine {
       await this.drainSpool();
       if (meta.gate === 'receipt') return await this.receipt(meta);
       if (meta.gate === 'spend' && SPAWN.has(meta.toolName)) return { output: allow() };
+      // A command scan the hook could not run at all is recorded as exactly that.
+      if (meta.commandScanFailed) return await this.failure(meta, 'scan_incomplete');
       const previous = this.completed.get(`${meta.gate}:${callKey(meta)}`);
-      if (previous) {
-        if (previous.action !== 'block') return {output: {...allow(), ...(previous.plugin.guardPackMessage ? {systemMessage: previous.plugin.guardPackMessage} : {})}};
+      if (previous && !previous.plugin.approvalNeeded) {
+        if (previous.action !== 'block') return {output: {...(previous.plugin.approvalRuleId ? {hookSpecificOutput: {hookEventName: 'PreToolUse', permissionDecision: 'ask', permissionDecisionReason: `AgentGuard ${previous.plugin.approvalRuleId} requires your approval for this call.`}} : allow()), ...(previous.plugin.guardPackMessage ? {systemMessage: previous.plugin.guardPackMessage} : {})}};
         // A prior denial must not survive a switch to shadow mode.
         const {mode} = this.context(meta);
         if (mode === 'enforce') return {output: deny(previous.reasons.join('; '))};
       }
       if (meta.gate === 'burn') return await this.burn(meta, message.transcriptPath, message.workingDirectory);
       return await this.spend(meta);
-    } catch { return await this.failure(meta, 'policy_or_runtime_error'); }
+    } catch {
+      // A block the worker had already decided is returned as that block even
+      // when the ledger append that followed it failed; the row is kept aside.
+      const computed = this.computedBlocks.get(`${meta.gate}:${callKey(meta)}`);
+      if (computed) { this.computedBlocks.delete(`${meta.gate}:${callKey(meta)}`); this.keepAside(computed.decision); return {output: this.decorate(computed.output, computed.license), warning: true, cause: 'ledger_append_failed'}; }
+      return await this.failure(meta, 'policy_or_runtime_error');
+    }
+  }
+  // Rows the ledger refused (a full disk, a file changed outside the worker)
+  // are kept beside it so the audit trail shows the gap; they carry no
+  // signature because the chain could not take them.
+  keepAside(decision) {
+    try {
+      const file = path.join(this.loc.data, 'ledger', 'unrecorded.ndjson');
+      fs.mkdirSync(path.dirname(file), {recursive: true, mode: 0o700});
+      fs.appendFileSync(file, JSON.stringify({keptAsideAt: new Date().toISOString(), decision}) + '\n', {mode: 0o600});
+    } catch { /* Nothing else can be done for this row. */ }
   }
   async burn(meta, transcriptPath, workingDirectory) {
     const {config, license, mode} = this.context(meta);
-    const guard = guardResult(meta.guardRuleIds ?? [], config.guardPack, mode);
+    const guard = guardResult(meta.guardRuleIds ?? [], config.guardPack, mode, meta.guardScanReason === 'guard_branch_unknown' ? ['GP003', 'GP004'] : []);
     if (guard.stop) {
       const blocked = this.basic(meta, 'block', 'guard_pack'); blocked.reasons = [guard.message];
       blocked.plugin.guardPack = guard.matches; blocked.plugin.guardPackMessage = guard.message;
-      this.licenseMetadata(blocked, license, mode); await this.append(blocked);
+      this.licenseMetadata(blocked, license, mode);
+      this.computedBlocks.set(`burn:${callKey(meta)}`, {decision: blocked, output: deny(guard.message), license: {...license, mode}});
+      await this.append(blocked); this.computedBlocks.delete(`burn:${callKey(meta)}`);
       this.completed.set(`burn:${callKey(meta)}`, blocked);
       this.notifyStop(config, blocked, guard.matches.filter(rule => rule.action === 'stop').map(rule => rule.id));
-      return {output: deny(guard.message)};
+      return {output: this.decorate(deny(guard.message), {...license, mode})};
     }
     if (matchingExternalBurn(meta, workingDirectory)) {
       if (SPAWN.has(meta.toolName)) {
@@ -292,13 +332,14 @@ class Engine {
       if (decision.verdict === 'STOP' && decision.blocked) this.notifyStop(config, mirror, decision.report.findings.filter(finding => finding.verdict === 'STOP').map(finding => finding.detector));
       if (!decision.blocked) this.pending.set(callKey(meta), mirror);
     }
-    if (output.hookSpecificOutput?.permissionDecision === 'deny') return { output: deny(output.hookSpecificOutput.permissionDecisionReason) };
+    if (output.hookSpecificOutput?.permissionDecision === 'deny') return { output: this.decorate(deny(output.hookSpecificOutput.permissionDecisionReason), {...license, mode}) };
     const messages = [output.systemMessage, guard.warning ? guard.message : null].filter(Boolean);
     return { output: { ...allow(), ...(messages.length ? { systemMessage: messages.join(' ').replace(/[\r\n]+/g, ' ') } : {}) } };
   }
   async spend(meta) {
     const {config, license, mode} = this.context(meta), session = config.sessions?.[meta.sessionId] ?? {};
-    const guard = guardResult(meta.guardRuleIds ?? [], config.guardPack, mode);
+    const guard = guardResult(meta.guardRuleIds ?? [], config.guardPack, mode, meta.guardScanReason === 'guard_branch_unknown' ? ['GP003', 'GP004'] : []);
+    if (meta.builtInStop !== undefined && !Object.hasOwn(BUILT_IN, meta.builtInStop)) throw new Error('built_in_stop_invalid');
     const match = /^mcp__(.+?)__(.+)$/.exec(meta.toolName);
     const provider = match?.[1] ?? meta.host ?? hostContext().host, model = match?.[2] ?? meta.toolName;
     const actor = { tenantId: config.tenantId ?? 'local', sessionId: meta.sessionId, agentId: meta.agentId ?? session.agentId ?? meta.sessionId,
@@ -313,7 +354,9 @@ class Engine {
       requiredCapability = rule.requiredCapability ?? requiredCapability;
     }
     if (tiers.indexOf(capability) < tiers.indexOf(minimumClassification)) capability = minimumClassification;
-    let reason = guard.stop ? guard.message : undefined;
+    const command = require('./command-policy.cjs').commandResult(config, meta);
+    // The built-in stop is not a configurable rule: no layer can turn it off.
+    let reason = guard.stop ? guard.message : meta.builtInStop ? `built_in:${meta.builtInStop}` : command?.action === 'block' ? `command_rule:${command.id}` : undefined;
     for (const scope of [config, session]) {
       const allowlists = scope.allowedToolGroups ?? (scope.allowedTools === undefined ? [] : [scope.allowedTools]);
       if (allowlists.some(patterns => !matches(patterns, meta.toolName))) reason = 'tool_not_allowlisted';
@@ -324,7 +367,26 @@ class Engine {
     let decision;
     const caps = [...(config.caps ?? []), ...(session.caps ?? []).map(cap => ({ ...cap, selector: { ...cap.selector, sessionId: meta.sessionId } }))]
       .map(cap => ({ ...cap, action: cap.action ?? 'block' }));
-    const policy = { ...basePolicy, scope: { tenantId: actor.tenantId }, mode, caps, ...(requiredCapability ? { requiredCapability } : {}) };
+    const sessionCap = caps.find(cap => cap.window === 'per_session' && cap.action !== 'allow'
+      && !Object.entries(cap.selector ?? {}).some(([key, value]) => actor[key] !== value)
+      && this.charges(meta.sessionId).filter(charge => charge.actor.tenantId === actor.tenantId
+        && Object.entries(cap.selector ?? {}).every(([key, value]) => charge.actor[key] === value)).reduce((sum, charge) => sum + charge.cents, 0) + unitCostCents > cap.amountCents);
+    if (sessionCap && sessionCap.action === 'block') reason ||= 'cap:per_session';
+    let approvalOutput;
+    if (!reason && command?.action === 'ask' && mode === 'enforce') {
+      if (meta.host === 'claude-code') approvalOutput = {hookSpecificOutput: {hookEventName: 'PreToolUse', permissionDecision: 'ask', permissionDecisionReason: `AgentGuard ${command.id} requires your approval for this call.`}};
+      else if (!require('./policy-approval.cjs').consume(this.loc.data, meta, config)) {
+        // The token never reaches the model or the ledger. The operator lists
+        // held calls with `policy-cli pending` in their own terminal.
+        require('./policy-approval.cjs').requestApproval(this.loc.data, meta, config, Date.now(), command.id);
+        const message = `AgentGuard ${command.id} requires operator confirmation. The operator runs node runtime/policy-cli.cjs pending in their own terminal, approves this exact call, and then this call can be retried within five minutes.`;
+        const held = this.basic(meta, 'block', `approval_required:${command.id}`, actor); held.plugin.approvalNeeded = true;
+        if (meta.guardScanReason) held.reasons.push(`guard_scan:${meta.guardScanReason}`);
+        this.licenseMetadata(held, license, mode); await this.append(held); this.completed.set(`spend:${callKey(meta)}`, held);
+        return {output: deny(message)};
+      }
+    }
+    const policy = { ...basePolicy, scope: { tenantId: actor.tenantId }, mode, caps: caps.filter(cap => cap.window !== 'per_session'), ...(requiredCapability ? { requiredCapability } : {}) };
     const call = {scope: actor, provider, model, inputTokens: 1000, outputTokens: 0, capabilityClaim: capability};
     if (reason && mode === 'enforce') decision = this.basic(meta, 'block', reason, actor);
     else {
@@ -345,11 +407,11 @@ class Engine {
         decision.action = 'shadow';
       }
       if (mode === 'shadow' && (!license.paid || reason)) decision.action = 'shadow';
-      if (guard.warning && decision.action === 'allow') decision.action = 'shadow';
+      if ((guard.warning || sessionCap) && decision.action === 'allow') decision.action = 'shadow';
     }
     const windows = new Map();
     if (decision.action !== 'block') for (const cap of caps) {
-      if (cap.window === 'per_call' || Object.entries(cap.selector ?? {}).some(([key, value]) => actor[key] !== value)) continue;
+      if (['per_call', 'per_session'].includes(cap.window) || Object.entries(cap.selector ?? {}).some(([key, value]) => actor[key] !== value)) continue;
       const scopeKey = sdk.buildScopeKey({ ...policy.scope, ...cap.selector });
       windows.set(`${scopeKey}:${cap.window}`, { scopeKey, window: cap.window, windowStart: startWindow(cap.window) });
     }
@@ -357,14 +419,22 @@ class Engine {
       chargedCents: decision.action === 'block' ? 0 : unitCostCents, chargedWindows: [...windows.values()],
       ...(reason ? { reasonCode: reason } : {}) };
     if (guard.matches.length) { decision.plugin.guardPack = guard.matches; decision.plugin.guardPackMessage = guard.message; decision.reasons.push(...guard.matches.filter(item => item.action !== 'off').map(item => `guard_pack:${item.id}:${item.action}`)); }
+    if (sessionCap) decision.reasons.push('cap:per_session');
+    if (meta.guardScanReason) decision.reasons.push(`guard_scan:${meta.guardScanReason}`);
+    if (meta.commandScanIncomplete) decision.reasons.push('scan_incomplete');
+    if (approvalOutput && decision.action !== 'block') decision.plugin.approvalRuleId = command.id;
     this.licenseMetadata(decision, license, mode);
-    await this.append(decision); this.completed.set(`spend:${callKey(meta)}`, decision);
+    const explanation = meta.builtInStop && reason === `built_in:${meta.builtInStop}` ? ` ${BUILT_IN[meta.builtInStop]}` : '';
+    if (decision.action === 'block') this.computedBlocks.set(`spend:${callKey(meta)}`, {decision, output: deny(decision.reasons.join('; ') + explanation), license: {...license, mode}});
+    await this.append(decision); this.computedBlocks.delete(`spend:${callKey(meta)}`);
+    if (decision.action !== 'block' && unitCostCents) this.addCharge(actor, unitCostCents);
+    this.completed.set(`spend:${callKey(meta)}`, decision);
     if (decision.action === 'block' && mode === 'enforce') {
       const ids = guard.matches.filter(rule => rule.action === 'stop').map(rule => rule.id);
       this.notifyStop(config, decision, ids.length ? ids : [decision.triggeredCap ? `cap:${decision.triggeredCap.window}` : reason || 'tool_policy']);
     }
     if (decision.action !== 'block') this.pending.set(callKey(meta), decision);
-    return { output: decision.action === 'block' ? deny(decision.reasons.join('; ')) : {...allow(), ...(guard.warning ? {systemMessage: guard.message} : {})} };
+    return { output: decision.action === 'block' ? this.decorate(deny(decision.reasons.join('; ') + explanation), {...license, mode}) : {...(approvalOutput ?? allow()), ...(guard.warning ? {systemMessage: guard.message} : {})} };
   }
   async receipt(meta) {
     const original = this.pending.get(callKey(meta));

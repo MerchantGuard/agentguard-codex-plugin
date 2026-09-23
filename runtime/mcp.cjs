@@ -34,11 +34,17 @@ const ENTRY_KEYS = new Set(['sequence', 'decision', 'previousHash', 'entryHash',
 const DECISION_KEYS = new Set(['decisionId', 'timestamp', 'action', 'triggeredCap', 'triggeredScopeKey', 'projectedCents', 'windowSpendBefore', 'windowSpendAfter', 'provider', 'modelRequested', 'modelResolved', 'policyId', 'policyVersion', 'enforcementMode', 'reasons', 'entryType', 'originalDecisionId', 'actor', 'costBasis', 'provenance', 'outcomeReceipt', 'governanceReceipt', 'estimatedInputTokens', 'estimatedOutputTokens', 'actualInputTokens', 'actualOutputTokens', 'actualCents', 'deltaCents', 'partial', 'plugin']);
 const PLUGIN_KEYS = new Set(['schema', 'event', 'toolName', 'inputSha256', 'inputBytes', 'inputKeys', 'toolUseId', 'sessionId', 'agentId', 'capabilityTier', 'unitCostCents', 'chargedCents', 'chargedWindows', 'startedAt', 'durationMs', 'durationSource', 'outputBytes', 'success', 'decisionId', 'gate', 'reasonCode', 'burnReceiptId', 'license', 'policyReasonCode', 'requestId', 'integrity', 'host']);
 const FORBIDDEN_KEY = /^(?:tool_input|tool_response|tool_output|input|output|prompt|completion|content|messages|text|body|raw|privateKey|private_key|signingKey|signing_key|secret|secretKey|secret_key|accessToken|access_token|authorization|apiKey|api_key|licenseKey|license_key)$/i;
-for (const key of ['guardRuleIds', 'guardScanReason', 'guardPack', 'guardPackMessage']) PLUGIN_KEYS.add(key);
+for (const key of ['commandPolicyHash', 'commandRuleIds', 'commandScanFailed', 'commandScanIncomplete', 'builtInStop', 'approvalNeeded', 'approvalRuleId', 'guardRuleIds', 'guardScanReason', 'guardPack', 'guardPackMessage']) PLUGIN_KEYS.add(key);
 const GUARD_RULES = new Map(RULES.map(rule => [rule.id, rule]));
 
 function validateGuardMetadata(metadata) {
   if (!metadata) return;
+  const identifier = value => typeof value === 'string' && /^[A-Za-z0-9_./:@-]{1,128}$/.test(value);
+  if (metadata.commandPolicyHash !== undefined && !/^[a-f0-9]{64}$/.test(metadata.commandPolicyHash)) throw new Error('Command policy hash is invalid.');
+  if (metadata.commandRuleIds !== undefined && (!Array.isArray(metadata.commandRuleIds) || metadata.commandRuleIds.length > 256 || metadata.commandRuleIds.some(id => id !== null && !identifier(id)))) throw new Error('Command rule metadata is invalid.');
+  for (const field of ['commandScanFailed', 'commandScanIncomplete', 'approvalNeeded']) if (metadata[field] !== undefined && typeof metadata[field] !== 'boolean') throw new Error('Command state metadata is invalid.');
+  if (metadata.builtInStop !== undefined && !['plugin_state', 'policy_cli'].includes(metadata.builtInStop)) throw new Error('Built-in stop metadata is invalid.');
+  if (metadata.approvalRuleId !== undefined && !identifier(metadata.approvalRuleId)) throw new Error('Approval rule metadata is invalid.');
   const ids = metadata.guardRuleIds, matches = metadata.guardPack;
   if (ids !== undefined && (!Array.isArray(ids) || ids.length > RULES.length || new Set(ids).size !== ids.length || ids.some(id => !GUARD_RULES.has(id)))) throw new Error('Guard rule metadata is invalid.');
   if (metadata.guardScanReason !== undefined && !['guard_branch_unknown', 'guard_scan_incomplete'].includes(metadata.guardScanReason)) throw new Error('Guard scan metadata is invalid.');
@@ -183,15 +189,13 @@ function createReader(options = {}) {
     const parameters = {data: dataDir, sessionId, policy: config.policy, personalPolicy: config.personal};
     const status = !args.sessionId && !hostContext().sessionId && !entries.length && args.displayOnly
       ? readLatestLicenseStatus(parameters) : readSessionLicense(parameters);
-    const {orgEnabled, readCachedOrgPolicy, mergeOrgPolicy} = require('./org-policy.cjs');
     let effectivePolicy = status.paid ? config.policy : config.personal;
     let reason = status.reason, orgPolicySha256 = null, orgPolicyVersion = null;
-    if (orgEnabled(status)) {
-      const org = readCachedOrgPolicy(dataDir, {keyFingerprint: require('node:crypto').createHash('sha256').update(require('./license.cjs').configuredKey(config.policy)).digest('hex')});
-      if (org.envelope) { effectivePolicy = mergeOrgPolicy(config.personal, config.shared, org.envelope.policy); orgPolicySha256 = org.envelope.sha256; orgPolicyVersion = org.envelope.version; }
-      if (org.reason && !reason) reason = org.reason;
-    }
-    try { require('./engine.cjs').validatePolicy(effectivePolicy); } catch { reason = reason || 'policy_invalid'; }
+    try {
+      const state = require('./policy-state.cjs').policyState(dataDir, sessionId, {licenseReader: () => status});
+      effectivePolicy = state.config; reason = state.license.reason;
+      orgPolicySha256 = state.orgPolicy?.sha256 ?? null; orgPolicyVersion = state.orgPolicy?.version ?? null;
+    } catch { reason = reason || 'policy_invalid'; }
     return {...status, ...seatEvidence(status), orgPolicySha256, orgPolicyVersion, reason,
       mode: status.mode === 'enforce' && !reason ? effectivePolicy.mode || 'enforce' : 'shadow'};
   }

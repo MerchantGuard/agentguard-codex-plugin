@@ -35,7 +35,7 @@ const permission = result => result.output.hookSpecificOutput.permissionDecision
 const rows = engine => fs.readFileSync(engine.logStore.filePath, 'utf8').trim().split('\n').map(JSON.parse);
 
 test('org contract allows exactly documented nonlocal root and nested fields', () => {
-  const policy = {version: 1, guardPack: {rules: {}}, tenantId: 'tenant/example', mode: 'enforce', hookBudgetMs: 250, defaultMatterId: 'matter-1', maxCapability: 'payment_execute',
+  const policy = {version: 1, guardPack: {rules: {}}, commandRules: [], tenantId: 'tenant/example', mode: 'enforce', hookBudgetMs: 250, defaultMatterId: 'matter-1', maxCapability: 'payment_execute',
     allowedTools: ['^Read$'], deniedTools: ['^Write$'], ethicalWall: ['^mcp__conflict__'], paymentPattern: 'payment|charge',
     toolRules: [{pattern: '^Read$', capability: 'read_only', requiredCapability: 'read_only', unitCostCents: 1}],
     caps: [{window: 'per_day', amountCents: 10, action: 'block', reason: 'daily_limit', selector: {tenantId: 'tenant/example', agentId: 'agent-1', taskId: 'matter-1', sessionId: 'session-example', provider: 'codex', userId: 'user-1', teamId: 'team-1'}}],
@@ -55,7 +55,7 @@ test('org contract rejects content, credentials, paths and unknown fields at eve
     JSON.parse('{"version":1,"__proto__":{"x":true}}'), JSON.parse('{"version":1,"sessions":{"constructor":{}}}'),
     {version: 1, allowedTools: ['[']}, {version: 1, paymentPattern: '('}, {version: 1, toolRules: [{pattern: 'x', unitCostCents: -1}]},
     {version: 1, caps: [{window: 'per_day', amountCents: 1, action: 'downgrade'}]},
-    {version: 1, sessions: {'session-example': {mode: 'shadow'}}}, {version: 1, hookBudgetMs: 0}, {version: 2},
+    {version: 1, sessions: {'session-example': {mode: 'shadow'}}}, {version: 1, hookBudgetMs: 0}, {version: 1, hookBudgetMs: 249}, {version: 1, hookBudgetMs: 1}, {version: 2},
   ]) assert.ok(validateOrgPolicy(policy).length, JSON.stringify(policy));
 });
 

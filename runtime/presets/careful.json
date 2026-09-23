@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "mode": "enforce",
+  "caps": [{"window": "per_day", "amountCents": 1500, "action": "block"}],
+  "commandRules": [
+    {"id": "force-push", "match": "force-push", "action": "block"},
+    {"id": "deploy", "match": "deploy", "action": "block"},
+    {"id": "outside-workspace-delete", "match": "outside-workspace-delete", "action": "block"}
+  ],
+  "guardPack": {"rules": {"inbox-reset-codes": "stop"}}
+}

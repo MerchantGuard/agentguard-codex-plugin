@@ -61,7 +61,8 @@ test('Every tool hook records a verified outcome without opening any network or 
     assert.equal(child.status, 0, child.stderr);
     assert.equal(child.stderr, '', `${hook} must complete its signed path rather than fail open`);
     const output = JSON.parse(child.stdout);
-    if (['receipt', 'session-start', 'session-end'].includes(hook)) assert.deepEqual(output, {});
+    if (hook === 'session-start') assert.match(output.systemMessage, /AgentGuard presets/);
+    else if (['receipt', 'session-end'].includes(hook)) assert.deepEqual(output, {});
     else assert.notEqual(output.hookSpecificOutput?.permissionDecision, 'deny');
   }
   assert.equal(fs.existsSync(f.attempts), false, 'No network API or Unix socket may be attempted');

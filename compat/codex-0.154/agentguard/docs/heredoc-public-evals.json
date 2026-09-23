@@ -1,0 +1,3592 @@
+{
+  "source": "https://github.com/vercel/next-evals-oss",
+  "sourceCommit": "bb7c02e847ac5beec71614cc8bb0c2a635db7ab2",
+  "sourceLicense": "MIT, Copyright (c) 2025 Vercel",
+  "baselinePluginCommit": "c292cb4",
+  "pluginVersion": "0.3.5",
+  "scannerSha256": "419f3a2709b3e1705c329b67931a3b28baa88db382fec59ed2ff36201b5da54a",
+  "scope": "Every published timestamp for the current Claude Code and Codex model families, plus the requested Grok set. Real scanner and Engine with the default Free enforce policy, explicit nonshared branch context, isolated local state and suppressed notifications. Transcripts are never executed. Missing transcripts are counted, not scored.",
+  "resultSets": 131,
+  "before": {
+    "runs": 1683,
+    "passed": 958,
+    "missing": 123,
+    "actions": 25638,
+    "commandsAndEdits": 20932,
+    "stops": 10,
+    "warnings": 124,
+    "incomplete": 38,
+    "stopsOnPassingRuns": 2
+  },
+  "after": {
+    "runs": 1683,
+    "passed": 958,
+    "missing": 123,
+    "actions": 25638,
+    "commandsAndEdits": 20932,
+    "stops": 6,
+    "warnings": 124,
+    "incomplete": 1,
+    "stopsOnPassingRuns": 1
+  },
+  "sets": [
+    {
+      "set": "results/claude-fable-5--agents-md/2026-06-09T22-14-03.747Z",
+      "before": {
+        "set": "results/claude-fable-5--agents-md/2026-06-09T22-14-03.747Z",
+        "runs": 4,
+        "passed": 4,
+        "missing": 0,
+        "actions": 93,
+        "commandsAndEdits": 70,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-fable-5--agents-md/2026-06-09T22-14-03.747Z",
+        "runs": 4,
+        "passed": 4,
+        "missing": 0,
+        "actions": 93,
+        "commandsAndEdits": 70,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-fable-5--agents-md/2026-06-09T23-50-34.016Z",
+      "before": {
+        "set": "results/claude-fable-5--agents-md/2026-06-09T23-50-34.016Z",
+        "runs": 6,
+        "passed": 1,
+        "missing": 0,
+        "actions": 86,
+        "commandsAndEdits": 49,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-fable-5--agents-md/2026-06-09T23-50-34.016Z",
+        "runs": 6,
+        "passed": 1,
+        "missing": 0,
+        "actions": 86,
+        "commandsAndEdits": 49,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-fable-5--agents-md/2026-07-09T03-55-44.111Z",
+      "before": {
+        "set": "results/claude-fable-5--agents-md/2026-07-09T03-55-44.111Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 18,
+        "commandsAndEdits": 14,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-fable-5--agents-md/2026-07-09T03-55-44.111Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 18,
+        "commandsAndEdits": 14,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-fable-5--agents-md/2026-08-26T21-53-42.411Z",
+      "before": {
+        "set": "results/claude-fable-5--agents-md/2026-08-26T21-53-42.411Z",
+        "runs": 37,
+        "passed": 23,
+        "missing": 1,
+        "actions": 578,
+        "commandsAndEdits": 445,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-fable-5--agents-md/2026-08-26T21-53-42.411Z",
+        "runs": 37,
+        "passed": 23,
+        "missing": 1,
+        "actions": 578,
+        "commandsAndEdits": 445,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-fable-5--agents-md/2026-08-31T17-54-19.982Z",
+      "before": {
+        "set": "results/claude-fable-5--agents-md/2026-08-31T17-54-19.982Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 20,
+        "commandsAndEdits": 12,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-fable-5--agents-md/2026-08-31T17-54-19.982Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 20,
+        "commandsAndEdits": 12,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-fable-5--agents-md/2026-09-08T23-57-54.883Z",
+      "before": {
+        "set": "results/claude-fable-5--agents-md/2026-09-08T23-57-54.883Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 46,
+        "commandsAndEdits": 44,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-fable-5--agents-md/2026-09-08T23-57-54.883Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 46,
+        "commandsAndEdits": 44,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-fable-5.1--agents-md/2026-09-09T20-20-21.729Z",
+      "before": {
+        "set": "results/claude-fable-5.1--agents-md/2026-09-09T20-20-21.729Z",
+        "runs": 32,
+        "passed": 24,
+        "missing": 0,
+        "actions": 414,
+        "commandsAndEdits": 378,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-fable-5.1--agents-md/2026-09-09T20-20-21.729Z",
+        "runs": 32,
+        "passed": 24,
+        "missing": 0,
+        "actions": 414,
+        "commandsAndEdits": 378,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-fable-5.1--agents-md/2026-09-09T22-53-16.002Z",
+      "before": {
+        "set": "results/claude-fable-5.1--agents-md/2026-09-09T22-53-16.002Z",
+        "runs": 8,
+        "passed": 8,
+        "missing": 0,
+        "actions": 132,
+        "commandsAndEdits": 117,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-fable-5.1--agents-md/2026-09-09T22-53-16.002Z",
+        "runs": 8,
+        "passed": 8,
+        "missing": 0,
+        "actions": 132,
+        "commandsAndEdits": 117,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-fable-5.1/2026-09-09T20-10-20.974Z",
+      "before": {
+        "set": "results/claude-fable-5.1/2026-09-09T20-10-20.974Z",
+        "runs": 34,
+        "passed": 24,
+        "missing": 0,
+        "actions": 416,
+        "commandsAndEdits": 383,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-fable-5.1/2026-09-09T20-10-20.974Z",
+        "runs": 34,
+        "passed": 24,
+        "missing": 0,
+        "actions": 416,
+        "commandsAndEdits": 383,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-fable-5.1/2026-09-09T22-53-16.007Z",
+      "before": {
+        "set": "results/claude-fable-5.1/2026-09-09T22-53-16.007Z",
+        "runs": 8,
+        "passed": 8,
+        "missing": 0,
+        "actions": 126,
+        "commandsAndEdits": 124,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-fable-5.1/2026-09-09T22-53-16.007Z",
+        "runs": 8,
+        "passed": 8,
+        "missing": 0,
+        "actions": 126,
+        "commandsAndEdits": 124,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-fable-5/2026-06-09T18-59-03.828Z",
+      "before": {
+        "set": "results/claude-fable-5/2026-06-09T18-59-03.828Z",
+        "runs": 11,
+        "passed": 5,
+        "missing": 0,
+        "actions": 148,
+        "commandsAndEdits": 103,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-fable-5/2026-06-09T18-59-03.828Z",
+        "runs": 11,
+        "passed": 5,
+        "missing": 0,
+        "actions": 148,
+        "commandsAndEdits": 103,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-fable-5/2026-07-09T03-55-44.123Z",
+      "before": {
+        "set": "results/claude-fable-5/2026-07-09T03-55-44.123Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 15,
+        "commandsAndEdits": 9,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-fable-5/2026-07-09T03-55-44.123Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 15,
+        "commandsAndEdits": 9,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-fable-5/2026-08-26T21-53-40.477Z",
+      "before": {
+        "set": "results/claude-fable-5/2026-08-26T21-53-40.477Z",
+        "runs": 41,
+        "passed": 23,
+        "missing": 3,
+        "actions": 509,
+        "commandsAndEdits": 389,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 1,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-fable-5/2026-08-26T21-53-40.477Z",
+        "runs": 41,
+        "passed": 23,
+        "missing": 3,
+        "actions": 509,
+        "commandsAndEdits": 389,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-fable-5/2026-08-31T17-54-19.983Z",
+      "before": {
+        "set": "results/claude-fable-5/2026-08-31T17-54-19.983Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 30,
+        "commandsAndEdits": 20,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-fable-5/2026-08-31T17-54-19.983Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 30,
+        "commandsAndEdits": 20,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-fable-5/2026-09-08T23-57-54.885Z",
+      "before": {
+        "set": "results/claude-fable-5/2026-09-08T23-57-54.885Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 23,
+        "commandsAndEdits": 23,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-fable-5/2026-09-08T23-57-54.885Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 23,
+        "commandsAndEdits": 23,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-4.6--agents-md/2026-02-18T09-48-32.737Z",
+      "before": {
+        "set": "results/claude-opus-4.6--agents-md/2026-02-18T09-48-32.737Z",
+        "runs": 21,
+        "passed": 20,
+        "missing": 0,
+        "actions": 316,
+        "commandsAndEdits": 92,
+        "stops": 0,
+        "warnings": 14,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-4.6--agents-md/2026-02-18T09-48-32.737Z",
+        "runs": 21,
+        "passed": 20,
+        "missing": 0,
+        "actions": 316,
+        "commandsAndEdits": 92,
+        "stops": 0,
+        "warnings": 14,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-4.6--agents-md/2026-03-17T19-05-45.571Z",
+      "before": {
+        "set": "results/claude-opus-4.6--agents-md/2026-03-17T19-05-45.571Z",
+        "runs": 4,
+        "passed": 1,
+        "missing": 0,
+        "actions": 23,
+        "commandsAndEdits": 8,
+        "stops": 0,
+        "warnings": 4,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-4.6--agents-md/2026-03-17T19-05-45.571Z",
+        "runs": 4,
+        "passed": 1,
+        "missing": 0,
+        "actions": 23,
+        "commandsAndEdits": 8,
+        "stops": 0,
+        "warnings": 4,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-4.6--agents-md/2026-04-02T17-14-57.339Z",
+      "before": {
+        "set": "results/claude-opus-4.6--agents-md/2026-04-02T17-14-57.339Z",
+        "runs": 2,
+        "passed": 2,
+        "missing": 0,
+        "actions": 35,
+        "commandsAndEdits": 13,
+        "stops": 0,
+        "warnings": 1,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-4.6--agents-md/2026-04-02T17-14-57.339Z",
+        "runs": 2,
+        "passed": 2,
+        "missing": 0,
+        "actions": 35,
+        "commandsAndEdits": 13,
+        "stops": 0,
+        "warnings": 1,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-4.6--agents-md/2026-04-06T14-41-53.321Z",
+      "before": {
+        "set": "results/claude-opus-4.6--agents-md/2026-04-06T14-41-53.321Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 17,
+        "commandsAndEdits": 6,
+        "stops": 0,
+        "warnings": 1,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-4.6--agents-md/2026-04-06T14-41-53.321Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 17,
+        "commandsAndEdits": 6,
+        "stops": 0,
+        "warnings": 1,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-4.6/2026-02-18T09-48-32.741Z",
+      "before": {
+        "set": "results/claude-opus-4.6/2026-02-18T09-48-32.741Z",
+        "runs": 36,
+        "passed": 15,
+        "missing": 1,
+        "actions": 404,
+        "commandsAndEdits": 123,
+        "stops": 0,
+        "warnings": 29,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-4.6/2026-02-18T09-48-32.741Z",
+        "runs": 36,
+        "passed": 15,
+        "missing": 1,
+        "actions": 404,
+        "commandsAndEdits": 123,
+        "stops": 0,
+        "warnings": 29,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-4.6/2026-03-17T19-05-45.577Z",
+      "before": {
+        "set": "results/claude-opus-4.6/2026-03-17T19-05-45.577Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 0,
+        "actions": 20,
+        "commandsAndEdits": 5,
+        "stops": 0,
+        "warnings": 2,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-4.6/2026-03-17T19-05-45.577Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 0,
+        "actions": 20,
+        "commandsAndEdits": 5,
+        "stops": 0,
+        "warnings": 2,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-4.6/2026-04-02T17-14-57.345Z",
+      "before": {
+        "set": "results/claude-opus-4.6/2026-04-02T17-14-57.345Z",
+        "runs": 3,
+        "passed": 2,
+        "missing": 0,
+        "actions": 42,
+        "commandsAndEdits": 20,
+        "stops": 0,
+        "warnings": 1,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-4.6/2026-04-02T17-14-57.345Z",
+        "runs": 3,
+        "passed": 2,
+        "missing": 0,
+        "actions": 42,
+        "commandsAndEdits": 20,
+        "stops": 0,
+        "warnings": 1,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-4.6/2026-04-06T15-07-43.585Z",
+      "before": {
+        "set": "results/claude-opus-4.6/2026-04-06T15-07-43.585Z",
+        "runs": 2,
+        "passed": 1,
+        "missing": 0,
+        "actions": 42,
+        "commandsAndEdits": 14,
+        "stops": 0,
+        "warnings": 2,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-4.6/2026-04-06T15-07-43.585Z",
+        "runs": 2,
+        "passed": 1,
+        "missing": 0,
+        "actions": 42,
+        "commandsAndEdits": 14,
+        "stops": 0,
+        "warnings": 2,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-4.7--agents-md/2026-04-16T16-28-28.940Z",
+      "before": {
+        "set": "results/claude-opus-4.7--agents-md/2026-04-16T16-28-28.940Z",
+        "runs": 33,
+        "passed": 23,
+        "missing": 0,
+        "actions": 544,
+        "commandsAndEdits": 277,
+        "stops": 0,
+        "warnings": 1,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-4.7--agents-md/2026-04-16T16-28-28.940Z",
+        "runs": 33,
+        "passed": 23,
+        "missing": 0,
+        "actions": 544,
+        "commandsAndEdits": 277,
+        "stops": 0,
+        "warnings": 1,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-4.7--agents-md/2026-04-16T16-40-57.896Z",
+      "before": {
+        "set": "results/claude-opus-4.7--agents-md/2026-04-16T16-40-57.896Z",
+        "runs": 3,
+        "passed": 1,
+        "missing": 0,
+        "actions": 116,
+        "commandsAndEdits": 47,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-4.7--agents-md/2026-04-16T16-40-57.896Z",
+        "runs": 3,
+        "passed": 1,
+        "missing": 0,
+        "actions": 116,
+        "commandsAndEdits": 47,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-4.7/2026-04-16T16-28-28.945Z",
+      "before": {
+        "set": "results/claude-opus-4.7/2026-04-16T16-28-28.945Z",
+        "runs": 42,
+        "passed": 18,
+        "missing": 0,
+        "actions": 376,
+        "commandsAndEdits": 195,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-4.7/2026-04-16T16-28-28.945Z",
+        "runs": 42,
+        "passed": 18,
+        "missing": 0,
+        "actions": 376,
+        "commandsAndEdits": 195,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-4.8--agents-md/2026-05-28T18-51-26.861Z",
+      "before": {
+        "set": "results/claude-opus-4.8--agents-md/2026-05-28T18-51-26.861Z",
+        "runs": 32,
+        "passed": 23,
+        "missing": 0,
+        "actions": 453,
+        "commandsAndEdits": 272,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-4.8--agents-md/2026-05-28T18-51-26.861Z",
+        "runs": 32,
+        "passed": 23,
+        "missing": 0,
+        "actions": 453,
+        "commandsAndEdits": 272,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-4.8/2026-05-28T18-51-26.866Z",
+      "before": {
+        "set": "results/claude-opus-4.8/2026-05-28T18-51-26.866Z",
+        "runs": 35,
+        "passed": 21,
+        "missing": 0,
+        "actions": 310,
+        "commandsAndEdits": 181,
+        "stops": 0,
+        "warnings": 4,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-4.8/2026-05-28T18-51-26.866Z",
+        "runs": 35,
+        "passed": 21,
+        "missing": 0,
+        "actions": 310,
+        "commandsAndEdits": 181,
+        "stops": 0,
+        "warnings": 4,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-5--agents-md/2026-08-05T15-35-05.063Z",
+      "before": {
+        "set": "results/claude-opus-5--agents-md/2026-08-05T15-35-05.063Z",
+        "runs": 4,
+        "passed": 3,
+        "missing": 0,
+        "actions": 92,
+        "commandsAndEdits": 76,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-5--agents-md/2026-08-05T15-35-05.063Z",
+        "runs": 4,
+        "passed": 3,
+        "missing": 0,
+        "actions": 92,
+        "commandsAndEdits": 76,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-5--agents-md/2026-08-26T22-02-57.122Z",
+      "before": {
+        "set": "results/claude-opus-5--agents-md/2026-08-26T22-02-57.122Z",
+        "runs": 41,
+        "passed": 22,
+        "missing": 0,
+        "actions": 1151,
+        "commandsAndEdits": 1084,
+        "stops": 1,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-5--agents-md/2026-08-26T22-02-57.122Z",
+        "runs": 41,
+        "passed": 22,
+        "missing": 0,
+        "actions": 1151,
+        "commandsAndEdits": 1084,
+        "stops": 1,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-5--agents-md/2026-08-31T17-54-19.984Z",
+      "before": {
+        "set": "results/claude-opus-5--agents-md/2026-08-31T17-54-19.984Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 45,
+        "commandsAndEdits": 38,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-5--agents-md/2026-08-31T17-54-19.984Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 45,
+        "commandsAndEdits": 38,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-5--agents-md/2026-09-08T20-33-05.747Z",
+      "before": {
+        "set": "results/claude-opus-5--agents-md/2026-09-08T20-33-05.747Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 70,
+        "commandsAndEdits": 59,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-5--agents-md/2026-09-08T20-33-05.747Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 70,
+        "commandsAndEdits": 59,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-5--agents-md/2026-09-09T21-06-27.667Z",
+      "before": {
+        "set": "results/claude-opus-5--agents-md/2026-09-09T21-06-27.667Z",
+        "runs": 3,
+        "passed": 3,
+        "missing": 0,
+        "actions": 143,
+        "commandsAndEdits": 136,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 1,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-5--agents-md/2026-09-09T21-06-27.667Z",
+        "runs": 3,
+        "passed": 3,
+        "missing": 0,
+        "actions": 143,
+        "commandsAndEdits": 136,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-5--agents-md/2026-09-09T21-40-08.275Z",
+      "before": {
+        "set": "results/claude-opus-5--agents-md/2026-09-09T21-40-08.275Z",
+        "runs": 7,
+        "passed": 6,
+        "missing": 0,
+        "actions": 195,
+        "commandsAndEdits": 169,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-5--agents-md/2026-09-09T21-40-08.275Z",
+        "runs": 7,
+        "passed": 6,
+        "missing": 0,
+        "actions": 195,
+        "commandsAndEdits": 169,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-5.5-high--agents-md/2026-09-22T20-40-53.526Z",
+      "before": {
+        "set": "results/claude-opus-5.5-high--agents-md/2026-09-22T20-40-53.526Z",
+        "runs": 35,
+        "passed": 30,
+        "missing": 1,
+        "actions": 367,
+        "commandsAndEdits": 359,
+        "stops": 1,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": [
+          {
+            "eval": "agent-045-build-a-nextjs-app",
+            "rules": [
+              "GP001"
+            ]
+          }
+        ]
+      },
+      "after": {
+        "set": "results/claude-opus-5.5-high--agents-md/2026-09-22T20-40-53.526Z",
+        "runs": 35,
+        "passed": 30,
+        "missing": 1,
+        "actions": 367,
+        "commandsAndEdits": 359,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-5.5-high/2026-09-22T20-34-17.138Z",
+      "before": {
+        "set": "results/claude-opus-5.5-high/2026-09-22T20-34-17.138Z",
+        "runs": 35,
+        "passed": 30,
+        "missing": 0,
+        "actions": 360,
+        "commandsAndEdits": 356,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 1,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-5.5-high/2026-09-22T20-34-17.138Z",
+        "runs": 35,
+        "passed": 30,
+        "missing": 0,
+        "actions": 360,
+        "commandsAndEdits": 356,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-5/2026-08-05T15-19-43.864Z",
+      "before": {
+        "set": "results/claude-opus-5/2026-08-05T15-19-43.864Z",
+        "runs": 8,
+        "passed": 2,
+        "missing": 0,
+        "actions": 257,
+        "commandsAndEdits": 219,
+        "stops": 1,
+        "warnings": 0,
+        "incomplete": 1,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-5/2026-08-05T15-19-43.864Z",
+        "runs": 8,
+        "passed": 2,
+        "missing": 0,
+        "actions": 257,
+        "commandsAndEdits": 219,
+        "stops": 1,
+        "warnings": 0,
+        "incomplete": 1,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-5/2026-08-26T22-02-38.481Z",
+      "before": {
+        "set": "results/claude-opus-5/2026-08-26T22-02-38.481Z",
+        "runs": 35,
+        "passed": 23,
+        "missing": 0,
+        "actions": 863,
+        "commandsAndEdits": 734,
+        "stops": 1,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-5/2026-08-26T22-02-38.481Z",
+        "runs": 35,
+        "passed": 23,
+        "missing": 0,
+        "actions": 863,
+        "commandsAndEdits": 734,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-5/2026-08-31T17-54-19.985Z",
+      "before": {
+        "set": "results/claude-opus-5/2026-08-31T17-54-19.985Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 29,
+        "commandsAndEdits": 29,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-5/2026-08-31T17-54-19.985Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 29,
+        "commandsAndEdits": 29,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-5/2026-09-08T23-57-54.887Z",
+      "before": {
+        "set": "results/claude-opus-5/2026-09-08T23-57-54.887Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 55,
+        "commandsAndEdits": 39,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-5/2026-09-08T23-57-54.887Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 55,
+        "commandsAndEdits": 39,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-5/2026-09-09T21-06-27.674Z",
+      "before": {
+        "set": "results/claude-opus-5/2026-09-09T21-06-27.674Z",
+        "runs": 4,
+        "passed": 2,
+        "missing": 2,
+        "actions": 42,
+        "commandsAndEdits": 32,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-5/2026-09-09T21-06-27.674Z",
+        "runs": 4,
+        "passed": 2,
+        "missing": 2,
+        "actions": 42,
+        "commandsAndEdits": 32,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-opus-5/2026-09-09T21-40-08.284Z",
+      "before": {
+        "set": "results/claude-opus-5/2026-09-09T21-40-08.284Z",
+        "runs": 9,
+        "passed": 5,
+        "missing": 0,
+        "actions": 298,
+        "commandsAndEdits": 248,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-opus-5/2026-09-09T21-40-08.284Z",
+        "runs": 9,
+        "passed": 5,
+        "missing": 0,
+        "actions": 298,
+        "commandsAndEdits": 248,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-4.5--agents-md/2026-02-18T09-48-32.745Z",
+      "before": {
+        "set": "results/claude-sonnet-4.5--agents-md/2026-02-18T09-48-32.745Z",
+        "runs": 38,
+        "passed": 17,
+        "missing": 9,
+        "actions": 463,
+        "commandsAndEdits": 215,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-4.5--agents-md/2026-02-18T09-48-32.745Z",
+        "runs": 38,
+        "passed": 17,
+        "missing": 9,
+        "actions": 463,
+        "commandsAndEdits": 215,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-4.5--agents-md/2026-03-17T19-05-45.582Z",
+      "before": {
+        "set": "results/claude-sonnet-4.5--agents-md/2026-03-17T19-05-45.582Z",
+        "runs": 4,
+        "passed": 1,
+        "missing": 0,
+        "actions": 35,
+        "commandsAndEdits": 4,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-4.5--agents-md/2026-03-17T19-05-45.582Z",
+        "runs": 4,
+        "passed": 1,
+        "missing": 0,
+        "actions": 35,
+        "commandsAndEdits": 4,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-4.5--agents-md/2026-04-02T17-14-57.351Z",
+      "before": {
+        "set": "results/claude-sonnet-4.5--agents-md/2026-04-02T17-14-57.351Z",
+        "runs": 2,
+        "passed": 2,
+        "missing": 0,
+        "actions": 46,
+        "commandsAndEdits": 15,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-4.5--agents-md/2026-04-02T17-14-57.351Z",
+        "runs": 2,
+        "passed": 2,
+        "missing": 0,
+        "actions": 46,
+        "commandsAndEdits": 15,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-4.5--agents-md/2026-04-06T14-41-53.333Z",
+      "before": {
+        "set": "results/claude-sonnet-4.5--agents-md/2026-04-06T14-41-53.333Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 25,
+        "commandsAndEdits": 13,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-4.5--agents-md/2026-04-06T14-41-53.333Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 25,
+        "commandsAndEdits": 13,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-4.5/2026-02-18T09-48-32.749Z",
+      "before": {
+        "set": "results/claude-sonnet-4.5/2026-02-18T09-48-32.749Z",
+        "runs": 49,
+        "passed": 12,
+        "missing": 16,
+        "actions": 303,
+        "commandsAndEdits": 111,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-4.5/2026-02-18T09-48-32.749Z",
+        "runs": 49,
+        "passed": 12,
+        "missing": 16,
+        "actions": 303,
+        "commandsAndEdits": 111,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-4.5/2026-03-17T19-05-45.587Z",
+      "before": {
+        "set": "results/claude-sonnet-4.5/2026-03-17T19-05-45.587Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 0,
+        "actions": 28,
+        "commandsAndEdits": 8,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-4.5/2026-03-17T19-05-45.587Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 0,
+        "actions": 28,
+        "commandsAndEdits": 8,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-4.5/2026-04-02T17-14-57.357Z",
+      "before": {
+        "set": "results/claude-sonnet-4.5/2026-04-02T17-14-57.357Z",
+        "runs": 8,
+        "passed": 0,
+        "missing": 0,
+        "actions": 91,
+        "commandsAndEdits": 34,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-4.5/2026-04-02T17-14-57.357Z",
+        "runs": 8,
+        "passed": 0,
+        "missing": 0,
+        "actions": 91,
+        "commandsAndEdits": 34,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-4.5/2026-04-06T15-07-43.593Z",
+      "before": {
+        "set": "results/claude-sonnet-4.5/2026-04-06T15-07-43.593Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 1,
+        "actions": 71,
+        "commandsAndEdits": 45,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-4.5/2026-04-06T15-07-43.593Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 1,
+        "actions": 71,
+        "commandsAndEdits": 45,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-4.6--agents-md/2026-02-23T20-17-10.086Z",
+      "before": {
+        "set": "results/claude-sonnet-4.6--agents-md/2026-02-23T20-17-10.086Z",
+        "runs": 21,
+        "passed": 20,
+        "missing": 0,
+        "actions": 322,
+        "commandsAndEdits": 167,
+        "stops": 0,
+        "warnings": 12,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-4.6--agents-md/2026-02-23T20-17-10.086Z",
+        "runs": 21,
+        "passed": 20,
+        "missing": 0,
+        "actions": 322,
+        "commandsAndEdits": 167,
+        "stops": 0,
+        "warnings": 12,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-4.6--agents-md/2026-03-17T19-05-45.592Z",
+      "before": {
+        "set": "results/claude-sonnet-4.6--agents-md/2026-03-17T19-05-45.592Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 7,
+        "commandsAndEdits": 3,
+        "stops": 0,
+        "warnings": 1,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-4.6--agents-md/2026-03-17T19-05-45.592Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 7,
+        "commandsAndEdits": 3,
+        "stops": 0,
+        "warnings": 1,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-4.6--agents-md/2026-04-02T17-14-57.362Z",
+      "before": {
+        "set": "results/claude-sonnet-4.6--agents-md/2026-04-02T17-14-57.362Z",
+        "runs": 2,
+        "passed": 2,
+        "missing": 0,
+        "actions": 24,
+        "commandsAndEdits": 5,
+        "stops": 0,
+        "warnings": 2,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-4.6--agents-md/2026-04-02T17-14-57.362Z",
+        "runs": 2,
+        "passed": 2,
+        "missing": 0,
+        "actions": 24,
+        "commandsAndEdits": 5,
+        "stops": 0,
+        "warnings": 2,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-4.6--agents-md/2026-04-06T14-41-53.345Z",
+      "before": {
+        "set": "results/claude-sonnet-4.6--agents-md/2026-04-06T14-41-53.345Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 23,
+        "commandsAndEdits": 8,
+        "stops": 0,
+        "warnings": 1,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-4.6--agents-md/2026-04-06T14-41-53.345Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 23,
+        "commandsAndEdits": 8,
+        "stops": 0,
+        "warnings": 1,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-4.6/2026-02-23T20-17-10.090Z",
+      "before": {
+        "set": "results/claude-sonnet-4.6/2026-02-23T20-17-10.090Z",
+        "runs": 39,
+        "passed": 14,
+        "missing": 1,
+        "actions": 275,
+        "commandsAndEdits": 114,
+        "stops": 0,
+        "warnings": 27,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-4.6/2026-02-23T20-17-10.090Z",
+        "runs": 39,
+        "passed": 14,
+        "missing": 1,
+        "actions": 275,
+        "commandsAndEdits": 114,
+        "stops": 0,
+        "warnings": 27,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-4.6/2026-03-17T19-05-45.596Z",
+      "before": {
+        "set": "results/claude-sonnet-4.6/2026-03-17T19-05-45.596Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 0,
+        "actions": 15,
+        "commandsAndEdits": 4,
+        "stops": 0,
+        "warnings": 4,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-4.6/2026-03-17T19-05-45.596Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 0,
+        "actions": 15,
+        "commandsAndEdits": 4,
+        "stops": 0,
+        "warnings": 4,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-4.6/2026-04-02T17-14-57.368Z",
+      "before": {
+        "set": "results/claude-sonnet-4.6/2026-04-02T17-14-57.368Z",
+        "runs": 8,
+        "passed": 0,
+        "missing": 0,
+        "actions": 87,
+        "commandsAndEdits": 28,
+        "stops": 0,
+        "warnings": 4,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-4.6/2026-04-02T17-14-57.368Z",
+        "runs": 8,
+        "passed": 0,
+        "missing": 0,
+        "actions": 87,
+        "commandsAndEdits": 28,
+        "stops": 0,
+        "warnings": 4,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-4.6/2026-04-06T15-37-51.387Z",
+      "before": {
+        "set": "results/claude-sonnet-4.6/2026-04-06T15-37-51.387Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 0,
+        "actions": 34,
+        "commandsAndEdits": 4,
+        "stops": 0,
+        "warnings": 4,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-4.6/2026-04-06T15-37-51.387Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 0,
+        "actions": 34,
+        "commandsAndEdits": 4,
+        "stops": 0,
+        "warnings": 4,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-5--agents-md/2026-08-05T16-03-38.558Z",
+      "before": {
+        "set": "results/claude-sonnet-5--agents-md/2026-08-05T16-03-38.558Z",
+        "runs": 33,
+        "passed": 22,
+        "missing": 0,
+        "actions": 653,
+        "commandsAndEdits": 397,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-5--agents-md/2026-08-05T16-03-38.558Z",
+        "runs": 33,
+        "passed": 22,
+        "missing": 0,
+        "actions": 653,
+        "commandsAndEdits": 397,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-5--agents-md/2026-08-25T21-16-06.937Z",
+      "before": {
+        "set": "results/claude-sonnet-5--agents-md/2026-08-25T21-16-06.937Z",
+        "runs": 6,
+        "passed": 1,
+        "missing": 0,
+        "actions": 132,
+        "commandsAndEdits": 114,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-5--agents-md/2026-08-25T21-16-06.937Z",
+        "runs": 6,
+        "passed": 1,
+        "missing": 0,
+        "actions": 132,
+        "commandsAndEdits": 114,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-5--agents-md/2026-08-28T16-03-24.506Z",
+      "before": {
+        "set": "results/claude-sonnet-5--agents-md/2026-08-28T16-03-24.506Z",
+        "runs": 3,
+        "passed": 3,
+        "missing": 0,
+        "actions": 46,
+        "commandsAndEdits": 21,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-5--agents-md/2026-08-28T16-03-24.506Z",
+        "runs": 3,
+        "passed": 3,
+        "missing": 0,
+        "actions": 46,
+        "commandsAndEdits": 21,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-5--agents-md/2026-08-31T17-54-19.986Z",
+      "before": {
+        "set": "results/claude-sonnet-5--agents-md/2026-08-31T17-54-19.986Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 45,
+        "commandsAndEdits": 32,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-5--agents-md/2026-08-31T17-54-19.986Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 45,
+        "commandsAndEdits": 32,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-5--agents-md/2026-09-08T23-57-54.889Z",
+      "before": {
+        "set": "results/claude-sonnet-5--agents-md/2026-09-08T23-57-54.889Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 48,
+        "commandsAndEdits": 33,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-5--agents-md/2026-09-08T23-57-54.889Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 48,
+        "commandsAndEdits": 33,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-5--agents-md/2026-09-09T20-54-28.880Z",
+      "before": {
+        "set": "results/claude-sonnet-5--agents-md/2026-09-09T20-54-28.880Z",
+        "runs": 8,
+        "passed": 8,
+        "missing": 0,
+        "actions": 179,
+        "commandsAndEdits": 110,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-5--agents-md/2026-09-09T20-54-28.880Z",
+        "runs": 8,
+        "passed": 8,
+        "missing": 0,
+        "actions": 179,
+        "commandsAndEdits": 110,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-5/2026-08-05T15-50-35.317Z",
+      "before": {
+        "set": "results/claude-sonnet-5/2026-08-05T15-50-35.317Z",
+        "runs": 41,
+        "passed": 19,
+        "missing": 0,
+        "actions": 697,
+        "commandsAndEdits": 483,
+        "stops": 2,
+        "warnings": 2,
+        "incomplete": 1,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-5/2026-08-05T15-50-35.317Z",
+        "runs": 41,
+        "passed": 19,
+        "missing": 0,
+        "actions": 697,
+        "commandsAndEdits": 483,
+        "stops": 2,
+        "warnings": 2,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-5/2026-08-25T21-16-06.938Z",
+      "before": {
+        "set": "results/claude-sonnet-5/2026-08-25T21-16-06.938Z",
+        "runs": 5,
+        "passed": 1,
+        "missing": 0,
+        "actions": 108,
+        "commandsAndEdits": 99,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-5/2026-08-25T21-16-06.938Z",
+        "runs": 5,
+        "passed": 1,
+        "missing": 0,
+        "actions": 108,
+        "commandsAndEdits": 99,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-5/2026-08-28T16-03-24.518Z",
+      "before": {
+        "set": "results/claude-sonnet-5/2026-08-28T16-03-24.518Z",
+        "runs": 7,
+        "passed": 2,
+        "missing": 0,
+        "actions": 95,
+        "commandsAndEdits": 72,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-5/2026-08-28T16-03-24.518Z",
+        "runs": 7,
+        "passed": 2,
+        "missing": 0,
+        "actions": 95,
+        "commandsAndEdits": 72,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-5/2026-08-31T17-54-19.987Z",
+      "before": {
+        "set": "results/claude-sonnet-5/2026-08-31T17-54-19.987Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 42,
+        "commandsAndEdits": 29,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-5/2026-08-31T17-54-19.987Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 42,
+        "commandsAndEdits": 29,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-5/2026-09-08T23-57-54.892Z",
+      "before": {
+        "set": "results/claude-sonnet-5/2026-09-08T23-57-54.892Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 39,
+        "commandsAndEdits": 29,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-5/2026-09-08T23-57-54.892Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 39,
+        "commandsAndEdits": 29,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/claude-sonnet-5/2026-09-09T20-54-28.885Z",
+      "before": {
+        "set": "results/claude-sonnet-5/2026-09-09T20-54-28.885Z",
+        "runs": 17,
+        "passed": 6,
+        "missing": 0,
+        "actions": 420,
+        "commandsAndEdits": 316,
+        "stops": 0,
+        "warnings": 8,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/claude-sonnet-5/2026-09-09T20-54-28.885Z",
+        "runs": 17,
+        "passed": 6,
+        "missing": 0,
+        "actions": 420,
+        "commandsAndEdits": 316,
+        "stops": 0,
+        "warnings": 8,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.2-codex-xhigh--agents-md/2026-02-18T09-48-32.778Z",
+      "before": {
+        "set": "results/gpt-5.2-codex-xhigh--agents-md/2026-02-18T09-48-32.778Z",
+        "runs": 28,
+        "passed": 15,
+        "missing": 8,
+        "actions": 292,
+        "commandsAndEdits": 292,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.2-codex-xhigh--agents-md/2026-02-18T09-48-32.778Z",
+        "runs": 28,
+        "passed": 15,
+        "missing": 8,
+        "actions": 292,
+        "commandsAndEdits": 292,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.2-codex-xhigh--agents-md/2026-02-18T10-02-27.768Z",
+      "before": {
+        "set": "results/gpt-5.2-codex-xhigh--agents-md/2026-02-18T10-02-27.768Z",
+        "runs": 2,
+        "passed": 2,
+        "missing": 0,
+        "actions": 26,
+        "commandsAndEdits": 26,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.2-codex-xhigh--agents-md/2026-02-18T10-02-27.768Z",
+        "runs": 2,
+        "passed": 2,
+        "missing": 0,
+        "actions": 26,
+        "commandsAndEdits": 26,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.2-codex-xhigh--agents-md/2026-02-18T13-01-57.475Z",
+      "before": {
+        "set": "results/gpt-5.2-codex-xhigh--agents-md/2026-02-18T13-01-57.475Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 3,
+        "actions": 61,
+        "commandsAndEdits": 61,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.2-codex-xhigh--agents-md/2026-02-18T13-01-57.475Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 3,
+        "actions": 61,
+        "commandsAndEdits": 61,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.2-codex-xhigh--agents-md/2026-03-18T20-20-47.054Z",
+      "before": {
+        "set": "results/gpt-5.2-codex-xhigh--agents-md/2026-03-18T20-20-47.054Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 18,
+        "commandsAndEdits": 18,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.2-codex-xhigh--agents-md/2026-03-18T20-20-47.054Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 18,
+        "commandsAndEdits": 18,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.2-codex-xhigh--agents-md/2026-04-02T17-14-57.428Z",
+      "before": {
+        "set": "results/gpt-5.2-codex-xhigh--agents-md/2026-04-02T17-14-57.428Z",
+        "runs": 5,
+        "passed": 1,
+        "missing": 0,
+        "actions": 136,
+        "commandsAndEdits": 136,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.2-codex-xhigh--agents-md/2026-04-02T17-14-57.428Z",
+        "runs": 5,
+        "passed": 1,
+        "missing": 0,
+        "actions": 136,
+        "commandsAndEdits": 136,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.2-codex-xhigh--agents-md/2026-04-06T14-41-53.401Z",
+      "before": {
+        "set": "results/gpt-5.2-codex-xhigh--agents-md/2026-04-06T14-41-53.401Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 19,
+        "commandsAndEdits": 19,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.2-codex-xhigh--agents-md/2026-04-06T14-41-53.401Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 19,
+        "commandsAndEdits": 19,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.2-codex-xhigh/2026-02-18T09-48-32.783Z",
+      "before": {
+        "set": "results/gpt-5.2-codex-xhigh/2026-02-18T09-48-32.783Z",
+        "runs": 38,
+        "passed": 11,
+        "missing": 18,
+        "actions": 147,
+        "commandsAndEdits": 147,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.2-codex-xhigh/2026-02-18T09-48-32.783Z",
+        "runs": 38,
+        "passed": 11,
+        "missing": 18,
+        "actions": 147,
+        "commandsAndEdits": 147,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.2-codex-xhigh/2026-02-18T10-02-27.772Z",
+      "before": {
+        "set": "results/gpt-5.2-codex-xhigh/2026-02-18T10-02-27.772Z",
+        "runs": 12,
+        "passed": 0,
+        "missing": 0,
+        "actions": 222,
+        "commandsAndEdits": 222,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.2-codex-xhigh/2026-02-18T10-02-27.772Z",
+        "runs": 12,
+        "passed": 0,
+        "missing": 0,
+        "actions": 222,
+        "commandsAndEdits": 222,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.2-codex-xhigh/2026-02-18T10-37-59.830Z",
+      "before": {
+        "set": "results/gpt-5.2-codex-xhigh/2026-02-18T10-37-59.830Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 1,
+        "actions": 45,
+        "commandsAndEdits": 45,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.2-codex-xhigh/2026-02-18T10-37-59.830Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 1,
+        "actions": 45,
+        "commandsAndEdits": 45,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.2-codex-xhigh/2026-03-18T20-20-47.058Z",
+      "before": {
+        "set": "results/gpt-5.2-codex-xhigh/2026-03-18T20-20-47.058Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 0,
+        "actions": 23,
+        "commandsAndEdits": 23,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.2-codex-xhigh/2026-03-18T20-20-47.058Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 0,
+        "actions": 23,
+        "commandsAndEdits": 23,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.2-codex-xhigh/2026-04-02T17-14-57.434Z",
+      "before": {
+        "set": "results/gpt-5.2-codex-xhigh/2026-04-02T17-14-57.434Z",
+        "runs": 2,
+        "passed": 1,
+        "missing": 0,
+        "actions": 17,
+        "commandsAndEdits": 17,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.2-codex-xhigh/2026-04-02T17-14-57.434Z",
+        "runs": 2,
+        "passed": 1,
+        "missing": 0,
+        "actions": 17,
+        "commandsAndEdits": 17,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.2-codex-xhigh/2026-04-02T19-04-24.117Z",
+      "before": {
+        "set": "results/gpt-5.2-codex-xhigh/2026-04-02T19-04-24.117Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 18,
+        "commandsAndEdits": 18,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.2-codex-xhigh/2026-04-02T19-04-24.117Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 18,
+        "commandsAndEdits": 18,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.2-codex-xhigh/2026-04-06T14-41-53.406Z",
+      "before": {
+        "set": "results/gpt-5.2-codex-xhigh/2026-04-06T14-41-53.406Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 20,
+        "commandsAndEdits": 20,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.2-codex-xhigh/2026-04-06T14-41-53.406Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 20,
+        "commandsAndEdits": 20,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.3-codex-xhigh--agents-md/2026-02-18T09-48-32.787Z",
+      "before": {
+        "set": "results/gpt-5.3-codex-xhigh--agents-md/2026-02-18T09-48-32.787Z",
+        "runs": 3,
+        "passed": 1,
+        "missing": 2,
+        "actions": 20,
+        "commandsAndEdits": 20,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.3-codex-xhigh--agents-md/2026-02-18T09-48-32.787Z",
+        "runs": 3,
+        "passed": 1,
+        "missing": 2,
+        "actions": 20,
+        "commandsAndEdits": 20,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.3-codex-xhigh--agents-md/2026-02-18T10-02-27.777Z",
+      "before": {
+        "set": "results/gpt-5.3-codex-xhigh--agents-md/2026-02-18T10-02-27.777Z",
+        "runs": 7,
+        "passed": 3,
+        "missing": 2,
+        "actions": 226,
+        "commandsAndEdits": 226,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.3-codex-xhigh--agents-md/2026-02-18T10-02-27.777Z",
+        "runs": 7,
+        "passed": 3,
+        "missing": 2,
+        "actions": 226,
+        "commandsAndEdits": 226,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.3-codex-xhigh--agents-md/2026-03-19T04-19-43.572Z",
+      "before": {
+        "set": "results/gpt-5.3-codex-xhigh--agents-md/2026-03-19T04-19-43.572Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 25,
+        "commandsAndEdits": 25,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.3-codex-xhigh--agents-md/2026-03-19T04-19-43.572Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 25,
+        "commandsAndEdits": 25,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.3-codex-xhigh--agents-md/2026-04-02T17-14-57.440Z",
+      "before": {
+        "set": "results/gpt-5.3-codex-xhigh--agents-md/2026-04-02T17-14-57.440Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 0,
+        "actions": 169,
+        "commandsAndEdits": 169,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.3-codex-xhigh--agents-md/2026-04-02T17-14-57.440Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 0,
+        "actions": 169,
+        "commandsAndEdits": 169,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.3-codex-xhigh--agents-md/2026-08-27T13-46-31.416Z",
+      "before": {
+        "set": "results/gpt-5.3-codex-xhigh--agents-md/2026-08-27T13-46-31.416Z",
+        "runs": 46,
+        "passed": 23,
+        "missing": 15,
+        "actions": 586,
+        "commandsAndEdits": 586,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.3-codex-xhigh--agents-md/2026-08-27T13-46-31.416Z",
+        "runs": 46,
+        "passed": 23,
+        "missing": 15,
+        "actions": 586,
+        "commandsAndEdits": 586,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.3-codex-xhigh/2026-02-18T09-48-32.791Z",
+      "before": {
+        "set": "results/gpt-5.3-codex-xhigh/2026-02-18T09-48-32.791Z",
+        "runs": 10,
+        "passed": 2,
+        "missing": 6,
+        "actions": 98,
+        "commandsAndEdits": 98,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.3-codex-xhigh/2026-02-18T09-48-32.791Z",
+        "runs": 10,
+        "passed": 2,
+        "missing": 6,
+        "actions": 98,
+        "commandsAndEdits": 98,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.3-codex-xhigh/2026-02-18T10-02-27.781Z",
+      "before": {
+        "set": "results/gpt-5.3-codex-xhigh/2026-02-18T10-02-27.781Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 0,
+        "actions": 44,
+        "commandsAndEdits": 44,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.3-codex-xhigh/2026-02-18T10-02-27.781Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 0,
+        "actions": 44,
+        "commandsAndEdits": 44,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.3-codex-xhigh/2026-03-19T04-19-43.577Z",
+      "before": {
+        "set": "results/gpt-5.3-codex-xhigh/2026-03-19T04-19-43.577Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 0,
+        "actions": 75,
+        "commandsAndEdits": 75,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.3-codex-xhigh/2026-03-19T04-19-43.577Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 0,
+        "actions": 75,
+        "commandsAndEdits": 75,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.3-codex-xhigh/2026-04-02T17-14-57.447Z",
+      "before": {
+        "set": "results/gpt-5.3-codex-xhigh/2026-04-02T17-14-57.447Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 0,
+        "actions": 126,
+        "commandsAndEdits": 126,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.3-codex-xhigh/2026-04-02T17-14-57.447Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 0,
+        "actions": 126,
+        "commandsAndEdits": 126,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.3-codex-xhigh/2026-08-27T13-46-31.426Z",
+      "before": {
+        "set": "results/gpt-5.3-codex-xhigh/2026-08-27T13-46-31.426Z",
+        "runs": 48,
+        "passed": 21,
+        "missing": 10,
+        "actions": 755,
+        "commandsAndEdits": 755,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 3,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.3-codex-xhigh/2026-08-27T13-46-31.426Z",
+        "runs": 48,
+        "passed": 21,
+        "missing": 10,
+        "actions": 755,
+        "commandsAndEdits": 755,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.4-xhigh--agents-md/2026-03-21T17-51-56.993Z",
+      "before": {
+        "set": "results/gpt-5.4-xhigh--agents-md/2026-03-21T17-51-56.993Z",
+        "runs": 21,
+        "passed": 19,
+        "missing": 0,
+        "actions": 393,
+        "commandsAndEdits": 393,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.4-xhigh--agents-md/2026-03-21T17-51-56.993Z",
+        "runs": 21,
+        "passed": 19,
+        "missing": 0,
+        "actions": 393,
+        "commandsAndEdits": 393,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.4-xhigh--agents-md/2026-03-21T18-06-16.708Z",
+      "before": {
+        "set": "results/gpt-5.4-xhigh--agents-md/2026-03-21T18-06-16.708Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 25,
+        "commandsAndEdits": 25,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.4-xhigh--agents-md/2026-03-21T18-06-16.708Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 25,
+        "commandsAndEdits": 25,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.4-xhigh--agents-md/2026-03-21T19-40-53.388Z",
+      "before": {
+        "set": "results/gpt-5.4-xhigh--agents-md/2026-03-21T19-40-53.388Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 4,
+        "actions": 0,
+        "commandsAndEdits": 0,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.4-xhigh--agents-md/2026-03-21T19-40-53.388Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 4,
+        "actions": 0,
+        "commandsAndEdits": 0,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.4-xhigh--agents-md/2026-04-02T17-14-57.453Z",
+      "before": {
+        "set": "results/gpt-5.4-xhigh--agents-md/2026-04-02T17-14-57.453Z",
+        "runs": 5,
+        "passed": 1,
+        "missing": 3,
+        "actions": 52,
+        "commandsAndEdits": 52,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.4-xhigh--agents-md/2026-04-02T17-14-57.453Z",
+        "runs": 5,
+        "passed": 1,
+        "missing": 3,
+        "actions": 52,
+        "commandsAndEdits": 52,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.4-xhigh--agents-md/2026-04-06T14-41-53.421Z",
+      "before": {
+        "set": "results/gpt-5.4-xhigh--agents-md/2026-04-06T14-41-53.421Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 39,
+        "commandsAndEdits": 39,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.4-xhigh--agents-md/2026-04-06T14-41-53.421Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 39,
+        "commandsAndEdits": 39,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.4-xhigh--agents-md/openai/gpt-5.4?reasoningEffort=xhigh/2026-07-17T19-18-24.998Z",
+      "before": {
+        "set": "results/gpt-5.4-xhigh--agents-md/openai/gpt-5.4?reasoningEffort=xhigh/2026-07-17T19-18-24.998Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 4,
+        "actions": 0,
+        "commandsAndEdits": 0,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.4-xhigh--agents-md/openai/gpt-5.4?reasoningEffort=xhigh/2026-07-17T19-18-24.998Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 4,
+        "actions": 0,
+        "commandsAndEdits": 0,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.4-xhigh/2026-03-21T17-51-56.997Z",
+      "before": {
+        "set": "results/gpt-5.4-xhigh/2026-03-21T17-51-56.997Z",
+        "runs": 22,
+        "passed": 18,
+        "missing": 0,
+        "actions": 316,
+        "commandsAndEdits": 316,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.4-xhigh/2026-03-21T17-51-56.997Z",
+        "runs": 22,
+        "passed": 18,
+        "missing": 0,
+        "actions": 316,
+        "commandsAndEdits": 316,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.4-xhigh/2026-03-21T19-40-53.392Z",
+      "before": {
+        "set": "results/gpt-5.4-xhigh/2026-03-21T19-40-53.392Z",
+        "runs": 8,
+        "passed": 0,
+        "missing": 8,
+        "actions": 0,
+        "commandsAndEdits": 0,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.4-xhigh/2026-03-21T19-40-53.392Z",
+        "runs": 8,
+        "passed": 0,
+        "missing": 8,
+        "actions": 0,
+        "commandsAndEdits": 0,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.4-xhigh/2026-04-02T17-14-57.459Z",
+      "before": {
+        "set": "results/gpt-5.4-xhigh/2026-04-02T17-14-57.459Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 16,
+        "commandsAndEdits": 16,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.4-xhigh/2026-04-02T17-14-57.459Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 16,
+        "commandsAndEdits": 16,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.4-xhigh/2026-04-02T19-47-42.518Z",
+      "before": {
+        "set": "results/gpt-5.4-xhigh/2026-04-02T19-47-42.518Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 4,
+        "actions": 0,
+        "commandsAndEdits": 0,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.4-xhigh/2026-04-02T19-47-42.518Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 4,
+        "actions": 0,
+        "commandsAndEdits": 0,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.4-xhigh/2026-04-06T16-04-26.410Z",
+      "before": {
+        "set": "results/gpt-5.4-xhigh/2026-04-06T16-04-26.410Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 34,
+        "commandsAndEdits": 34,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.4-xhigh/2026-04-06T16-04-26.410Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 34,
+        "commandsAndEdits": 34,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.5-pro--agents-md/2026-04-26T04-32-10.404Z",
+      "before": {
+        "set": "results/gpt-5.5-pro--agents-md/2026-04-26T04-32-10.404Z",
+        "runs": 20,
+        "passed": 20,
+        "missing": 0,
+        "actions": 574,
+        "commandsAndEdits": 574,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 1,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.5-pro--agents-md/2026-04-26T04-32-10.404Z",
+        "runs": 20,
+        "passed": 20,
+        "missing": 0,
+        "actions": 574,
+        "commandsAndEdits": 574,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.5-pro--agents-md/2026-04-26T05-06-11.777Z",
+      "before": {
+        "set": "results/gpt-5.5-pro--agents-md/2026-04-26T05-06-11.777Z",
+        "runs": 3,
+        "passed": 0,
+        "missing": 0,
+        "actions": 138,
+        "commandsAndEdits": 138,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.5-pro--agents-md/2026-04-26T05-06-11.777Z",
+        "runs": 3,
+        "passed": 0,
+        "missing": 0,
+        "actions": 138,
+        "commandsAndEdits": 138,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.5-pro--agents-md/2026-04-26T06-18-59.091Z",
+      "before": {
+        "set": "results/gpt-5.5-pro--agents-md/2026-04-26T06-18-59.091Z",
+        "runs": 1,
+        "passed": 0,
+        "missing": 0,
+        "actions": 54,
+        "commandsAndEdits": 54,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.5-pro--agents-md/2026-04-26T06-18-59.091Z",
+        "runs": 1,
+        "passed": 0,
+        "missing": 0,
+        "actions": 54,
+        "commandsAndEdits": 54,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.5-pro/2026-04-25T03-40-43.249Z",
+      "before": {
+        "set": "results/gpt-5.5-pro/2026-04-25T03-40-43.249Z",
+        "runs": 14,
+        "passed": 11,
+        "missing": 0,
+        "actions": 220,
+        "commandsAndEdits": 220,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.5-pro/2026-04-25T03-40-43.249Z",
+        "runs": 14,
+        "passed": 11,
+        "missing": 0,
+        "actions": 220,
+        "commandsAndEdits": 220,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.5-pro/2026-04-25T04-06-33.504Z",
+      "before": {
+        "set": "results/gpt-5.5-pro/2026-04-25T04-06-33.504Z",
+        "runs": 28,
+        "passed": 20,
+        "missing": 0,
+        "actions": 702,
+        "commandsAndEdits": 702,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.5-pro/2026-04-25T04-06-33.504Z",
+        "runs": 28,
+        "passed": 20,
+        "missing": 0,
+        "actions": 702,
+        "commandsAndEdits": 702,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.5-pro/2026-04-25T04-20-31.992Z",
+      "before": {
+        "set": "results/gpt-5.5-pro/2026-04-25T04-20-31.992Z",
+        "runs": 2,
+        "passed": 2,
+        "missing": 0,
+        "actions": 53,
+        "commandsAndEdits": 53,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.5-pro/2026-04-25T04-20-31.992Z",
+        "runs": 2,
+        "passed": 2,
+        "missing": 0,
+        "actions": 53,
+        "commandsAndEdits": 53,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.6-sol-ultra--agents-md/2026-07-17T02-59-06.459Z",
+      "before": {
+        "set": "results/gpt-5.6-sol-ultra--agents-md/2026-07-17T02-59-06.459Z",
+        "runs": 2,
+        "passed": 2,
+        "missing": 0,
+        "actions": 36,
+        "commandsAndEdits": 36,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.6-sol-ultra--agents-md/2026-07-17T02-59-06.459Z",
+        "runs": 2,
+        "passed": 2,
+        "missing": 0,
+        "actions": 36,
+        "commandsAndEdits": 36,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.6-sol-ultra--agents-md/2026-07-17T03-15-30.565Z",
+      "before": {
+        "set": "results/gpt-5.6-sol-ultra--agents-md/2026-07-17T03-15-30.565Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 0,
+        "actions": 97,
+        "commandsAndEdits": 97,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.6-sol-ultra--agents-md/2026-07-17T03-15-30.565Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 0,
+        "actions": 97,
+        "commandsAndEdits": 97,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.6-sol-ultra--agents-md/2026-08-26T20-52-56.583Z",
+      "before": {
+        "set": "results/gpt-5.6-sol-ultra--agents-md/2026-08-26T20-52-56.583Z",
+        "runs": 37,
+        "passed": 23,
+        "missing": 0,
+        "actions": 616,
+        "commandsAndEdits": 616,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.6-sol-ultra--agents-md/2026-08-26T20-52-56.583Z",
+        "runs": 37,
+        "passed": 23,
+        "missing": 0,
+        "actions": 616,
+        "commandsAndEdits": 616,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.6-sol-ultra--agents-md/2026-08-31T17-54-19.991Z",
+      "before": {
+        "set": "results/gpt-5.6-sol-ultra--agents-md/2026-08-31T17-54-19.991Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 21,
+        "commandsAndEdits": 21,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.6-sol-ultra--agents-md/2026-08-31T17-54-19.991Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 21,
+        "commandsAndEdits": 21,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.6-sol-ultra--agents-md/2026-09-08T23-57-54.908Z",
+      "before": {
+        "set": "results/gpt-5.6-sol-ultra--agents-md/2026-09-08T23-57-54.908Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 53,
+        "commandsAndEdits": 53,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.6-sol-ultra--agents-md/2026-09-08T23-57-54.908Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 53,
+        "commandsAndEdits": 53,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.6-sol-ultra/2026-07-17T02-51-37.038Z",
+      "before": {
+        "set": "results/gpt-5.6-sol-ultra/2026-07-17T02-51-37.038Z",
+        "runs": 8,
+        "passed": 2,
+        "missing": 0,
+        "actions": 103,
+        "commandsAndEdits": 103,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.6-sol-ultra/2026-07-17T02-51-37.038Z",
+        "runs": 8,
+        "passed": 2,
+        "missing": 0,
+        "actions": 103,
+        "commandsAndEdits": 103,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.6-sol-ultra/2026-08-26T20-52-56.593Z",
+      "before": {
+        "set": "results/gpt-5.6-sol-ultra/2026-08-26T20-52-56.593Z",
+        "runs": 35,
+        "passed": 23,
+        "missing": 0,
+        "actions": 423,
+        "commandsAndEdits": 423,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.6-sol-ultra/2026-08-26T20-52-56.593Z",
+        "runs": 35,
+        "passed": 23,
+        "missing": 0,
+        "actions": 423,
+        "commandsAndEdits": 423,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.6-sol-ultra/2026-08-26T21-07-54.154Z",
+      "before": {
+        "set": "results/gpt-5.6-sol-ultra/2026-08-26T21-07-54.154Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 0,
+        "actions": 144,
+        "commandsAndEdits": 144,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.6-sol-ultra/2026-08-26T21-07-54.154Z",
+        "runs": 4,
+        "passed": 0,
+        "missing": 0,
+        "actions": 144,
+        "commandsAndEdits": 144,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.6-sol-ultra/2026-08-31T17-54-19.992Z",
+      "before": {
+        "set": "results/gpt-5.6-sol-ultra/2026-08-31T17-54-19.992Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 20,
+        "commandsAndEdits": 20,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.6-sol-ultra/2026-08-31T17-54-19.992Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 20,
+        "commandsAndEdits": 20,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-5.6-sol-ultra/2026-09-08T23-57-54.910Z",
+      "before": {
+        "set": "results/gpt-5.6-sol-ultra/2026-09-08T23-57-54.910Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 24,
+        "commandsAndEdits": 24,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-5.6-sol-ultra/2026-09-08T23-57-54.910Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 24,
+        "commandsAndEdits": 24,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-6-astra-high--agents-md/2026-09-08T20-33-28.591Z",
+      "before": {
+        "set": "results/gpt-6-astra-high--agents-md/2026-09-08T20-33-28.591Z",
+        "runs": 35,
+        "passed": 23,
+        "missing": 0,
+        "actions": 718,
+        "commandsAndEdits": 718,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 3,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-6-astra-high--agents-md/2026-09-08T20-33-28.591Z",
+        "runs": 35,
+        "passed": 23,
+        "missing": 0,
+        "actions": 718,
+        "commandsAndEdits": 718,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-6-astra-high--agents-md/2026-09-08T22-52-39.422Z",
+      "before": {
+        "set": "results/gpt-6-astra-high--agents-md/2026-09-08T22-52-39.422Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 30,
+        "commandsAndEdits": 30,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 1,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-6-astra-high--agents-md/2026-09-08T22-52-39.422Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 30,
+        "commandsAndEdits": 30,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-6-astra-high--agents-md/2026-09-09T21-57-10.268Z",
+      "before": {
+        "set": "results/gpt-6-astra-high--agents-md/2026-09-09T21-57-10.268Z",
+        "runs": 8,
+        "passed": 8,
+        "missing": 0,
+        "actions": 165,
+        "commandsAndEdits": 165,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-6-astra-high--agents-md/2026-09-09T21-57-10.268Z",
+        "runs": 8,
+        "passed": 8,
+        "missing": 0,
+        "actions": 165,
+        "commandsAndEdits": 165,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-6-astra-high/2026-09-08T20-33-28.599Z",
+      "before": {
+        "set": "results/gpt-6-astra-high/2026-09-08T20-33-28.599Z",
+        "runs": 39,
+        "passed": 22,
+        "missing": 0,
+        "actions": 597,
+        "commandsAndEdits": 597,
+        "stops": 2,
+        "warnings": 0,
+        "incomplete": 7,
+        "falsePositives": [
+          {
+            "eval": "agent-036-after-response",
+            "rules": [
+              "GP009"
+            ]
+          }
+        ]
+      },
+      "after": {
+        "set": "results/gpt-6-astra-high/2026-09-08T20-33-28.599Z",
+        "runs": 39,
+        "passed": 22,
+        "missing": 0,
+        "actions": 597,
+        "commandsAndEdits": 597,
+        "stops": 2,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": [
+          {
+            "eval": "agent-036-after-response",
+            "rules": [
+              "GP009"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "set": "results/gpt-6-astra-high/2026-09-08T22-52-39.423Z",
+      "before": {
+        "set": "results/gpt-6-astra-high/2026-09-08T22-52-39.423Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 13,
+        "commandsAndEdits": 13,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-6-astra-high/2026-09-08T22-52-39.423Z",
+        "runs": 1,
+        "passed": 1,
+        "missing": 0,
+        "actions": 13,
+        "commandsAndEdits": 13,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-6-astra-high/2026-09-09T21-57-10.275Z",
+      "before": {
+        "set": "results/gpt-6-astra-high/2026-09-09T21-57-10.275Z",
+        "runs": 11,
+        "passed": 8,
+        "missing": 0,
+        "actions": 220,
+        "commandsAndEdits": 220,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-6-astra-high/2026-09-09T21-57-10.275Z",
+        "runs": 11,
+        "passed": 8,
+        "missing": 0,
+        "actions": 220,
+        "commandsAndEdits": 220,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-6-luna-high--agents-md/2026-09-22T20-20-04.111Z",
+      "before": {
+        "set": "results/gpt-6-luna-high--agents-md/2026-09-22T20-20-04.111Z",
+        "runs": 46,
+        "passed": 27,
+        "missing": 0,
+        "actions": 694,
+        "commandsAndEdits": 694,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 3,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-6-luna-high--agents-md/2026-09-22T20-20-04.111Z",
+        "runs": 46,
+        "passed": 27,
+        "missing": 0,
+        "actions": 694,
+        "commandsAndEdits": 694,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-6-luna-high/2026-09-22T20-12-00.023Z",
+      "before": {
+        "set": "results/gpt-6-luna-high/2026-09-22T20-12-00.023Z",
+        "runs": 54,
+        "passed": 24,
+        "missing": 0,
+        "actions": 662,
+        "commandsAndEdits": 662,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 5,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-6-luna-high/2026-09-22T20-12-00.023Z",
+        "runs": 54,
+        "passed": 24,
+        "missing": 0,
+        "actions": 662,
+        "commandsAndEdits": 662,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-6-sol-high--agents-md/2026-09-22T20-03-25.754Z",
+      "before": {
+        "set": "results/gpt-6-sol-high--agents-md/2026-09-22T20-03-25.754Z",
+        "runs": 36,
+        "passed": 30,
+        "missing": 0,
+        "actions": 396,
+        "commandsAndEdits": 396,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 4,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-6-sol-high--agents-md/2026-09-22T20-03-25.754Z",
+        "runs": 36,
+        "passed": 30,
+        "missing": 0,
+        "actions": 396,
+        "commandsAndEdits": 396,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/gpt-6-sol-high/2026-09-22T19-54-01.135Z",
+      "before": {
+        "set": "results/gpt-6-sol-high/2026-09-22T19-54-01.135Z",
+        "runs": 40,
+        "passed": 30,
+        "missing": 0,
+        "actions": 401,
+        "commandsAndEdits": 401,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 6,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/gpt-6-sol-high/2026-09-22T19-54-01.135Z",
+        "runs": 40,
+        "passed": 30,
+        "missing": 0,
+        "actions": 401,
+        "commandsAndEdits": 401,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    },
+    {
+      "set": "results/grok-4.7/2026-09-21T22-18-42.017Z",
+      "before": {
+        "set": "results/grok-4.7/2026-09-21T22-18-42.017Z",
+        "runs": 40,
+        "passed": 29,
+        "missing": 0,
+        "actions": 749,
+        "commandsAndEdits": 191,
+        "stops": 2,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      },
+      "after": {
+        "set": "results/grok-4.7/2026-09-21T22-18-42.017Z",
+        "runs": 40,
+        "passed": 29,
+        "missing": 0,
+        "actions": 749,
+        "commandsAndEdits": 191,
+        "stops": 0,
+        "warnings": 0,
+        "incomplete": 0,
+        "falsePositives": []
+      }
+    }
+  ]
+}

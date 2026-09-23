@@ -1,6 +1,6 @@
 ---
 name: agentguard-policy
-description: Activate an AgentGuard license or edit tool policies for matter budgets, session allowlists, and ethical-wall denies when the operator requests it.
+description: Customize AgentGuard with local presets, spending caps, command rules and rule explanations. Push a personal policy to Solo machines or activate a license when the operator requests it.
 ---
 
 # AgentGuard policy
@@ -54,7 +54,7 @@ effective mode, and reason. An unavailable value is unknown, not zero.
 
 Free uses the local policy, default enforce, on one machine without a key or
 account. It includes local signed receipts and Burn. Add a key for Solo or Team:
-Solo adds up to three machines, the dashboard, receipts export and email support;
+Solo adds your policy synced to up to three machines, the dashboard, receipts export and email support;
 Team adds org policy and seats from three people. Team is the only trial, with a card.
 Existing Growth and Pro keys remain supported. A policy requesting shadow
 remains shadow. A configured invalid or expired key selects shadow with
@@ -62,93 +62,82 @@ remains shadow. A configured invalid or expired key selects shadow with
 These failures retain their reasons and never gain Free enforcement. Licensing
 never denies a tool call. Shadow is a fallback state, not the Free tier.
 
-## Edit policy
+## Customize with commands
 
-1. Identify the requested matter/session/agent identifiers from the operator's
-   instructions. Use identifiers only; do not copy document contents,
-   provider credentials, client names, prompts, or tool inputs into policy.
-   The activation helper's `licenseKey` field is the sole credential exception.
-2. Preserve existing policy fields and unrelated sessions. Patterns are
-   JavaScript regular expressions; anchor exact names. Denies and ethical
-   walls are explicit restrictions, independent of monetary caps.
-3. Make the requested edit, validate the resulting JSON and pattern syntax,
-   then show the changed rules and their effect with synthetic tool names.
-   An invalid policy fails open, so do not leave a partially written file.
-4. Explain that unpriced tools cost zero in this ledger and that hook coverage
-   excludes Codex hosted tools and specialized paths. Claude Code WebSearch
-   and WebFetch use its tool hooks. Recommend protecting policy
-   files from agent writes when the firm uses them as controls.
+Use `runtime/policy-cli.cjs`, not hand-edited JSON, for the supported changes.
+Resolve the current host paths first. Keep the explicit host environment
+assignments shown in activation when running the policy CLI, including the
+Claude session ID. Replace only `runtime/activate.cjs` with
+`runtime/policy-cli.cjs` and its arguments. Do not send a license key as an argument.
 
-Use `get_status` to check the effective mode before describing an edited rule
-as enforced. Set `teamPolicyFile` to share a policy file across paid sessions;
-relative paths resolve from the host plugin data directory. Free sessions use the local policy
-instead. In shadow fallback mode,
-the operator can review signed decisions, but an allowlist, cap or ethical
-wall does not block a tool call.
+1. Run `show` to explain the effective policy and whether it is local or synced.
+2. Map the operator's request to one command below. Patterns are JavaScript
+   regular expressions matched against shell command text, not tool names.
+   Quote them as literal shell arguments. Never interpolate untrusted text.
+3. Read the printed before and after diff. Each write is validated and atomic.
+   The license key and unrelated local settings are preserved.
+4. Run `show` again and use `get_status` for the actual host session before
+   claiming that a rule is enforced. With Solo, changes remain local until push.
 
-## Per-matter budget example
+- Usual defaults: `preset solo-dev`.
+- Careful destructive work: `preset careful`.
+- Ask before network, deploy or publish: `preset strict`.
+- Limit to 15 dollars a day: `set-cap 15 per_day`.
+- Limit each session to 5 dollars: `set-cap 5 per_session`.
+- Block git push to main: `block '\bgit\s+push\b[^;\n]*\bmain\b'`.
+- Allow a command pattern: `allow '<the same literal pattern>'`.
+- Explain the inbox guard: `explain inbox-reset-codes`.
+- Put the policy on Solo machines: `push`.
+- Dismiss local upgrade moments permanently: `quiet on`.
 
-These amounts are example configuration, not measured service prices. Merge
-this cap into `caps`; `defaultMatterId` or `sessions[sessionId].matterId`
-becomes the decision's `actor.taskId`:
+Presets replace mode, caps, command rules and guard settings. They preserve
+other fields, including configured tool prices, sessions and licensing.
+The careful preset blocks force pushes, recognized deploy commands and rm
+outside the workspace, with a $15 daily cap. Strict sets a $5 daily cap and
+asks for network, deploy and package publish. Because a shell or connector
+can open the network without declaring it, strict asks for every shell and
+connector call. The exact packaged local show, explain, quiet and approval helper
+remain usable. It also retains the force push and outside-workspace rm blocks.
+Both presets enable `inbox-reset-codes`; solo-dev leaves it off.
 
-```json
-{
-  "defaultMatterId": "matter-example",
-  "toolRules": [
-    {"pattern": "^mcp__imanage__save_document$", "capability": "data_write", "unitCostCents": 2}
-  ],
-  "caps": [
-    {"selector": {"taskId": "matter-example"}, "window": "per_day", "amountCents": 500, "action": "block"}
-  ]
-}
-```
+Last matching command rule wins within its layer. An allow cannot weaken
+built-in Guard Pack rules or a Team administrator's restrictions. Explain
+that distinction when a tool remains blocked. The git example covers explicit
+main arguments; default-branch pushes and aliases need separate rules.
+Do not invent coverage for arbitrary programs or shell aliases.
 
-Other exact-match selectors include `agentId` and `sessionId`. Global and
-session caps apply together. Use the actual operator-assigned IDs, not tool
-input fields that the agent can invent. A host with no agent identity uses
-the operator's session mapping or session ID fallback.
+Caps count configured tool unit prices, not provider bills. Unpriced tools
+count as zero. Daily windows use UTC; session windows use the host session ID
+and survive worker restarts. Hook coverage excludes Codex hosted tools and
+specialized paths. Claude Code WebSearch and WebFetch use tool hooks.
+Recommend protecting policy files from agent writes when used as controls.
+For advanced session mappings or tool prices, explain the existing policy
+schema and ask the operator to use its administrative configuration surface.
+Do not silently hand-edit JSON to bypass these commands.
 
-## Document-review session allowlist
+## Strict approval
 
-Merge the session into `sessions`. This example permits document reads and
-planning but excludes writes by omission and by capability tier:
+Claude Code receives its native approval prompt. Codex currently cannot honor
+an ask decision from a PreToolUse hook. AgentGuard holds that call and tells you
+so. You cannot approve it: the approval token is never shown to you, and
+running `approve`, `pending` or any policy-changing command from your shell is
+stopped on every host. Tell the operator which call is waiting and stop there.
+The operator lists held calls with `node runtime/policy-cli.cjs pending` in
+their own terminal, approves one exact call, and asks you to retry it within
+five minutes. The approval covers one matching session, tool, input hash and
+policy; it cannot approve other arguments or a later policy version. Approval
+does not bypass other guard rules or caps.
 
-```json
-{
-  "sessions": {
-    "session-example": {
-      "matterId": "matter-example",
-      "maxCapability": "read_only",
-      "allowedTools": ["^mcp__imanage__(search_documents|read_document)$", "^update_plan$"],
-      "deniedTools": ["^Bash$", "^(apply_patch|Edit|Write)$"]
-    }
-  }
-}
-```
+## Sync with Solo
 
-Add read-only AgentGuard MCP tool patterns if the operator wants status and
-verification tools available in this session. Do not silently exempt any
-plugin's tools from an allowlist.
-
-## Ethical-wall deny list
-
-An ethical wall is a list of tool-name patterns denied for the current
-session. It does not inspect document contents or infer professional
-conflicts. Configure separate service-side access controls as needed:
-
-```json
-{
-  "sessions": {
-    "session-example": {
-      "ethicalWall": ["^mcp__restricted_matter__.*$", "^mcp__imanage__cross_matter_search$"]
-    }
-  }
-}
-```
-
-Preserve any existing global wall. Report the edited file, relevant rules,
-validation performed, and the fail-open consequence of runtime errors.
+Push is an explicit upload of allowed policy configuration only. Do not add
+prompts, receipts, tool arguments, document text or credentials to policy.
+The detached worker sends the Solo key in the Authorization header. The CLI
+and hooks open no sockets. Other machines pull at session start and every
+fifth heartbeat, about every 25 minutes. Failed Solo requests use local policy.
+Free push prints the Solo upgrade message and makes no request. Team policies
+remain owner-published in the dashboard. A blocked call is never permission
+to push a weaker policy.
 
 ## Local STOP notifications
 

@@ -75,15 +75,24 @@ test('a transport ignoring abort still returns within the org deadline and leave
   assert.deepEqual(fs.readFileSync(file), before);
 });
 
-test('204 deactivates the previous binding and a different license never sees the cached org', async t => {
+test('204 after a ready binding withdraws it to shadow with a reason, and a different license never sees the cached org', async t => {
   const f = fixture(t);
   await refreshOrgPolicy({...f, getPolicy: async () => ({status: 200, body: envelope()})});
   assert.equal(readCachedOrgPolicy(f.data, {keyFingerprint: hash('ag_OTHER_ORG')}).envelope, null);
   const before = fs.readFileSync(path.join(f.data, 'org-policy.json'));
+  // A deleted policy or a store miss never silently unbinds a Team: the
+  // envelope is kept and the seat runs shadow with the reason until the org
+  // publishes again.
   await refreshOrgPolicy({...f, getPolicy: async () => ({status: 204})});
-  assert.equal(readCachedOrgPolicy(f.data, {keyFingerprint: hash(KEY)}).envelope, null);
-  assert.equal(readCachedOrgPolicy(f.data, {keyFingerprint: hash(KEY)}).reason, null);
+  const withdrawn = readCachedOrgPolicy(f.data, {keyFingerprint: hash(KEY)});
+  assert.equal(withdrawn.envelope?.sha256, envelope().sha256);
+  assert.equal(withdrawn.reason, 'org_policy_withdrawn');
+  assert.equal(readCachedOrgPolicy(f.data, {keyFingerprint: hash('ag_OTHER_ORG')}).envelope, null);
   assert.deepEqual(fs.readFileSync(path.join(f.data, 'org-policy.json')), before);
+  // With no policy ever loaded, 204 still means none.
+  const fresh = fixture(t);
+  await refreshOrgPolicy({...fresh, getPolicy: async () => ({status: 204})});
+  assert.deepEqual([readCachedOrgPolicy(fresh.data, {keyFingerprint: hash(KEY)}).envelope, readCachedOrgPolicy(fresh.data, {keyFingerprint: hash(KEY)}).reason], [null, null]);
 });
 
 test('startup and heartbeat transmit exactly license identity, registration identity and the loaded policy hash', async t => {

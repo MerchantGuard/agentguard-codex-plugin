@@ -45,7 +45,7 @@ async function main() {
   function loadOrg(sessionId) { engine.clearSessionFailure(sessionId, 'org'); try { engine.context({sessionId}); } catch { engine.orgPolicyDigests?.delete(sessionId); } }
   heartbeats = new (require('./seat-heartbeat.cjs').SeatHeartbeatScheduler)({data: loc.data, isLive: id => live.confirmHost(id),
     orgPolicyDigest: id => engine.orgPolicyDigests?.get(id) ?? null, onOrgRefresh: loadOrg,
-    onOrgFailure: (id, reason) => engine.setSessionFailure(id, 'org', reason),
+    onOrgFailure: (id, reason) => engine.recordOrgFailure(id, reason),
     onSeatRefresh: (id, value) => require('./worker-session.cjs').recoverSeatState(engine, id, value),
     onSeatFailure: (id, reason) => engine.setSessionFailure(id, 'seat', reason)});
   function beginSession(message) {
@@ -59,7 +59,7 @@ async function main() {
       engine.setSessionFailure(message.sessionId, 'startup', engine.preferredSessionFailure(message.sessionId) === 'seat_revoked' ? 'seat_revoked' : 'license_unavailable');
       const work = require('./worker-session.cjs').refreshWorkerSession({data: loc.data, sessionId: message.sessionId, policy, personalPolicy: personal,
         forceActivation: true, orgPolicySha256: engine.orgPolicyDigests?.get(message.sessionId) ?? null})
-        .then(status => { if (starts.get(tag) !== work) return status; require('./worker-session.cjs').recoverSessionState(engine, message.sessionId, status); loadOrg(message.sessionId); observe(message.sessionId, message.ownerPid, message.ownerIdentity); return status; });
+        .then(status => { if (starts.get(tag) !== work) return status; require('./worker-session.cjs').recoverSessionState(engine, message.sessionId, status); loadOrg(message.sessionId); if (status.policySyncFailed) engine.recordOrgFailure(message.sessionId, 'org_policy_unavailable'); observe(message.sessionId, message.ownerPid, message.ownerIdentity); return status; });
       starts.set(tag, work);
       work.catch(error => { if (starts.get(tag) !== work) return; starts.delete(tag); engine.setSessionFailure(message.sessionId, 'startup', error?.code === 'seat_revoked' ? 'seat_revoked' : error?.source === 'org' ? 'org_policy_unavailable' : 'license_unavailable'); });
     }
@@ -95,6 +95,23 @@ async function main() {
         try { fs.unlinkSync(input); } catch (error) { if (error.code === 'ENOENT') continue; throw error; }
         touch();
         if (message.control === 'stop') return stop(output);
+        if (message.control === 'policy-push') {
+          // The license is read from a live session's cached status, so a push
+          // never resolves a synthetic session over the network.
+          const sessionId = live.ids().includes(message.sessionId) ? message.sessionId : live.ids()[0] ?? message.sessionId;
+          void require('./org-policy-refresh.cjs').pushPersonalPolicy({data: loc.data, sessionId})
+            .then(result => {
+              require('./worker-session.cjs').recordPushResult(engine, live.ids(), result, loadOrg);
+              writeMessage(output, result.error ? {error: result.error} : {sha256: result.sha256, version: result.version});
+            }).catch(() => { writeMessage(output, {error: 'Policy sync unavailable. Local policy is unchanged.'}); });
+          continue;
+        }
+        if (message.control === 'benchmark-consent') {
+          engine.benchmarkConsent(message.runId, message.granted !== false)
+            .then(result => writeMessage(output, result))
+            .catch(error => writeMessage(output, {error: error?.message === 'benchmark_run_id_invalid' ? 'Run id must be 1 to 256 letters, digits, dots, colons, underscores or dashes.' : 'Benchmark consent unavailable. Enforcement is unchanged.'}));
+          continue;
+        }
         if (message.control === 'effective-license') {
           try {
             const state = engine.context({sessionId: message.sessionId});

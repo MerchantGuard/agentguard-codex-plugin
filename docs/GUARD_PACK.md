@@ -6,9 +6,11 @@ the arguments. Neither the scanner nor the hook opens a socket or calls a model.
 The existing metadata hashes and byte counts remain content-free.
 
 Effective shadow mode produces WARN with the rule ID. Enforce mode on every
-tier, including Free without a key, produces STOP by default. A scan, policy, license
-or worker failure allows the tool and records a shadow or fail-open reason
-when local storage is writable.
+tier, including Free without a key, produces STOP by default. An incomplete
+scan retains recovered rule matches and records its scan reason. Unknown
+branch context warns for GP003 and GP004 without demoting other rules or
+tool policy. Policy, license and worker failures retain their existing shadow
+or fail-open behavior when local storage is writable.
 An off rule produces no warning. Existing tool policy and Burn checks still
 apply independently.
 
@@ -30,14 +32,17 @@ apply independently.
 | GP014 | Package source | Package install from URL or Git source, excluding registry/index options | A package install uses a URL or Git source rather than a registry version. |
 
 The rule catalog and matching implementation, including each ID and default
-severity, are in `runtime/guard-pack.cjs`. Command tokenization preserves quoted operators.
+severity, are in `runtime/guard-pack.cjs`. Command tokenization preserves quoted operators
+and separates heredoc data from surrounding commands. Shell consumers and
+unquoted substitutions are scanned as executable input. Incomplete shell
+parsing also runs the catalog patterns over raw command text conservatively.
 Registry/index option values are not interpreted as package sources. Path
 normalization is lexical and does not follow symlinks.
 
 ## Administrative policy
 
 The only new policy field is the root-level `guardPack` object. It accepts only
-`rules`, whose keys are the fixed IDs GP001 through GP014 and whose values are
+`rules`, whose keys are the fixed IDs GP001 through GP014 and inbox-reset-codes and whose values are
 `stop`, `warn` or `off`. Custom expressions and additional text are rejected.
 
 ```json
@@ -77,3 +82,5 @@ invocations using six fixed synthetic calls. It includes Node startup, file IPC
 and signing; it excludes one worker warmup and the separate Burn hook and
 session startup. Model calls and sockets are forbidden during measurement.
 The measured report is `docs/overhead.json`.
+
+The optional `inbox-reset-codes` rule matches email and messaging connector searches for verification codes, one-time codes, password reset and sign-in links. It is off in solo-dev and on in careful and strict. Normal invoice and code-review searches remain unmatched. As with other rules, only the matched ID leaves hook memory.

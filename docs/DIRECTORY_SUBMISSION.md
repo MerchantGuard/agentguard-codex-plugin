@@ -667,9 +667,15 @@ This preparation leaves the token unset. An HTTP 404 proves the empty configurat
 
 All countries and regions offered by the submission portal. Listing and support language: English.
 
-## Release notes for 0.3.4
+## Release notes for 0.3.6
 
-Make Enforce free on one machine without a key. Solo adds three machines and paid features; Team retains ten seats, org policy and its card trial. Preserve all failed-license fallbacks, paid receipts export and existing signed chains.
+Approve held Codex calls only from the operator's terminal, with a pending command that lists them and no token shown to the model. Protect the plugin's own state and policy commands from agent tool calls on every host. Keep command rules working when a command cannot be fully parsed, validate command patterns as linear, keep Solo sync state in one file for hook and worker, let personal policies only tighten the Guard Pack, and cover more ordinary command spellings. Preserve all failed-license fallbacks, paid receipts export and existing signed chains.
+
+Benchmark mode needs the operator's signed consent per run. A hook budget below 250 ms is refused. A policy the worker cannot read keeps a definite built-in stop. Move, copy and rename tools are writes for the plugin-state stop. Org policy withdrawal and replay are handled explicitly. The command scanner reads reserved words, wrappers, substitutions, here-strings, ANSI-C quoting and CRLF heredocs; recursive-delete targets built from variables resolve where possible; secret, credential-file, env-template and package-source checks are tuned by category against a public corpus with regression pairs. Evals tooling stays out of the package.
+
+### Previous 0.3.5 notes
+
+Improve local checks for shell commands that contain heredoc data, including nested shell calls and patch input. Preserve known guard matches when parsing is incomplete. Add regression coverage and a comparison against public Next.js eval transcripts.
 
 ### Previous 0.3.0 notes
 

@@ -35,7 +35,7 @@ function snapshot(directory) {
 test('public sync copies an explicit distribution, preserves Git, removes owned stale files, and is idempotent', t => {
   const f = fixture(t);
   const marker = crypto.randomUUID();
-  for (const relative of ['.env.secret', 'scratch/private.txt', 'node_modules/private.txt', 'tests/private-notes.json', 'runtime/scratch-secret.cjs', 'compat/codex-0.154/agentguard/runtime/scratch-secret.cjs', '.git/private.txt']) {
+  for (const relative of ['.env.secret', 'scratch/private.txt', 'node_modules/private.txt', 'scripts/public-evals-deps/node_modules/private.txt', 'tests/private-notes.json', 'runtime/scratch-secret.cjs', 'compat/codex-0.154/agentguard/runtime/scratch-secret.cjs', '.git/private.txt']) {
     const filename = path.join(f.source, relative);
     fs.mkdirSync(path.dirname(filename), {recursive: true});
     fs.writeFileSync(filename, marker);
@@ -55,6 +55,10 @@ test('public sync copies an explicit distribution, preserves Git, removes owned 
   assert.equal(fs.readFileSync(path.join(f.destination, 'UNRELATED-NOTES.txt'), 'utf8'), 'outside the package deletion scope');
   assert.equal(fs.existsSync(path.join(f.destination, 'runtime', 'stale.cjs')), false);
   assert.equal(fs.existsSync(path.join(f.destination, 'node_modules')), false);
+  assert.equal(fs.existsSync(path.join(f.destination, 'scripts/public-evals-deps/node_modules')), false);
+  for (const relative of ['scripts/score-public-evals.cjs', 'scripts/public-evals-deps/package-lock.json', 'docs/PUBLIC_EVALS.md', 'tests/public-evals.test.cjs', 'tests/guard-pack-heredoc.test.cjs']) {
+    assert.ok(fs.readFileSync(path.join(f.destination, relative)).equals(fs.readFileSync(path.join(f.source, relative))), relative);
+  }
   for (const relative of files(f.destination)) assert.equal(fs.readFileSync(path.join(f.destination, relative)).includes(Buffer.from(marker)), false, relative);
   const catalog = JSON.parse(fs.readFileSync(path.join(f.destination, '.agents/plugins/marketplace.json'), 'utf8'));
   assert.equal(catalog.name, 'agentguard');

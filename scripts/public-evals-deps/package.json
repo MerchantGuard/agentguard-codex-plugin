@@ -1,0 +1,9 @@
+{
+  "name": "agentguard-public-eval-analysis",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "@agentguard-run/burn": "0.3.5"
+  }
+}

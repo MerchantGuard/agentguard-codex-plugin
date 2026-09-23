@@ -1,6 +1,6 @@
 {
   "name": "@agentguard-run/codex-plugin",
-  "version": "0.3.4",
+  "version": "0.3.6",
   "description": "Local tool policy hooks and content-free signed records for Codex, ChatGPT Work and Claude Code.",
   "license": "SEE LICENSE IN LICENSE",
   "type": "commonjs",
@@ -35,5 +35,9 @@
     "type": "git",
     "url": "https://github.com/MerchantGuard/agentguard-codex-plugin.git"
   },
-  "homepage": "https://agentguard.run"
+  "homepage": "https://agentguard.run",
+  "devDependencies": {
+    "fast-check": "^4.10.2",
+    "sh-syntax": "^0.6.0"
+  }
 }
