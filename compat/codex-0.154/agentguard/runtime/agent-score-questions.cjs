@@ -1,30 +1,19 @@
 'use strict';
 
 // The AgentGuard Score questionnaire, copied from the hosted service so the
-// plugin can present and validate answers offline. Question ids, wording,
-// order and option strings must stay identical to the hosted questionnaire;
-// the hosted service scores the answers, this module never does.
+// plugin can present and validate a complete answer set offline. Question
+// ids, wording, order and option strings must stay identical to the hosted
+// questionnaire; the hosted service scores the answers, this module never does.
 
 const INTRO = [
-  'Agent Compliance Check',
-  '',
-  'This verifies your agent\'s payment readiness.',
-  '',
-  'WHAT WE CHECK:',
-  '- Human sponsor verification (GuardGate)',
-  '- Wallet configuration',
-  '- Transaction limits',
-  '- Audit trail compliance',
-  '',
-  'WHY IT MATTERS:',
-  'Agents without compliance records get blocked by payment networks.',
-  'Build your reputation now, before you need it.',
-].join('\n');
+  'AgentGuard Score',
+  'Five questions about the controls around an agent that moves money: an accountable human, where the funds sit, transaction limits and an audit trail. It scores what you report and verifies nothing. Use it as a checklist and a starting point for a conversation with a payment provider.',
+].join('\n\n');
 
 const QUESTIONS = [
   {
     id: 'agent_type',
-    question: 'What type of agent are you?',
+    question: 'What kind of agent is this?',
     type: 'select',
     options: [
       'Autonomous commerce agent (makes purchases)',
@@ -38,31 +27,33 @@ const QUESTIONS = [
   },
   {
     id: 'human_sponsor',
-    question: 'Do you have a verified human sponsor (GuardGate)?',
+    question: 'Is a named human accountable for this agent, and can a third party verify who that is?',
     type: 'boolean',
     category: 'compliance',
   },
   {
     id: 'wallet_type',
-    question: 'What type of wallet do you operate?',
+    question: 'Where does the agent\'s money sit?',
     type: 'select',
     options: [
-      'Custodial (Circle, Coinbase)',
-      'Self-custody (Safe multi-sig)',
-      'Personal wallet (MetaMask)',
-      'No wallet',
+      'Custodial account (Circle, Coinbase, a processor balance)',
+      'Self-custody with multi-sig (Safe)',
+      'Virtual card or card-issuing API',
+      'Bank account the agent can draw on',
+      'Personal wallet or personal card',
+      'None yet',
     ],
     category: 'infrastructure',
   },
   {
     id: 'transaction_limits',
-    question: 'Do you have transaction limits configured?',
+    question: 'Are per-transaction and daily limits enforced somewhere the agent cannot change them?',
     type: 'boolean',
     category: 'compliance',
   },
   {
     id: 'audit_trail',
-    question: 'Do you maintain an audit trail of your actions?',
+    question: 'Is every payment action logged with a timestamp the agent cannot edit?',
     type: 'boolean',
     category: 'compliance',
   },
@@ -70,16 +61,15 @@ const QUESTIONS = [
 
 const BY_ID = new Map(QUESTIONS.map(question => [question.id, question]));
 
-// Validate a full or partial answer set against the questionnaire. Returns
-// the list of problems; an empty list means every supplied answer is usable.
-// Unknown ids and values outside the published options are refused so
-// nothing unexpected is ever sent to the hosted service.
+// Validate a complete answer set against the questionnaire. Returns the list
+// of problems; an empty list means every question has a usable answer. A
+// missing answer is a problem because a partial set would score differently
+// from a complete one. Unknown ids and values outside the published options
+// are refused so nothing unexpected is ever sent to the hosted service.
 function validateAnswers(answers) {
   if (!answers || typeof answers !== 'object' || Array.isArray(answers)) return ['answers must be an object keyed by question id.'];
   const problems = [];
-  const keys = Object.keys(answers);
-  if (keys.length === 0) problems.push('answers is empty; answer at least one question.');
-  for (const key of keys) {
+  for (const key of Object.keys(answers)) {
     const question = BY_ID.get(key);
     if (!question) { problems.push(`${key} is not a questionnaire question.`); continue; }
     const value = answers[key];
@@ -88,6 +78,9 @@ function validateAnswers(answers) {
     } else if (question.type === 'select') {
       if (typeof value !== 'string' || !question.options.includes(value)) problems.push(`${key} must be one of the published options.`);
     }
+  }
+  for (const question of QUESTIONS) {
+    if (!Object.hasOwn(answers, question.id)) problems.push(`${question.id} is unanswered; every question must be answered.`);
   }
   return problems;
 }

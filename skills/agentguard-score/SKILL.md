@@ -1,65 +1,85 @@
 ---
 name: agentguard-score
-description: Run the AgentGuard Score check for the user's agent. Ask the five questionnaire questions, obtain explicit consent, send the answers to the hosted AgentGuard Score service through the agent_score tool, and report the score, tier, breakdown, recommendations and share link. This is the only AgentGuard feature that transmits anything off the machine.
+description: Run the AgentGuard Score check for the user's agent. Ask the five questionnaire questions, ask separately whether the user wants a hosted report link, obtain explicit consent that names the service origin, send the answers through the agent_score tool, and report the score, tier, breakdown and recommendations. Local policy enforcement and decision records stay on the machine; this is the only MCP tool that makes a hosted request.
 ---
 
 # AgentGuard Score
 
-AgentGuard Score tells a builder whether their agent is ready to move money:
-whether it has a verified human sponsor, how its wallet is set up, and whether
-transaction limits and an audit trail exist. It takes five questions and about
-a minute. The result is a score out of 100, the specific things to fix, and a
-shareable report the builder can show a payment provider or a marketplace. It
-is free. The hosted AgentGuard Score service computes the score; the plugin
-only presents the questions, validates the answers locally and, with consent,
-sends them.
+AgentGuard Score is a self-reported check of four controls around an agent
+that moves money: an accountable human, where the funds sit, transaction limits
+and an audit trail. It scores what the user reports and verifies nothing. Five
+questions, about a minute, free. The AgentGuard Score service computes the
+score; the plugin only presents the questions, validates the answers locally
+and, with consent, sends them.
 
-Say this before anything else: every other AgentGuard tool works offline and
-nothing leaves the machine. This check is the exception. The questionnaire
-answers, and an email address if the user chooses to give one, are sent to the
-hosted AgentGuard Score service. Enforcement, the ledger, the policy and the
-signing key are not involved and are not sent.
+Say this before anything else: local policy enforcement and decision records
+stay on your machine. AgentGuard Score is the only MCP tool that makes a hosted
+request. Paid licensing, seat renewal and optional policy sync are separate
+network features. Score requests do not include your local policy, decision
+ledger or signing key. No email address is collected.
 
 ## Steps
 
 1. Call the AgentGuard MCP server's `agent_score_questions` tool with `{}`.
-   It returns `intro` and `questions`, each with `id`, `question`, `type`,
-   `options` for select questions and `category`. Show the intro.
+   It returns `intro`, `questions` (each with `id`, `question`, `type`,
+   `options` for select questions and `category`) and `serviceOrigin`, the
+   validated address of the service the answers would go to. Show the intro.
+   If `serviceOrigin` is null, `AGENTGUARD_SCORE_URL` is not a usable https
+   origin; say so, say that nothing was sent, and stop. Never substitute a
+   placeholder or another address.
 
 2. Ask the user each question in the returned order, one at a time. For a
    `select` question offer the published options exactly as written and record
    the chosen option string. For a `boolean` question record `true` or `false`.
-   Do not invent options, do not guess an answer the user did not give, and do
-   not answer on the user's behalf from anything you observed in the session.
+   Every question must be answered; a partial set is refused. Do not invent
+   options, do not guess an answer the user did not give, and do not answer on
+   the user's behalf from anything you observed in the session.
 
-3. Ask whether the user wants a share link tied to an email address. The email
-   is optional. If they decline, do not send one.
+3. Ask about sharing as a separate choice, in these words: "Do you want a
+   hosted report link? It stores your answers and score on the service and is
+   visible to anyone who has the link." Record yes or no. The default is no.
 
-4. Ask for consent in plain words: "These five answers (and your email, if you
-   gave one) will be sent to the hosted AgentGuard Score service to compute the
-   score. Nothing else leaves this machine. Proceed?" Only a clear yes counts.
+4. Show the five answers back, then ask for consent in these words, filling in
+   the real `serviceOrigin` and the clause that matches the sharing choice:
+   "Send the five answers shown above to the AgentGuard Score service at
+   {serviceOrigin}? This request does not include your files, local policy,
+   decision ledger or signing key. {It will also create a hosted report link
+   that shows your answers and score to anyone who has it. | It will not
+   create a report link.} Proceed?" Only a clear yes counts. If the answers or
+   the origin change afterwards, ask again.
 
-5. Call `agent_score` with `{"answers": {...}, "consent": true}` and `"email"`
-   only if one was given. Without `consent: true` the tool refuses and sends
-   nothing. Answers outside the published questions or options are refused
-   before any request is made.
+5. Call `agent_score` with `{"answers": {...}, "consent": true, "createShare":
+   true|false}` matching the sharing choice. Without `consent: true` the tool
+   refuses and sends nothing. Answers outside the published questions or
+   options, or a missing answer, are refused before any request is made.
 
-6. Report the result. Give the `score` out of 100 and the `tier`. Show the
-   `breakdown` for risk, compliance, infrastructure and history. List every
-   factor with `impact: "negative"` together with its `recommendation`; those
-   are the things to fix. Mention the positive factors briefly. Give the
-   `shareUrl` when present, and note `validUntil` if the user asks how long the
-   score stands.
+6. Report the result. Give the `score` out of 100 and the `tier`. Show each
+   category in `breakdown`. List every factor with `impact: "negative"`
+   together with its `recommendation`; those are the things to fix. Mention the
+   positive factors briefly. Show `shareUrl` only when the user asked for a
+   report link; if they asked and it is null, say the service did not return a
+   usable link. Note `validUntil` if the user asks how long the score stands.
+   Say that the result came from `serviceOrigin`. A one-line summary the user
+   can paste into a README or a pull request is useful: the score, the tier,
+   the valid-until date and, when requested, the link.
 
-If the result has `ok: false`, say what happened from its `reason`:
-`consent_required` means step 4 was skipped; `invalid_answers` lists the
-problems and nothing was sent; `network` or `service_error` means the service
-could not produce a score and there is no partial or estimated score to give.
-Never fabricate a score.
+A refused or failed call arrives as a tool error that still carries a
+structured result. Say what happened from its `reason`:
 
-Probe mode, where the hosted service sends test requests to a live agent
-webhook, is not available from the plugin yet. Point the user to the hosted
-AgentGuard Score page if they want that.
+- `invalid_origin`, `consent_required` and `invalid_answers` are refused before
+  any request; nothing was sent. `invalid_answers` lists the problems.
+- `network` means no usable result was received and the service may have
+  processed the request. Do not retry on your own and do not invent a result;
+  tell the user and let them decide whether to try again.
+- `service_error` means the service answered but returned an unusable result,
+  an error status or an oversized response. No result is available to display.
 
-The score is a self-reported readiness check. A payment network or marketplace
-may still decline the agent. Do not present the score as more than that.
+Never fabricate a score, a tier or a link.
+
+Probe mode, where the service sends test requests to a live agent webhook, is
+not available from the plugin. Point the user to the AgentGuard Score page on
+agentguard.run if they want that.
+
+The score is a self-reported check of four controls. A payment network or
+marketplace may still decline the agent. Do not present the score as more than
+that.

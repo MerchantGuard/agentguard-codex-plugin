@@ -51,7 +51,7 @@ async function fixture(t, specs = [{ action: 'allow', projectedCents: 5 }]) {
 
 test('MCP exposes four read-only tools plus the opt-in score pair and negotiates initialization', async () => {
   assert.deepEqual(TOOLS.map(tool => tool.name), ['get_status', 'list_decisions', 'verify_chain', 'export_receipts', 'agent_score_questions', 'agent_score']);
-  for (const tool of TOOLS) assert.deepEqual(tool.annotations, tool.name === 'agent_score' ? { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: true } : { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false });
+  for (const tool of TOOLS) assert.deepEqual(tool.annotations, tool.name === 'agent_score' ? { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true } : { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false });
   const response = await handleRpc({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } }, {});
   assert.equal(response.result.protocolVersion, '2025-06-18');
   assert.deepEqual(response.result.capabilities, { tools: {} });

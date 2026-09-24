@@ -2,8 +2,8 @@
 'use strict';
 
 // Read-only stdio MCP. This module never initializes keys, policies, or ledgers.
-// One opt-in tool, agent_score, sends questionnaire answers to the hosted
-// AgentGuard Score service; every other tool stays offline.
+// One opt-in tool, agent_score, makes a hosted request to the AgentGuard Score
+// service at the validated origin it names; every other tool stays offline.
 const fs = require('node:fs');
 const path = require('node:path');
 const readline = require('node:readline');
@@ -19,27 +19,40 @@ const agentScoreQuestions = require('./agent-score-questions.cjs');
 const MAX_LEDGER_BYTES = 64 * 1024 * 1024;
 const MAX_ROWS = 100000;
 const PAGE_LIMIT = 200;
-const SCORE_URL = 'https://www.merchantguard.ai';
+const SCORE_URL = 'https://agentguard.run';
 const SCORE_TIMEOUT_MS = 10000;
-const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,189}\.[^\s@]{2,63}$/;
+const SCORE_BODY_LIMIT = 64 * 1024;
+const SCORE_TIERS = ['CRITICAL', 'WARNING', 'FAIR', 'GOOD', 'ELITE'];
+const SCORE_NETWORK_MESSAGE = 'No usable result was received. The service may have processed the request. I have not retried it or invented a result.';
+const SCORE_UNUSABLE_MESSAGE = 'The service returned an unusable result. No result is available to display.';
+// The destination named in consent copy is the origin actually in use. It is
+// validated before any request: https only, no credentials, no path, query or
+// fragment. An unusable AGENTGUARD_SCORE_URL is a refusal, never a fallback.
+function resolveScoreOrigin(options = {}) {
+  const configured = options.scoreUrl || process.env.AGENTGUARD_SCORE_URL || SCORE_URL;
+  let url;
+  try { url = new URL(String(configured)); } catch { return {origin: null}; }
+  if (url.protocol !== 'https:' || url.username || url.password || !['', '/'].includes(url.pathname) || url.search || url.hash) return {origin: null};
+  return {origin: url.origin};
+}
 const schemas = {
   get_status: { type: 'object', properties: { day: { type: 'string', description: 'UTC day, YYYY-MM-DD. Defaults to today.' }, sessionId: {type: 'string', description: 'Current host session identifier.'} }, additionalProperties: false },
   list_decisions: { type: 'object', properties: { fromSequence: { type: 'integer', minimum: 0 }, limit: { type: 'integer', minimum: 1, maximum: PAGE_LIMIT } }, additionalProperties: false },
   verify_chain: { type: 'object', properties: {}, additionalProperties: false },
   export_receipts: { type: 'object', properties: { sessionId: {type: 'string', description: 'Current host session identifier.'}, fromSequence: { type: 'integer', minimum: 0 }, limit: { type: 'integer', minimum: 1, maximum: PAGE_LIMIT } }, additionalProperties: false },
   agent_score_questions: { type: 'object', properties: {}, additionalProperties: false },
-  agent_score: { type: 'object', properties: { answers: { type: 'object', description: 'Questionnaire answers keyed by question id: select questions take one of the published option strings, yes/no questions take true or false.' }, email: { type: 'string', description: 'Optional email for the hosted service to attach to the score.' }, consent: { type: 'boolean', description: 'Must be true. Confirms the user agreed that the answers, and the email if given, are sent to the hosted AgentGuard Score service.' } }, required: ['answers', 'consent'], additionalProperties: false },
+  agent_score: { type: 'object', properties: { answers: { type: 'object', description: 'Answers to every questionnaire question keyed by question id: select questions take one of the published option strings, yes/no questions take true or false.' }, consent: { type: 'boolean', description: 'Must be true. Confirms the user agreed, after being shown the answers and the serviceOrigin returned by agent_score_questions, that the five answers are sent to the AgentGuard Score service at that origin.' }, createShare: { type: 'boolean', description: 'Default false. True only when the user separately asked for a hosted report link, which stores the answers and score on the service and is visible to anyone who has the link.' } }, required: ['answers', 'consent'], additionalProperties: false },
 };
 const descriptions = {
-  get_status: 'Read recorded host, license tier, seat count and limit, seat storage and verification status, expiry, effective mode, shadow reason, daily signed decision totals, and fail-open counts and rates for the last hour and since worker start. License and health reads are offline.',
+  get_status: 'Read recorded host, license tier, seat count and limit, seat storage and verification status, expiry, effective mode, shadow reason, daily signed decision totals, fail-open counts and rates for the last hour and since worker start, and the local quiet display preference. License and health reads are offline.',
   list_decisions: 'Read a bounded page of content-free tool decision summaries from the local ledger.',
   verify_chain: 'Verify every local ledger signature and hash link against the local public verification key; never accesses private keys.',
   export_receipts: 'With a valid paid license, return a page of signed content-free receipts and the public verification key for a records custodian. No files are written. Concatenate pages to verify the complete chain.',
-  agent_score_questions: 'Return the AgentGuard Score questionnaire (intro, question ids, wording, options) so the agent can ask the user before scoring. Offline; nothing leaves the machine.',
-  agent_score: 'Send the questionnaire answers, and the email if given, to the hosted AgentGuard Score service and return the score, tier, category breakdown, factors with recommendations and a share link. This is the only tool in this server that transmits anything off the machine; it requires consent: true, reads no local files and writes nothing to the ledger.',
+  agent_score_questions: 'Return the AgentGuard Score questionnaire (intro, question ids, wording, options) and serviceOrigin, the validated address of the service that agent_score would call, so the agent can ask the user and name the destination before scoring. Offline; makes no request.',
+  agent_score: 'With the user\'s consent, send the five questionnaire answers to the AgentGuard Score service at the serviceOrigin returned by agent_score_questions (https://agentguard.run unless AGENTGUARD_SCORE_URL is set) and return the score, tier, category breakdown and factors with recommendations. A hosted report link is created only when createShare is true. This is the only MCP tool in this server that makes a hosted request; the request does not include local policy, the decision ledger or the signing key, and the tool reads no local files and writes nothing. It is not read-only because a requested report link is stored by the service.',
 };
 const annotationsFor = name => name === 'agent_score'
-  ? { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: true }
+  ? { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true }
   : { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
 const TOOLS = Object.keys(schemas).map(name => ({ name, description: descriptions[name], inputSchema: schemas[name], annotations: annotationsFor(name) }));
 
@@ -103,44 +116,98 @@ function assertArgs(name, args) {
   if (args.fromSequence !== undefined && (!Number.isSafeInteger(args.fromSequence) || args.fromSequence < 0)) throw new Error('fromSequence must be a non-negative integer.');
   if (args.limit !== undefined && (!Number.isSafeInteger(args.limit) || args.limit < 1 || args.limit > PAGE_LIMIT)) throw new Error('limit must be an integer from 1 to 200.');
   if (args.day !== undefined && (typeof args.day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(args.day) || !Number.isFinite(Date.parse(args.day)) || new Date(args.day).toISOString().slice(0, 10) !== args.day)) throw new Error('day must be a valid UTC date.');
-  if (name === 'agent_score') {
-    if (!Object.hasOwn(args, 'answers') || !Object.hasOwn(args, 'consent')) throw new Error('answers and consent are required.');
-    if (typeof args.consent !== 'boolean') throw new Error('consent must be true or false.');
-    if (!args.answers || typeof args.answers !== 'object' || Array.isArray(args.answers)) throw new Error('answers must be an object keyed by question id.');
-    if (args.email !== undefined && (typeof args.email !== 'string' || args.email.length > 254 || !EMAIL.test(args.email))) throw new Error('email must be a valid address.');
-  }
+  if (name === 'agent_score' && args.createShare !== undefined && typeof args.createShare !== 'boolean') throw new Error('createShare must be true or false.');
+  // answers and consent are checked inside agentScore so that a missing or
+  // false consent produces a score-specific consent_required result.
 }
 
-// The one network call in this server. Never reads the ledger, the policy or
-// the keys, and never writes anything. Refuses without explicit consent and
-// refuses answers outside the published questionnaire before any request.
+// Read at most `limit` bytes of a response body. The abort signal is honored
+// during the read, so one timeout covers the request and the body together.
+async function readBodyLimited(response, limit, signal) {
+  const aborted = new Promise((resolve, reject) => {
+    if (signal.aborted) return reject(new Error('aborted'));
+    signal.addEventListener('abort', () => reject(new Error('aborted')), {once: true});
+  });
+  aborted.catch(() => {});
+  if (response.body && typeof response.body.getReader === 'function') {
+    const reader = response.body.getReader();
+    const chunks = [];
+    let size = 0;
+    try {
+      for (;;) {
+        const read = reader.read();
+        read.catch(() => {});
+        const {done, value} = await Promise.race([read, aborted]);
+        if (done) break;
+        size += value.byteLength;
+        if (size > limit) throw new Error('oversized');
+        chunks.push(Buffer.from(value));
+      }
+    } catch (error) {
+      try { reader.cancel().catch(() => {}); } catch {}
+      throw error;
+    }
+    return Buffer.concat(chunks).toString('utf8');
+  }
+  const text = await Promise.race([response.text(), aborted]);
+  if (Buffer.byteLength(text) > limit) throw new Error('oversized');
+  return text;
+}
+
+// Strict transport validation of a score result. Anything outside the
+// contract is refused rather than filtered into a partial result.
+function parseScorePayload(payload, {origin, createShare}) {
+  const plain = value => value && typeof value === 'object' && !Array.isArray(value);
+  const isoDate = value => value === undefined || value === null ? null : (typeof value === 'string' && Number.isFinite(Date.parse(value)) ? value : undefined);
+  if (!plain(payload) || payload.ok !== true) return null;
+  if (!Number.isInteger(payload.score) || payload.score < 0 || payload.score > 100 || !SCORE_TIERS.includes(payload.tier)) return null;
+  if (!plain(payload.breakdown) || Object.values(payload.breakdown).some(value => !Number.isInteger(value))) return null;
+  if (!Array.isArray(payload.factors) || payload.factors.some(factor => !plain(factor) || typeof factor.factor !== 'string' || !['positive', 'negative', 'neutral'].includes(factor.impact) || !Number.isInteger(factor.points) || (factor.recommendation !== undefined && typeof factor.recommendation !== 'string'))) return null;
+  const scoredAt = isoDate(payload.scoredAt), validUntil = isoDate(payload.validUntil);
+  if (scoredAt === undefined || validUntil === undefined) return null;
+  const result = { ok: true, score: payload.score, tier: payload.tier, breakdown: {...payload.breakdown},
+    factors: payload.factors.map(factor => ({ factor: factor.factor, impact: factor.impact, points: factor.points, ...(factor.recommendation !== undefined ? {recommendation: factor.recommendation} : {}) })),
+    shareUrl: createShare && typeof payload.shareUrl === 'string' && payload.shareUrl.startsWith(origin + '/') ? payload.shareUrl : null,
+    scoredAt, validUntil, serviceOrigin: origin };
+  for (const key of ['assessmentType', 'questionnaireVersion', 'rubricVersion']) if (typeof payload[key] === 'string') result[key] = payload[key];
+  return result;
+}
+
+// The one hosted request in this server. Never reads the ledger, the policy
+// or the keys, and never writes anything. Refuses an unusable origin, missing
+// consent and answers outside the published questionnaire before any request.
 async function agentScore(args, options) {
+  const {origin} = resolveScoreOrigin(options);
+  if (!origin) return { ok: false, reason: 'invalid_origin', message: 'AGENTGUARD_SCORE_URL is not a usable service origin: it must be https, with no credentials, path, query or fragment. Nothing was sent.' };
   if (args.consent !== true) {
-    return { ok: false, reason: 'consent_required', message: 'AgentGuard Score sends the questionnaire answers, and the email if given, to the hosted AgentGuard Score service. Unlike every other tool in this server, that leaves the machine. Ask the user, then call again with consent: true.' };
+    return { ok: false, reason: 'consent_required', message: `AgentGuard Score sends the five questionnaire answers to the AgentGuard Score service at ${origin}. Show the user the answers and that destination, ask whether to proceed, then call again with consent: true. Nothing was sent.` };
   }
   const problems = agentScoreQuestions.validateAnswers(args.answers);
-  if (problems.length) return { ok: false, reason: 'invalid_answers', problems, message: 'Nothing was sent. Use agent_score_questions for the question ids and options.' };
+  if (problems.length) return { ok: false, reason: 'invalid_answers', problems, message: 'Nothing was sent. Every question must be answered; use agent_score_questions for the question ids and options.' };
+  const createShare = args.createShare === true;
   const doFetch = options.fetch || globalThis.fetch;
-  const base = (options.scoreUrl || process.env.AGENTGUARD_SCORE_URL || SCORE_URL).replace(/\/+$/, '');
   const controller = new AbortController();
+  // One timer covers the request, the body read and the parse.
   const timer = setTimeout(() => controller.abort(), options.timeoutMs || SCORE_TIMEOUT_MS);
-  let payload;
   try {
-    const body = { answers: args.answers, tier: 'tier1' };
-    if (args.email) body.email = args.email;
-    const response = await doFetch(`${base}/api/v2/agentscore/calculate`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(body), signal: controller.signal });
-    if (!response.ok) return { ok: false, reason: 'service_error', status: response.status, message: 'The AgentGuard Score service returned an error. No score was produced.' };
-    payload = await response.json();
-  } catch {
-    return { ok: false, reason: 'network', message: 'The AgentGuard Score service could not be reached within the timeout. No score was produced.' };
+    const body = JSON.stringify({ answers: args.answers, tier: 'tier1', createShare });
+    let response;
+    try {
+      response = await doFetch(`${origin}/api/score`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body, signal: controller.signal, redirect: 'error', credentials: 'omit', referrerPolicy: 'no-referrer' });
+    } catch {
+      return { ok: false, reason: 'network', message: SCORE_NETWORK_MESSAGE };
+    }
+    if (!response || !response.ok) return { ok: false, reason: 'service_error', status: response?.status ?? null, message: 'The service returned an error status. No result is available to display.' };
+    let text;
+    try { text = await readBodyLimited(response, SCORE_BODY_LIMIT, controller.signal); }
+    catch (error) {
+      if (error?.message === 'oversized') return { ok: false, reason: 'service_error', message: 'The service response exceeded the size limit. No result is available to display.' };
+      return { ok: false, reason: 'network', message: SCORE_NETWORK_MESSAGE };
+    }
+    let payload;
+    try { payload = JSON.parse(text); } catch { return { ok: false, reason: 'service_error', message: SCORE_UNUSABLE_MESSAGE }; }
+    return parseScorePayload(payload, {origin, createShare}) || { ok: false, reason: 'service_error', message: SCORE_UNUSABLE_MESSAGE };
   } finally { clearTimeout(timer); }
-  const tiers = ['CRITICAL', 'WARNING', 'FAIR', 'GOOD', 'ELITE'];
-  if (!payload || typeof payload !== 'object' || typeof payload.score !== 'number' || payload.score < 0 || payload.score > 100 || !tiers.includes(payload.tier) || !payload.breakdown || typeof payload.breakdown !== 'object' || !Array.isArray(payload.factors)) {
-    return { ok: false, reason: 'service_error', message: 'The AgentGuard Score service returned an unexpected response. No score was produced.' };
-  }
-  const factors = payload.factors.filter(factor => factor && typeof factor === 'object').map(factor => ({ factor: String(factor.factor ?? ''), impact: ['positive', 'negative', 'neutral'].includes(factor.impact) ? factor.impact : 'neutral', points: Number.isFinite(factor.points) ? factor.points : 0, ...(typeof factor.recommendation === 'string' ? { recommendation: factor.recommendation } : {}) }));
-  const breakdown = Object.fromEntries(['risk', 'compliance', 'infrastructure', 'history'].filter(key => Number.isFinite(payload.breakdown[key])).map(key => [key, payload.breakdown[key]]));
-  return { ok: true, score: payload.score, tier: payload.tier, breakdown, factors, shareUrl: typeof payload.shareUrl === 'string' && /^https:\/\//.test(payload.shareUrl) ? payload.shareUrl : null, scoredAt: typeof payload.scoredAt === 'string' ? payload.scoredAt : null, validUntil: typeof payload.validUntil === 'string' ? payload.validUntil : null };
 }
 
 function summary(entry) {
@@ -270,7 +337,10 @@ function createReader(options = {}) {
 
   async function call(name, args = {}) {
     assertArgs(name, args);
-    if (name === 'agent_score_questions') return { intro: agentScoreQuestions.INTRO, questions: agentScoreQuestions.QUESTIONS };
+    if (name === 'agent_score_questions') {
+      const {origin} = resolveScoreOrigin(options);
+      return { intro: agentScoreQuestions.INTRO, questions: agentScoreQuestions.QUESTIONS, serviceOrigin: origin, ...(origin ? {} : {serviceOriginError: 'invalid_origin'}) };
+    }
     if (name === 'agent_score') return agentScore(args, options);
     const entries = await snapshot();
     if (name === 'verify_chain') return verify(entries);
@@ -288,7 +358,11 @@ function createReader(options = {}) {
       const selected = sessionId ? entries.filter(entry => (entry.decision.plugin?.sessionId || entry.decision.actor?.sessionId) === sessionId) : entries;
       const names = [...new Set(selected.map(entry => entry.decision.plugin?.host || entry.decision.outcomeReceipt?.plugin?.host || 'unknown'))];
       const host = names.length === 1 ? names[0] : names.length ? 'mixed' : 'unknown';
-      return { host, hosts: hostCounts, license: displayLicense(await effectiveStatus(args, entries)), health, integrityEvents: today.filter(entry => entry.decision.plugin?.event === 'integrity').length, day, timezone: 'UTC', decisions: decisions.length, spendCents: decisions.filter(entry => entry.decision.action !== 'block').reduce((total, entry) => total + (entry.decision.plugin?.chargedCents ?? entry.decision.projectedCents), 0), blocks: decisions.filter(entry => entry.decision.action === 'block').length, failOpenEvents: today.filter(entry => failOpen(entry.decision)).length, outcomes: today.filter(entry => entry.decision.entryType === 'outcome').length, totalEntries: entries.length, ...pendingRecovery() };
+      // The local quiet display preference, read without writing anything.
+      // Unknown stays null so a caller never treats a missing file as consent.
+      let quiet = null;
+      try { quiet = require('./upgrade-moments.cjs').quiet() === true; } catch { quiet = null; }
+      return { host, hosts: hostCounts, license: displayLicense(await effectiveStatus(args, entries)), health, integrityEvents: today.filter(entry => entry.decision.plugin?.event === 'integrity').length, day, timezone: 'UTC', decisions: decisions.length, spendCents: decisions.filter(entry => entry.decision.action !== 'block').reduce((total, entry) => total + (entry.decision.plugin?.chargedCents ?? entry.decision.projectedCents), 0), blocks: decisions.filter(entry => entry.decision.action === 'block').length, failOpenEvents: today.filter(entry => failOpen(entry.decision)).length, outcomes: today.filter(entry => entry.decision.entryType === 'outcome').length, totalEntries: entries.length, ...pendingRecovery(), displayPreferences: {quiet} };
     }
     const from = args.fromSequence || 0;
     const limit = args.limit || 100;
@@ -318,11 +392,16 @@ async function handleRpc(request, reader) {
     case 'ping': return respond({});
     case 'tools/list': return respond({ tools: TOOLS });
     case 'tools/call': {
+      const name = request.params?.name;
       try {
-        const result = await reader.call(request.params?.name, request.params?.arguments || {});
-        return respond({ content: [{ type: 'text', text: JSON.stringify(result) }], structuredContent: result });
+        const result = await reader.call(name, request.params?.arguments || {});
+        // A refused or failed score call is a tool error that still carries
+        // its structured reason, so the caller never mistakes it for a score.
+        const failed = name === 'agent_score' && result?.ok === false;
+        return respond({ ...(failed ? {isError: true} : {}), content: [{ type: 'text', text: JSON.stringify(result) }], structuredContent: result });
       } catch (error) {
         if (['license_required', 'seat_limit'].includes(error.code)) return respond({isError: true, content: [{type: 'text', text: `${error.code}: verification is free; receipt export requires a valid paid license and an available seat.`}]});
+        if (name === 'agent_score' || name === 'agent_score_questions') return respond({isError: true, content: [{type: 'text', text: 'Request failed: agent_score accepts answers, consent and an optional createShare boolean only; agent_score_questions accepts no arguments. Nothing was sent.'}]});
         // Never return raw filesystem/SDK errors, which could contain contents.
         return respond({ isError: true, content: [{ type: 'text', text: 'Request failed: check the tool arguments, ledger integrity, and the public verification key locally.' }] });
       }
@@ -349,5 +428,5 @@ function startServer(reader = createReader()) {
   return input;
 }
 
-module.exports = { createReader, handleRpc, startServer, TOOLS };
+module.exports = { createReader, handleRpc, startServer, TOOLS, resolveScoreOrigin, parseScorePayload };
 if (require.main === module) startServer();

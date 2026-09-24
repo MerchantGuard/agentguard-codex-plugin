@@ -5,7 +5,14 @@ const path = require('node:path');
 const os = require('node:os');
 const {createHash, randomUUID} = require('node:crypto');
 const TEAM_LINE = 'Using this at work? Team puts one policy on every seat. agentguard.run/pricing';
-const SCORE_LINE = 'Free AgentGuard Score: five questions tell you whether your agent is payment-ready and what to fix. Ask for the agentguard-score skill.';
+const SCORE_LINE = 'Free AgentGuard Score: if your agent moves money, five questions check the basics (accountable human, wallet, limits, audit trail) and tell you what to fix. Ask for the agentguard-score skill.';
+// One announcement per plugin version. A version without an entry announces
+// nothing and burns no claim, so a stale line can never ship with a new version.
+const WHATS_NEW = {
+  '0.3.6': "What's new in AgentGuard 0.3.6: local policy presets, command rules, inbox protection and Solo policy sync. Run node runtime/policy-cli.cjs show to inspect your policy.",
+  '0.3.7': "What's new in AgentGuard 0.3.7: the free AgentGuard Score, five questions on whether your agent has the basic payment controls. Ask for the agentguard-score skill. Run node runtime/policy-cli.cjs show to inspect your policy.",
+  '0.3.8': "What's new in AgentGuard 0.3.8: the free AgentGuard Score now scores four payment controls and names exactly where your answers go. Ask for the agentguard-score skill. Run node runtime/policy-cli.cjs show to inspect your policy.",
+};
 const WEEK = 7 * 86400000;
 const homeDirectory = () => path.resolve(process.env.AGENTGUARD_HOME || path.join(os.homedir(), '.agentguard'));
 const directory = home => path.join(home || homeDirectory(), 'upgrade-moments');
@@ -47,11 +54,12 @@ function stopMoment(output, license, options = {}) {
   return {...output, systemMessage: [output.systemMessage, TEAM_LINE].filter(Boolean).join('\n')};
 }
 function whatsNew(version, options = {}) {
-  if (!/^[A-Za-z0-9.+_-]{1,80}$/.test(version) || !claim('plugin-version-' + version, options)) return null;
-  return `What's new in AgentGuard ${version}: local policy presets, command rules, inbox protection and Solo policy sync. Run node runtime/policy-cli.cjs show to inspect your policy.`;
+  if (!/^[A-Za-z0-9.+_-]{1,80}$/.test(version) || !Object.hasOwn(WHATS_NEW, version) || !claim('plugin-version-' + version, options)) return null;
+  return WHATS_NEW[version];
 }
-// One informational line per machine inviting the free AgentGuard Score. It
-// is display copy only: no request, no decision change, and Quiet removes it.
+// One informational line per install (one AgentGuard home) inviting the free
+// AgentGuard Score. Display copy only: no request, no decision change, and
+// Quiet removes it.
 function scoreInvite(options = {}) {
   return claim('agent-score-invite', options) ? SCORE_LINE : null;
 }
@@ -66,4 +74,4 @@ function registerLedger(data, home = homeDirectory()) {
     finally { try { fs.unlinkSync(temporary); } catch {} }
   } catch { /* Discoverability cannot change a decision. */ }
 }
-module.exports = {TEAM_LINE, SCORE_LINE, WEEK, quiet, dismiss, claim, stopMoment, whatsNew, scoreInvite, registerLedger, homeDirectory};
+module.exports = {TEAM_LINE, SCORE_LINE, WHATS_NEW, WEEK, quiet, dismiss, claim, stopMoment, whatsNew, scoreInvite, registerLedger, homeDirectory};

@@ -34,8 +34,12 @@ try {
   }
 } catch { /* Version copy never affects startup. */ }
 try {
-  const invite = moments.scoreInvite();
-  if (invite) output.systemMessage = [output.systemMessage, invite].filter(Boolean).join('\n');
+  // The invitation waits for a session with nothing else to say. Its claim is
+  // only taken when it is shown, so a later quiet startup still carries it.
+  if (!output.systemMessage) {
+    const invite = moments.scoreInvite();
+    if (invite) output.systemMessage = invite;
+  }
 } catch { /* The invitation never affects startup. */ }
 process.stdout.write(JSON.stringify(output) + '\n');
 }

@@ -548,12 +548,21 @@ Integrity events appear separately from tool decisions in status reports.
 
 #### Get your free AgentGuard Score
 
-If your agent pays for things or gets paid, AgentGuard Score tells you whether
-it is ready to move money. Ask for the `agentguard-score` skill: five questions,
-about a minute, and you get a score out of 100, the specific fixes, and a
-shareable report to show a payment provider or a marketplace, free. It is the
-only AgentGuard feature that sends anything off the machine: the five answers
-and an optional email address, nothing else.
+If your agent pays for things or gets paid, AgentGuard Score checks whether it
+has four basic controls: an accountable human, funds behind controls the agent
+cannot change, transaction limits and an audit trail. Ask for the
+`agentguard-score` skill: five questions, about a minute, and you get a score
+out of 100, the specific fixes, and, only if you ask for one, a hosted report
+link you can show a payment provider or a marketplace, free. It scores what
+you report and verifies nothing.
+
+Local policy enforcement and decision records stay on your machine. AgentGuard
+Score is the only MCP tool that makes a hosted request. Paid licensing, seat
+renewal and optional policy sync are separate network features. Score requests
+do not include your local policy, decision ledger or signing key. The skill
+names the exact service origin before you agree, and the report link is a
+separate choice: it stores your answers and score on the service and is visible
+to anyone who has the link.
 
 The optional local MCP server exposes only:
 
@@ -561,15 +570,22 @@ The optional local MCP server exposes only:
 - `list_decisions`: read a bounded page of signed entries.
 - `verify_chain`: verify chain hashes and signatures on every tier.
 - `export_receipts`: with a valid paid license, return a bounded JSON bundle for the caller to save.
-- `agent_score_questions`: return the AgentGuard Score questionnaire so the agent can ask the user first. Offline.
-- `agent_score`: with the user's explicit consent, send the questionnaire answers to the hosted AgentGuard Score service and return the score, tier, breakdown, recommendations and share link. This is the only tool that transmits anything off the machine.
+- `agent_score_questions`: return the AgentGuard Score questionnaire and `serviceOrigin`, the validated address the answers would go to, so the agent can ask the user first. Offline.
+- `agent_score`: with the user's explicit consent, send the five questionnaire answers to the AgentGuard Score service at that origin and return the score, tier, breakdown and recommendations, plus a report link only when `createShare` is true. This is the only MCP tool that makes a hosted request, and it is not read-only: a requested report link is stored by the service.
 
-AgentGuard Score is a payment-readiness check for an agent: human sponsor,
-wallet setup, transaction limits and audit trail. The `agentguard-score` skill
-asks the five questions, asks for consent, and calls `agent_score`. Nothing
-else in the plugin transmits anything; enforcement, the ledger and the signing
-key stay local and are never sent. Set `AGENTGUARD_SCORE_URL` to point the
-call at a different host.
+AgentGuard Score is a self-reported check of four controls around an agent
+that moves money: an accountable human, where the funds sit, transaction
+limits and an audit trail. The `agentguard-score` skill asks the five
+questions, asks separately about a report link, asks for consent naming the
+service origin, and calls `agent_score`. Score requests do not include the
+local policy, the decision ledger or the signing key. By default the call goes
+to https://agentguard.run. Set `AGENTGUARD_SCORE_URL` to an https origin with
+no path to point it elsewhere; anything else makes the tool refuse rather than
+fall back. The request refuses redirects, sends no credentials or referrer, and
+reads at most 64 KB of response under one timeout. A result that is not a
+complete, well-formed score is refused, and a refused or failed call is
+returned as a tool error with its reason. A network failure is reported as
+"no usable result was received"; the tool never retries on its own.
 
 The server does not change policies, write exports, or operate tools on your
 behalf. In Codex, disable it while retaining the hooks through the plugin-scoped

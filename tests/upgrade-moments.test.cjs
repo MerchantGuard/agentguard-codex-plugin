@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const {spawnSync} = require('node:child_process');
-const {TEAM_LINE, SCORE_LINE, WEEK, claim, stopMoment, whatsNew, scoreInvite, dismiss, quiet} = require('../runtime/upgrade-moments.cjs');
+const {TEAM_LINE, SCORE_LINE, WHATS_NEW, WEEK, claim, stopMoment, whatsNew, scoreInvite, dismiss, quiet} = require('../runtime/upgrade-moments.cjs');
 const {run} = require('../runtime/policy-cli.cjs');
 const {Engine} = require('../runtime/engine.cjs');
 const {metadata} = require('../runtime/common.cjs');
@@ -48,10 +48,20 @@ test('version announcements appear once per exact plugin version and persist acr
   assert.equal(whatsNew('../unsafe', {home}), null);
 });
 
-test('the free AgentGuard Score invitation appears once per machine with the exact line', t => {
+test('every version line is keyed to its version, the shipped version has one, and an unknown version announces nothing without burning a claim', t => {
+  const {home} = fixture(t);
+  const version = require('../package.json').version;
+  assert.ok(Object.hasOwn(WHATS_NEW, version), `WHATS_NEW has no entry for ${version}`);
+  for (const [key, line] of Object.entries(WHATS_NEW)) assert.ok(line.startsWith(`What's new in AgentGuard ${key}:`), key);
+  assert.match(whatsNew(version, {home}), /AgentGuard Score/);
+  assert.equal(whatsNew('9.9.9', {home}), null);
+  assert.equal(claim('plugin-version-9.9.9', {home}), true);
+});
+
+test('the free AgentGuard Score invitation appears once per install with the exact line', t => {
   const {home} = fixture(t);
   assert.equal(scoreInvite({home}), SCORE_LINE);
-  assert.equal(SCORE_LINE, 'Free AgentGuard Score: five questions tell you whether your agent is payment-ready and what to fix. Ask for the agentguard-score skill.');
+  assert.equal(SCORE_LINE, 'Free AgentGuard Score: if your agent moves money, five questions check the basics (accountable human, wallet, limits, audit trail) and tell you what to fix. Ask for the agentguard-score skill.');
   assert.equal(scoreInvite({home}), null);
   assert.equal(scoreInvite({home, now: Date.now() + 100 * WEEK}), null);
   const other = fs.mkdtempSync(path.join(os.tmpdir(), 'ag-upgrade-other-'));
@@ -79,7 +89,9 @@ test('SessionStart announces its real version once, and quiet survives another s
   fs.writeFileSync(preload, "require('node:child_process').spawn = () => ({on(){}, unref(){}});");
   const start = () => spawnSync(process.execPath, ['-r', preload, 'hooks/session-start.cjs'], {cwd: root, env: process.env, input: '{"session_id":"synthetic-version"}', encoding: 'utf8'});
   const first = start(); assert.equal(first.status, 0); assert.ok(JSON.parse(first.stdout).systemMessage.includes(`What's new in AgentGuard ${require('../package.json').version}`));
-  assert.ok(JSON.parse(first.stdout).systemMessage.endsWith(SCORE_LINE));
+  // The invitation waits for a startup with nothing else to say, and its claim is only taken when it is shown.
+  assert.ok(!JSON.parse(first.stdout).systemMessage.includes(SCORE_LINE));
+  assert.deepEqual(JSON.parse(start().stdout), {systemMessage: SCORE_LINE});
   assert.deepEqual(JSON.parse(start().stdout), {});
   await run(['quiet', 'on'], {data}); assert.deepEqual(JSON.parse(start().stdout), {});
 });

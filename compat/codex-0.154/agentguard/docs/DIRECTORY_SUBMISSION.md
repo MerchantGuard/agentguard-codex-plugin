@@ -1,6 +1,6 @@
 # AgentGuard directory submission pack
 
-Prepared for version 0.3.0 on 2026-09-18. This is a review pack, not a submitted or approved listing. No directory draft, publication or remote MCP deployment was created by preparing it.
+Prepared for version 0.3.8 on 2026-09-24. This is a review pack, not a submitted or approved listing. No directory draft, publication or remote MCP deployment was created by preparing it.
 
 ## Submission route
 
@@ -19,7 +19,7 @@ The proposed public developer name is MerchantGuardOps. The publisher must selec
 Listing values follow. Business identity verification remains pending.
 
 - Package name: `agentguard`.
-- Version: `0.3.0`.
+- Version: `0.3.8`.
 - Display name: `AgentGuard`.
 - Short description: `Tool policy and signed records`.
 - Developer name: `MerchantGuardOps`.
@@ -33,7 +33,7 @@ Listing values follow. Business identity verification remains pending.
 - Logo: `assets/logo-512.png`.
 - Composer icon: `assets/icon-128.png`.
 - Brand colors: optional; omit until the chosen light and dark colors pass the portal's contrast checks.
-- Capabilities: `Local tool policy hooks`, `Signed decision and outcome records`, `License and seat status`, `Read-only local audit MCP`, `Policy, status and verification skills`.
+- Capabilities: `Local tool policy hooks`, `Signed decision and outcome records`, `License and seat status`, `Read-only local audit MCP`, `Policy, status, verification and score skills`, `Opt-in AgentGuard Score questionnaire`.
 
 The current final form permits three starters, each at most 128 characters, and 30 characters each for display name and short description. `Productivity` preserves the installed plugin category. This pack includes six candidate starters and selects three below. [Final metadata limits](https://developers.openai.com/plugins/deploy/submission-errors#final-directory-submission).
 
@@ -43,7 +43,9 @@ AgentGuard applies operator-defined policies to supported local tool calls in Co
 
 Free provides full Enforce, local signed receipts and Burn on one machine, with no key or account. Solo is $19 per month or $190 per year for up to three machines, the dashboard, receipts export and email support. Team is $199 per month or $1,990 per year for ten seats, org policy, seats you add and revoke, and one invoice. Team is the only trial. Existing Growth and Pro licenses remain supported. Shadow is a fallback state or an explicit local policy choice; a failed paid license keeps its shadow reason.
 
-The status skill and read-only MCP tools explain the effective mode, license expiry, seat count and verification state, daily decisions, configured spend and fail-open events. The verification skill checks the signed chain; paid users can export a bundle for their own records.
+The status skill and read-only MCP tools explain the effective mode, license expiry, seat count and verification state, daily decisions, configured spend and fail-open events. The verification skill checks the signed chain; paid users can export a bundle for their own records. The score skill runs the optional AgentGuard Score questionnaire for agents that make or receive payments: five self-reported questions, a separate choice about a hosted report link, and consent that names the service origin before anything is sent.
+
+Local policy enforcement and decision records stay on your machine. AgentGuard Score is the only MCP tool that makes a hosted request. Paid licensing, seat renewal and optional policy sync are separate network features. Score requests do not include your local policy, decision ledger or signing key.
 
 Hooks require review and trust. Disabled or untrusted hooks do not govern calls. Internal errors and timeouts fail open. Codex hosted tools such as WebSearch, web ChatGPT and specialized paths outside hook dispatch are not covered. Claude Code routes WebSearch and WebFetch through its tool hooks. Managed installation does not change this fail-open contract. Protect policy files from agent writes and retain service-side access controls.
 
@@ -61,7 +63,7 @@ Install the Node 22 runtime dependencies in the plugin root and follow the Codex
 - Static MCP-imported skills: none. The four skills are bundled files.
 - Demo recording URL: pending capture and public hosting. A local filename is not a production URL.
 
-The following annotation values describe each MCP tool, not the separate policy-edit skill or background license worker. Each tool uses the fixed local data root and accepts no arbitrary file or URL target. Five tools make no network call. The sixth, agent_score, is the one opt-in network call in the package: with the user's consent it sends questionnaire answers to the hosted AgentGuard Score service and is annotated open-world. The offline tests compare file hashes before and after all six calls.
+The following annotation values describe each MCP tool, not the separate policy-edit skill or background license worker. Each tool uses the fixed local data root and accepts no arbitrary file or URL target. Five tools make no network call. The sixth, agent_score, is the only MCP tool that makes a hosted request: with the user's consent it sends questionnaire answers to the AgentGuard Score service at a validated origin and is annotated open-world. The offline tests compare file hashes before and after all six calls.
 
 ### get_status
 
@@ -99,17 +101,17 @@ Arguments: optional `sessionId`, `fromSequence` and `limit`, at most 200. Result
 
 `readOnlyHint: true`, `openWorldHint: false`, `destructiveHint: false`, `idempotentHint: true`.
 
-It returns the AgentGuard Score questionnaire bundled in `runtime/agent-score-questions.cjs`: the intro, five question ids, their wording, the published options and categories. It reads no user data and makes no network call, so the agent can ask the user every question before anything is sent.
+It returns the AgentGuard Score questionnaire bundled in `runtime/agent-score-questions.cjs`: the intro, five question ids, their wording, the published options and categories, plus `serviceOrigin`, the validated origin that `agent_score` would call (https only, no credentials, path, query or fragment; `https://agentguard.run` unless `AGENTGUARD_SCORE_URL` is set). It reads no user data and makes no network call, so the agent can ask the user every question and name the destination before anything is sent. An unusable configured origin is reported as `serviceOrigin: null` with `serviceOriginError`.
 
-Arguments: empty object. Result: `intro`, `questions`.
+Arguments: empty object. Result: `intro`, `questions`, `serviceOrigin`.
 
 ### agent_score
 
-`readOnlyHint: true`, `openWorldHint: true`, `destructiveHint: false`, `idempotentHint: false`.
+`readOnlyHint: false`, `openWorldHint: true`, `destructiveHint: false`, `idempotentHint: false`.
 
-It sends the user's questionnaire answers, and an email address only if the user supplied one, to the hosted AgentGuard Score service and returns the computed score. It is the only tool in the package that transmits anything off the machine. It requires `consent: true` and refuses without it, refuses any answer outside the published questions and options before making a request, reads no local ledger, policy or key, and writes nothing. A network failure or a malformed service response returns an error object and never an estimated score.
+It sends the user's five questionnaire answers to the AgentGuard Score service at the validated origin and returns the computed score. It is the only MCP tool that makes a hosted request, and it is not read-only because a requested report link is stored by the service. It requires `consent: true` and refuses without it with a score-specific `consent_required` result, refuses an unusable origin with `invalid_origin`, refuses any answer outside the published questions and options and any incomplete answer set with `invalid_answers`, all before making a request; it reads no local ledger, policy or key, and writes nothing locally. No email address is collected. The request refuses redirects, sends no credentials or referrer, reads at most 64 KB of response, and keeps one timeout across the request and the body read. A result is accepted only when it is complete and well formed; an error status, an oversized or unreadable body or a malformed result is `service_error` with no result to display, and a network failure is `network` with the statement that no usable result was received and the service may have processed the request. The tool never retries. Every refused or failed call is returned as an MCP tool error (`isError: true`) that still carries the structured result. A report link is created only when `createShare` is true and is returned only when it is on the consented origin.
 
-Arguments: `answers` keyed by question id, `consent` (must be true), optional `email`. Result: `ok`, `score`, `tier`, `breakdown`, `factors` with recommendations, `shareUrl`, `scoredAt`, `validUntil`, or `ok: false` with a `reason`.
+Arguments: `answers` keyed by question id (every question required), `consent` (must be true), optional `createShare` (default false). Result: `ok`, `score`, `tier`, `breakdown`, `factors` with recommendations, `shareUrl` (null unless requested), `scoredAt`, `validUntil`, `serviceOrigin`, and `assessmentType`, `questionnaireVersion` and `rubricVersion` when the service supplies them; or `ok: false` with a `reason`.
 
 These values follow the documented distinction between read-only computation, bounded private data and external or destructive actions. They are set in `runtime/mcp.cjs`. [Tool annotation guidance](https://developers.openai.com/plugins/app-guidelines#correct-annotation).
 
@@ -118,8 +120,9 @@ These values follow the documented distinction between read-only computation, bo
 - `skills/agentguard-policy/SKILL.md`: operator-requested policy edits and license activation. It preserves unrelated rules and never treats a denied tool request as permission to weaken policy. The activation helper takes a key on standard input and does not echo it.
 - `skills/agentguard-status/SKILL.md`: read daily decisions, configured spend, blocks, fail-open rates, license mode and seat evidence. Missing values remain unknown.
 - `skills/agentguard-verify/SKILL.md`: verify signatures and links; return a paid receipt export when requested. A failed chain is not repaired.
+- `skills/agentguard-score/SKILL.md`: run the optional AgentGuard Score questionnaire: ask the five questions, ask separately about a hosted report link, obtain consent that names the service origin, call `agent_score`, and report the self-reported result. It never calls the tool without consent and never presents the score as a verification.
 
-Include every runtime helper and asset these skills reference in any agreed local package. Do not upload three isolated `SKILL.md` files and assume their local helpers will be installed. Automated tests validate runtime behavior; live host selection of each skill is pending reviewer execution.
+Include every runtime helper and asset these skills reference in any agreed local package. Do not upload four isolated `SKILL.md` files and assume their local helpers will be installed. Automated tests validate runtime behavior; live host selection of each skill is pending reviewer execution.
 
 ## Starter prompts
 
@@ -683,7 +686,15 @@ This preparation leaves the token unset. An HTTP 404 proves the empty configurat
 
 All countries and regions offered by the submission portal. Listing and support language: English.
 
-## Release notes for 0.3.6
+## Release notes for 0.3.8
+
+AgentGuard Score, the optional five-question payment self-check, now names its real destination before consent, treats a hosted report link as a separate choice, hardens the one hosted request (no redirects, no credentials or referrer, a 64 KB response cap, one timeout), accepts only a complete well-formed result, returns every refusal or failure as a tool error with its reason, and reports the local quiet preference in status so the score is never suggested to someone who turned announcements off. Local policy enforcement and decision records stay on the machine; score requests do not include the local policy, the decision ledger or the signing key.
+
+### Previous 0.3.7 notes
+
+Add AgentGuard Score to the plugin: the `agentguard-score` skill, an offline `agent_score_questions` tool and the opt-in `agent_score` tool, with a once-per-install invitation on a quiet session start.
+
+### Previous 0.3.6 notes
 
 Approve held Codex calls only from the operator's terminal, with a pending command that lists them and no token shown to the model. Protect the plugin's own state and policy commands from agent tool calls on every host. Keep command rules working when a command cannot be fully parsed, validate command patterns as linear, keep Solo sync state in one file for hook and worker, let personal policies only tighten the Guard Pack, and cover more ordinary command spellings. Preserve all failed-license fallbacks, paid receipts export and existing signed chains.
 
@@ -715,11 +726,11 @@ Product facts for the reviewer:
 - Decision and outcome records include operator or host IDs needed to identify policies and link events. These identifiers may be sensitive even when no document text is present. Custodians choose where exported bundles go.
 - Private signing keys remain local and are never returned by the MCP reader. License keys remain in operator configuration or environment and are not placed in signed rows or MCP responses.
 - Session startup and explicit activation resolve licensing. Paid live sessions send bounded seat renewals outside hooks. Those requests include a license key and derived machine/session identifiers; the licensing service maintains the active-seat window. Do not claim that every plugin operation is offline.
-- Policy editing is a separate, explicit operator workflow. The four MCP audit tools do not change policies, license state, records or external services.
+- Policy editing is a separate, explicit operator workflow. The four MCP audit tools do not change policies, license state, records or external services. The two score tools change nothing locally; `agent_score` is the only MCP tool that makes a hosted request, only with the user's consent, and that request carries the five questionnaire answers and the report-link choice, never the local policy, the decision ledger or the signing key.
 - Current public privacy and terms pages, the selected business identity, dependency rights and the exact portal attestation wording require publisher confirmation. No box has been checked on the publisher's behalf.
 
 ## Verification status
 
-Local automated evidence: the eight primary scenarios, five supplemental regressions and three supporting catalog/privacy/annotation tests pass on Node 22. All execute with socket creation and fetch guarded against use. Real signatures are generated at test time, and verification uses the installed Spend SDK. Existing `tests/mcp.test.cjs` and `tests/seat-status.test.cjs` provide additional audit and seat-status regressions.
+Local automated evidence: the eight primary scenarios, five supplemental regressions and three supporting catalog/privacy/annotation tests pass on Node 22. All execute with socket creation and fetch guarded against use. Real signatures are generated at test time, and verification uses the installed Spend SDK. Existing `tests/mcp.test.cjs` and `tests/seat-status.test.cjs` provide additional audit and seat-status regressions, and `tests/agent-score.test.cjs` covers the score tools with a mocked service: origin validation, consent, answer validation, the request options, the response cap, strict result parsing, failure reasons and tool-error signaling.
 
 Pending: agreed directory path for local hooks and stdio MCP; portal account role and verified business selection; portal upload, skill scans and tool scans; link and branding review; live skill interactions in supported hosts; reviewer demo URL; requested real screenshots; publisher policy attestations. This pack does not make those steps complete.

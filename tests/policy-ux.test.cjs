@@ -142,9 +142,14 @@ test('Free push is the exact upsell with no worker and no network', async t => {
 test('SessionStart prints the preset hint once and still returns JSON when persistence fails', t => {
   const {data} = fixture(t), preload = path.join(data, 'no-child.cjs');
   fs.writeFileSync(preload, "require('node:child_process').spawn = () => ({on(){}, unref(){}});");
-  for (let index = 0; index < 2; index++) {
+  // Start one carries the preset hint (and any version line). The free score
+  // invitation waits for the first quiet start, then every later start is silent.
+  for (let index = 0; index < 3; index++) {
     const child = spawnSync(process.execPath, ['-r', preload, 'hooks/session-start.cjs'], {cwd: root, env: process.env, input: '{"session_id":"hint"}', encoding: 'utf8'});
     assert.equal(child.status, 0); const output = JSON.parse(child.stdout);
-    if (!index) assert.match(output.systemMessage, /preset careful/); else assert.deepEqual(output, {});
+    const {SCORE_LINE} = require('../runtime/upgrade-moments.cjs');
+    if (index === 0) { assert.match(output.systemMessage, /preset careful/); assert.ok(!output.systemMessage.includes(SCORE_LINE)); }
+    else if (index === 1) assert.deepEqual(output, {systemMessage: SCORE_LINE});
+    else assert.deepEqual(output, {});
   }
 });
