@@ -73,6 +73,7 @@ runtime/policy-state.cjs
 runtime/policy-cli.cjs
 runtime/policy-approval.cjs
 runtime/upgrade-moments.cjs
+runtime/open-report.cjs
 runtime/command-policy.cjs
 runtime/presets/solo-dev.json
 runtime/presets/careful.json
@@ -143,6 +144,7 @@ tests/dependency-provisioning.test.cjs
 tests/hooks.test.cjs
 tests/mcp.test.cjs
 tests/agent-score.test.cjs
+tests/open-report.test.cjs
 tests/runtime-recovery.test.cjs
 tests/packaging.test.cjs
 tests/claude-packaging.test.cjs

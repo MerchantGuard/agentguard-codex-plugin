@@ -1,6 +1,6 @@
 # AgentGuard directory submission pack
 
-Prepared for version 0.3.9 on 2026-09-24. This is a review pack, not a submitted or approved listing. No directory draft, publication or remote MCP deployment was created by preparing it.
+Prepared for version 0.3.10 on 2026-09-24. This is a review pack, not a submitted or approved listing. No directory draft, publication or remote MCP deployment was created by preparing it.
 
 ## Submission route
 
@@ -19,7 +19,7 @@ The proposed public developer name is MerchantGuardOps. The publisher must selec
 Listing values follow. Business identity verification remains pending.
 
 - Package name: `agentguard`.
-- Version: `0.3.9`.
+- Version: `0.3.10`.
 - Display name: `AgentGuard`.
 - Short description: `Tool policy and signed records`.
 - Developer name: `MerchantGuardOps`.
@@ -107,7 +107,7 @@ Arguments: empty object. Result: `intro`, `questions`, `serviceOrigin`.
 
 ### agent_score
 
-`readOnlyHint: false`, `openWorldHint: true`, `destructiveHint: false`, `idempotentHint: false`.
+`readOnlyHint: false`, `openWorldHint: true`, `destructiveHint: false`, `idempotentHint: false`. With `openReport: true`, only together with `createShare: true`, the server launches the operating system's default browser opener with the report address as a single argument after a successful score; nothing else is launched, it never runs on a failure, and `AGENTGUARD_NO_BROWSER=1` disables it.
 
 It sends the user's five questionnaire answers to the AgentGuard Score service at the validated origin and returns the computed score. It is the only MCP tool that makes a hosted request, and it is not read-only because a requested report link is stored by the service. It requires `consent: true` and refuses without it with a score-specific `consent_required` result, refuses an unusable origin with `invalid_origin`, refuses any answer outside the published questions and options and any incomplete answer set with `invalid_answers`, all before making a request; it reads no local ledger, policy or key, and writes nothing locally. No email address is collected. The request refuses redirects, sends no credentials or referrer, reads at most 64 KB of response, and keeps one timeout across the request and the body read. A result is accepted only when it is complete and well formed; an error status, an oversized or unreadable body or a malformed result is `service_error` with no result to display, and a network failure is `network` with the statement that no usable result was received and the service may have processed the request. The tool never retries. Every refused or failed call is returned as an MCP tool error (`isError: true`) that still carries the structured result. A report link is created only when `createShare` is true and is returned only when it is on the consented origin.
 
@@ -120,7 +120,7 @@ These values follow the documented distinction between read-only computation, bo
 - `skills/agentguard-policy/SKILL.md`: operator-requested policy edits and license activation. It preserves unrelated rules and never treats a denied tool request as permission to weaken policy. The activation helper takes a key on standard input and does not echo it.
 - `skills/agentguard-status/SKILL.md`: read daily decisions, configured spend, blocks, fail-open rates, license mode and seat evidence. Missing values remain unknown.
 - `skills/agentguard-verify/SKILL.md`: verify signatures and links; return a paid receipt export when requested. A failed chain is not repaired.
-- `skills/agentguard-score/SKILL.md`: run the optional AgentGuard Score questionnaire: ask the five questions, ask separately about a hosted report link, obtain consent that names the service origin, call `agent_score`, and report the self-reported result. It never calls the tool without consent and never presents the score as a verification.
+- `skills/agentguard-score/SKILL.md`: run the optional AgentGuard Score questionnaire: ask the five questions, ask once whether the full visual report should open in the browser when the score is ready, obtain consent that names the service origin, call `agent_score`, and report the self-reported result. It never calls the tool without consent and never presents the score as a verification.
 
 Include every runtime helper and asset these skills reference in any agreed local package. Do not upload four isolated `SKILL.md` files and assume their local helpers will be installed. Automated tests validate runtime behavior; live host selection of each skill is pending reviewer execution.
 

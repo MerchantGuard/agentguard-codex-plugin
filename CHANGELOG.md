@@ -1,3 +1,8 @@
+## 0.3.10 - 2026-09-24
+
+- One yes, then it just happens: when the user asks for the full visual report, the score tool opens it in the default browser the moment the score is ready, through the platform opener with the report address as a single argument. Only on request, only on the consented origin, never on a failure; AGENTGUARD_NO_BROWSER=1 turns it off and a Linux session without a display never tries.
+- The terminal keeps the summary; the browser carries the full report.
+
 ## 0.3.9 - 2026-09-24
 
 - After an AgentGuard Score, the skill offers to open the full visual report in the browser (score ring, breakdown bars, every fix) at the agentguard.run report address, and opens nothing unless asked.

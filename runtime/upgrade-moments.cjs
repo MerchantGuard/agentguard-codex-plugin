@@ -13,6 +13,7 @@ const WHATS_NEW = {
   '0.3.7': "What's new in AgentGuard 0.3.7: the free AgentGuard Score, five questions on whether your agent has the basic payment controls. Ask for the agentguard-score skill. Run node runtime/policy-cli.cjs show to inspect your policy.",
   '0.3.8': "What's new in AgentGuard 0.3.8: the free AgentGuard Score now scores four payment controls and names exactly where your answers go. Ask for the agentguard-score skill. Run node runtime/policy-cli.cjs show to inspect your policy.",
   '0.3.9': "What's new in AgentGuard 0.3.9: after your AgentGuard Score, open the full visual report in your browser straight from the terminal. Ask for the agentguard-score skill. Run node runtime/policy-cli.cjs show to inspect your policy.",
+  '0.3.10': "What's new in AgentGuard 0.3.10: say yes once and your full AgentGuard Score report opens in the browser the moment the score is ready. Ask for the agentguard-score skill. Run node runtime/policy-cli.cjs show to inspect your policy.",
 };
 const WEEK = 7 * 86400000;
 const homeDirectory = () => path.resolve(process.env.AGENTGUARD_HOME || path.join(os.homedir(), '.agentguard'));

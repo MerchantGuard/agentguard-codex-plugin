@@ -40,7 +40,7 @@ function fixture(t, options = {}) {
     if (options.fail === 'hang') return new Response(new ReadableStream({pull() { return new Promise(() => {}); }}), {status: 200});
     return new Response(JSON.stringify(options.service || SERVICE), {status: 200, headers: {'content-type': 'application/json'}});
   };
-  const reader = createReader({dataDir, fetch, scoreUrl: Object.hasOwn(options, 'scoreUrl') ? options.scoreUrl : `${ORIGIN}/`, timeoutMs: options.timeoutMs});
+  const reader = createReader({dataDir, fetch, scoreUrl: Object.hasOwn(options, 'scoreUrl') ? options.scoreUrl : `${ORIGIN}/`, timeoutMs: options.timeoutMs, openReport: options.openReport});
   const ledger = () => fs.existsSync(reader.filePath) ? fs.readFileSync(reader.filePath, 'utf8') : null;
   const rpc = args => handleRpc({jsonrpc: '2.0', id: 1, method: 'tools/call', params: {name: 'agent_score', arguments: args}}, reader);
   return {dataDir, home, reader, calls, ledger, rpc};
@@ -282,4 +282,34 @@ test('the tool list, annotations, schema and JSON-RPC surface describe the score
   assert.equal(scored.result.structuredContent.score, 75);
   assert.equal(scored.result.structuredContent.shareUrl, `${ORIGIN}/score/abc`);
   assert.equal(f.ledger(), null);
+});
+
+test('openReport opens the report once on success, only with createShare, and never on a failure', async t => {
+  const opened = [];
+  const openReport = {platform: 'darwin', env: {}, spawnImpl: (command, args) => { opened.push({command, args}); return {unref() {}, on() {}}; }};
+  const f = fixture(t, {openReport});
+  const result = await f.reader.call('agent_score', {answers: GOOD, consent: true, createShare: true, openReport: true});
+  assert.equal(result.ok, true);
+  assert.equal(result.reportOpened, true);
+  assert.deepEqual(opened, [{command: 'open', args: [`${ORIGIN}/score/abc`]}]);
+  assert.deepEqual(JSON.parse(f.calls[0].init.body), {answers: GOOD, tier: 'tier1', createShare: true});
+
+  const without = fixture(t, {openReport});
+  const refused = await without.reader.call('agent_score', {answers: GOOD, consent: true, createShare: false, openReport: true});
+  assert.equal(refused.ok, false);
+  assert.equal(refused.reason, 'invalid_answers');
+  assert.equal(without.calls.length, 0, 'nothing was sent');
+
+  const failing = fixture(t, {openReport, fail: 'status'});
+  const failed = await failing.reader.call('agent_score', {answers: GOOD, consent: true, createShare: true, openReport: true});
+  assert.equal(failed.ok, false);
+  assert.equal(opened.length, 1, 'no opener on a failure');
+
+  const declined = fixture(t, {openReport});
+  const quiet = await declined.reader.call('agent_score', {answers: GOOD, consent: true, createShare: true, openReport: false});
+  assert.equal(quiet.ok, true);
+  assert.equal(quiet.reportOpened, undefined);
+  assert.equal(opened.length, 1, 'no opener unless asked');
+
+  await assert.rejects(f.reader.call('agent_score', {answers: GOOD, consent: true, createShare: true, openReport: 'yes'}), /openReport must be true or false/);
 });

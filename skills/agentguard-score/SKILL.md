@@ -1,6 +1,6 @@
 ---
 name: agentguard-score
-description: Run the AgentGuard Score check for the user's agent. Ask the five questionnaire questions, ask separately whether the user wants the full visual report in the browser (a hosted report link), obtain explicit consent that names the service origin, send the answers through the agent_score tool, and report the score, tier, breakdown and recommendations. Local policy enforcement and decision records stay on the machine; this is the only MCP tool that makes a hosted request.
+description: Run the AgentGuard Score check for the user's agent. Ask the five questionnaire questions, ask once whether the user wants the full visual report to open in the browser when the score is ready (which creates a hosted report link), obtain explicit consent that names the service origin, send the answers through the agent_score tool, and report the score, tier, breakdown and recommendations. Local policy enforcement and decision records stay on the machine; this is the only MCP tool that makes a hosted request.
 ---
 
 # AgentGuard Score
@@ -35,23 +35,22 @@ ledger or signing key. No email address is collected.
    options, do not guess an answer the user did not give, and do not answer on
    the user's behalf from anything you observed in the session.
 
-3. Ask about the visual report as a separate choice, in these words: "Do you
-   want the full visual report in your browser? It creates a report link with
-   the score ring, the breakdown bars and every fix. The report is stored on
-   the service and visible to anyone who has the link." Record yes or no. The
-   default is no.
+3. Ask once about the visual report, in these words: "When your score is
+   ready, do you want the full visual report to open in your browser? It
+   creates a report link with the score ring, the breakdown bars and every
+   fix, stored on the service and visible to anyone who has the link, and
+   opens it on this machine." Record yes or no. The default is no.
 
 4. Show the five answers back, then ask for consent in these words, filling in
    the real `serviceOrigin` and the clause that matches the sharing choice:
    "Send the five answers shown above to the AgentGuard Score service at
    {serviceOrigin}? This request does not include your files, local policy,
-   decision ledger or signing key. {It will also create a hosted report link
-   that shows your answers and score to anyone who has it. | It will not
-   create a report link.} Proceed?" Only a clear yes counts. If the answers or
+   decision ledger or signing key. {It will also create the report link and
+   open it in your browser. | It will not create a report link.} Proceed?" Only a clear yes counts. If the answers or
    the origin change afterwards, ask again.
 
 5. Call `agent_score` with `{"answers": {...}, "consent": true, "createShare":
-   true|false}` matching the sharing choice. Without `consent: true` the tool
+   true|false, "openReport": true|false}`, both set to the report choice. Without `consent: true` the tool
    refuses and sends nothing. Answers outside the published questions or
    options, or a missing answer, are refused before any request is made.
 
@@ -60,13 +59,12 @@ ledger or signing key. No email address is collected.
    together with its `recommendation`; those are the things to fix. Mention the
    positive factors briefly. Show `shareUrl` only when the user asked for a
    report link; if they asked and it is null, say the service did not return a
-   usable link. When there is a `shareUrl`, present it as the full visual
-   report and offer to open it: "Full visual report: {shareUrl}. Want me to
-   open it in your browser?" If the user says yes, run the platform's opener
-   with that exact address and nothing else: `open {shareUrl}` on macOS,
-   `xdg-open {shareUrl}` on Linux, `start "" {shareUrl}` on Windows. Never
-   open a browser without being asked, and never open any other address.
-   Note `validUntil` if the user asks how long the score stands.
+   usable link. When `reportOpened` is true, say the full visual report is
+   open in the browser and give `shareUrl` as the address in case the window
+   is behind others. When the user asked and `reportOpened` is false, give
+   `shareUrl` and say it did not open on this machine (no display, or
+   AGENTGUARD_NO_BROWSER=1). The tool does the opening; never run an opener
+   yourself. Note `validUntil` if the user asks how long the score stands.
    Say that the result came from `serviceOrigin`. A one-line summary the user
    can paste into a README or a pull request is useful: the score, the tier,
    the valid-until date and, when requested, the link.

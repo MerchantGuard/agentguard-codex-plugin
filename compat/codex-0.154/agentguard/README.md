@@ -708,7 +708,7 @@ security category. Asset sizes are listed in [assets/README.md](assets/README.md
 
 The license terms are the same as the Spend package; see [LICENSE](LICENSE).
 
-If you ask for the report link, the skill offers to open the full visual report in your browser: the score ring, the breakdown bars and every fix, at an agentguard.run address. It opens nothing unless you say yes.
+Say yes once to the full visual report and it opens in your browser the moment the score is ready: the score ring, the breakdown bars and every fix, at an agentguard.run address. Nothing opens unless you said yes, and `AGENTGUARD_NO_BROWSER=1` turns it off.
 
 ## Local STOP notifications
 

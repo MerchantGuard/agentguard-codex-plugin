@@ -9,6 +9,7 @@ const path = require('node:path');
 const readline = require('node:readline');
 const { createHash } = require('node:crypto');
 const sdk = require('./dependencies.cjs').loadDependency('@agentguard-run/spend');
+const { openReport } = require('./open-report.cjs');
 const { locations, hostContext } = require('./common.cjs');
 const {readPolicy} = require('./policy-file.cjs');
 const {readHealth} = require('./health.cjs');
@@ -41,7 +42,7 @@ const schemas = {
   verify_chain: { type: 'object', properties: {}, additionalProperties: false },
   export_receipts: { type: 'object', properties: { sessionId: {type: 'string', description: 'Current host session identifier.'}, fromSequence: { type: 'integer', minimum: 0 }, limit: { type: 'integer', minimum: 1, maximum: PAGE_LIMIT } }, additionalProperties: false },
   agent_score_questions: { type: 'object', properties: {}, additionalProperties: false },
-  agent_score: { type: 'object', properties: { answers: { type: 'object', description: 'Answers to every questionnaire question keyed by question id: select questions take one of the published option strings, yes/no questions take true or false.' }, consent: { type: 'boolean', description: 'Must be true. Confirms the user agreed, after being shown the answers and the serviceOrigin returned by agent_score_questions, that the five answers are sent to the AgentGuard Score service at that origin.' }, createShare: { type: 'boolean', description: 'Default false. True only when the user separately asked for a hosted report link, which stores the answers and score on the service and is visible to anyone who has the link.' } }, required: ['answers', 'consent'], additionalProperties: false },
+  agent_score: { type: 'object', properties: { answers: { type: 'object', description: 'Answers to every questionnaire question keyed by question id: select questions take one of the published option strings, yes/no questions take true or false.' }, consent: { type: 'boolean', description: 'Must be true. Confirms the user agreed, after being shown the answers and the serviceOrigin returned by agent_score_questions, that the five answers are sent to the AgentGuard Score service at that origin.' }, createShare: { type: 'boolean', description: 'Default false. True only when the user separately asked for a hosted report link, which stores the answers and score on the service and is visible to anyone who has the link.' }, openReport: { type: 'boolean', description: 'Only together with createShare: after a successful score, open the finished report in the default browser on this machine. Nothing else is launched.' } }, required: ['answers', 'consent'], additionalProperties: false },
 };
 const descriptions = {
   get_status: 'Read recorded host, license tier, seat count and limit, seat storage and verification status, expiry, effective mode, shadow reason, daily signed decision totals, fail-open counts and rates for the last hour and since worker start, and the local quiet display preference. License and health reads are offline.',
@@ -49,7 +50,7 @@ const descriptions = {
   verify_chain: 'Verify every local ledger signature and hash link against the local public verification key; never accesses private keys.',
   export_receipts: 'With a valid paid license, return a page of signed content-free receipts and the public verification key for a records custodian. No files are written. Concatenate pages to verify the complete chain.',
   agent_score_questions: 'Return the AgentGuard Score questionnaire (intro, question ids, wording, options) and serviceOrigin, the validated address of the service that agent_score would call, so the agent can ask the user and name the destination before scoring. Offline; makes no request.',
-  agent_score: 'With the user\'s consent, send the five questionnaire answers to the AgentGuard Score service at the serviceOrigin returned by agent_score_questions (https://agentguard.run unless AGENTGUARD_SCORE_URL is set) and return the score, tier, category breakdown and factors with recommendations. A hosted report link is created only when createShare is true. This is the only MCP tool in this server that makes a hosted request; the request does not include local policy, the decision ledger or the signing key, and the tool reads no local files and writes nothing. It is not read-only because a requested report link is stored by the service.',
+  agent_score: 'With the user\'s consent, send the five questionnaire answers to the AgentGuard Score service at the serviceOrigin returned by agent_score_questions (https://agentguard.run unless AGENTGUARD_SCORE_URL is set) and return the score, tier, category breakdown and factors with recommendations. A hosted report link is created only when createShare is true. This is the only MCP tool in this server that makes a hosted request; the request does not include local policy, the decision ledger or the signing key, and the tool reads no local files and writes nothing. It is not read-only because a requested report link is stored by the service. With openReport true, the server launches the operating system browser opener with the report address as a single argument, only after a successful score and only when createShare is also true; AGENTGUARD_NO_BROWSER=1 disables it.',
 };
 const annotationsFor = name => name === 'agent_score'
   ? { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true }
@@ -117,6 +118,7 @@ function assertArgs(name, args) {
   if (args.limit !== undefined && (!Number.isSafeInteger(args.limit) || args.limit < 1 || args.limit > PAGE_LIMIT)) throw new Error('limit must be an integer from 1 to 200.');
   if (args.day !== undefined && (typeof args.day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(args.day) || !Number.isFinite(Date.parse(args.day)) || new Date(args.day).toISOString().slice(0, 10) !== args.day)) throw new Error('day must be a valid UTC date.');
   if (name === 'agent_score' && args.createShare !== undefined && typeof args.createShare !== 'boolean') throw new Error('createShare must be true or false.');
+  if (name === 'agent_score' && args.openReport !== undefined && typeof args.openReport !== 'boolean') throw new Error('openReport must be true or false.');
   // answers and consent are checked inside agentScore so that a missing or
   // false consent produces a score-specific consent_required result.
 }
@@ -185,6 +187,8 @@ async function agentScore(args, options) {
   const problems = agentScoreQuestions.validateAnswers(args.answers);
   if (problems.length) return { ok: false, reason: 'invalid_answers', problems, message: 'Nothing was sent. Every question must be answered; use agent_score_questions for the question ids and options.' };
   const createShare = args.createShare === true;
+  const wantOpen = args.openReport === true;
+  if (wantOpen && !createShare) return { ok: false, reason: 'invalid_answers', problems: ['openReport requires createShare: true; the report can only open once a report link exists.'], message: 'Nothing was sent. openReport requires createShare: true.' };
   const doFetch = options.fetch || globalThis.fetch;
   const controller = new AbortController();
   // One timer covers the request, the body read and the parse.
@@ -206,7 +210,9 @@ async function agentScore(args, options) {
     }
     let payload;
     try { payload = JSON.parse(text); } catch { return { ok: false, reason: 'service_error', message: SCORE_UNUSABLE_MESSAGE }; }
-    return parseScorePayload(payload, {origin, createShare}) || { ok: false, reason: 'service_error', message: SCORE_UNUSABLE_MESSAGE };
+    const result = parseScorePayload(payload, {origin, createShare}) || { ok: false, reason: 'service_error', message: SCORE_UNUSABLE_MESSAGE };
+    if (result.ok && wantOpen) result.reportOpened = result.shareUrl ? openReport(result.shareUrl, { origin, ...(options.openReport || {}) }) : false;
+    return result;
   } finally { clearTimeout(timer); }
 }
 
