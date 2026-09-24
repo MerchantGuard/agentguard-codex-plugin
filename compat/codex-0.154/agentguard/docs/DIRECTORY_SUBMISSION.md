@@ -4,7 +4,7 @@ Prepared for version 0.3.0 on 2026-09-18. This is a review pack, not a submitted
 
 ## Submission route
 
-AgentGuard contains local hooks, three skills and a local stdio MCP server. The current portal documents skills-only ZIP uploads and remote MCP submissions; local MCP needs a public HTTPS server or coordination with OpenAI. The complete local package therefore needs an agreed review route. A skills-only upload would exclude its MCP configuration and must not be described as installing the complete runtime. [Submission routes](https://developers.openai.com/plugins/deploy/submission), [ZIP exclusions](https://developers.openai.com/plugins/deploy/submission-errors#archive-errors).
+AgentGuard contains local hooks, four skills and a local stdio MCP server. The current portal documents skills-only ZIP uploads and remote MCP submissions; local MCP needs a public HTTPS server or coordination with OpenAI. The complete local package therefore needs an agreed review route. A skills-only upload would exclude its MCP configuration and must not be described as installing the complete runtime. [Submission routes](https://developers.openai.com/plugins/deploy/submission), [ZIP exclusions](https://developers.openai.com/plugins/deploy/submission-errors#archive-errors).
 
 Keep the public marketplace installation available while this is resolved. Do not invent an HTTPS MCP URL, an existing integration ID, OAuth credentials or a domain-verification token.
 
@@ -58,10 +58,10 @@ Install the Node 22 runtime dependencies in the plugin root and follow the Codex
 - Domain verification and challenge base URL: not applicable without a remote endpoint; no token was requested.
 - Custom UI, UI fetch domains, frame domains and CSP: none. The MCP server returns text and structured data, not a UI resource.
 - Tool scan: not run in the submission portal. Local tools and their arguments are tested below.
-- Static MCP-imported skills: none. The three skills are bundled files.
+- Static MCP-imported skills: none. The four skills are bundled files.
 - Demo recording URL: pending capture and public hosting. A local filename is not a production URL.
 
-The following annotation values describe each MCP tool, not the separate policy-edit skill or background license worker. Each tool uses the fixed local data root, accepts no arbitrary file or URL target, and makes no network call. The offline tests compare file hashes before and after all four calls.
+The following annotation values describe each MCP tool, not the separate policy-edit skill or background license worker. Each tool uses the fixed local data root and accepts no arbitrary file or URL target. Five tools make no network call. The sixth, agent_score, is the one opt-in network call in the package: with the user's consent it sends questionnaire answers to the hosted AgentGuard Score service and is annotated open-world. The offline tests compare file hashes before and after all six calls.
 
 ### get_status
 
@@ -95,7 +95,23 @@ It verifies and returns a bounded page of signed local records and the public ke
 
 Arguments: optional `sessionId`, `fromSequence` and `limit`, at most 200. Result: `format: agentguard-signed-receipts-v1`, `publicKeyHex`, `verified`, `complete`, `entries`, `nextSequence`, `totalEntries`, `lastEntryHash`.
 
-These values follow the documented distinction between read-only computation, bounded private data and external or destructive actions. They are already set in `runtime/mcp.cjs`; no annotation change is needed. [Tool annotation guidance](https://developers.openai.com/plugins/app-guidelines#correct-annotation).
+### agent_score_questions
+
+`readOnlyHint: true`, `openWorldHint: false`, `destructiveHint: false`, `idempotentHint: true`.
+
+It returns the AgentGuard Score questionnaire bundled in `runtime/agent-score-questions.cjs`: the intro, five question ids, their wording, the published options and categories. It reads no user data and makes no network call, so the agent can ask the user every question before anything is sent.
+
+Arguments: empty object. Result: `intro`, `questions`.
+
+### agent_score
+
+`readOnlyHint: true`, `openWorldHint: true`, `destructiveHint: false`, `idempotentHint: false`.
+
+It sends the user's questionnaire answers, and an email address only if the user supplied one, to the hosted AgentGuard Score service and returns the computed score. It is the only tool in the package that transmits anything off the machine. It requires `consent: true` and refuses without it, refuses any answer outside the published questions and options before making a request, reads no local ledger, policy or key, and writes nothing. A network failure or a malformed service response returns an error object and never an estimated score.
+
+Arguments: `answers` keyed by question id, `consent` (must be true), optional `email`. Result: `ok`, `score`, `tier`, `breakdown`, `factors` with recommendations, `shareUrl`, `scoredAt`, `validUntil`, or `ok: false` with a `reason`.
+
+These values follow the documented distinction between read-only computation, bounded private data and external or destructive actions. They are set in `runtime/mcp.cjs`. [Tool annotation guidance](https://developers.openai.com/plugins/app-guidelines#correct-annotation).
 
 ## Skills
 

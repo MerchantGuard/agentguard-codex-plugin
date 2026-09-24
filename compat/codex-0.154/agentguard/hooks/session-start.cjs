@@ -33,6 +33,10 @@ try {
     if (message) output.systemMessage = [output.systemMessage, message].filter(Boolean).join('\n');
   }
 } catch { /* Version copy never affects startup. */ }
+try {
+  const invite = moments.scoreInvite();
+  if (invite) output.systemMessage = [output.systemMessage, invite].filter(Boolean).join('\n');
+} catch { /* The invitation never affects startup. */ }
 process.stdout.write(JSON.stringify(output) + '\n');
 }
 // Benchmark mode handles the call only with the operator's signed consent for

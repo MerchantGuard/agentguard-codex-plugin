@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "agentguard",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "description": "Local tool policy gates and signed, content-free decision records for Codex, ChatGPT Work and Claude Code.",
   "author": {
     "name": "MerchantGuardOps",

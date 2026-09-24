@@ -5,6 +5,7 @@ const path = require('node:path');
 const os = require('node:os');
 const {createHash, randomUUID} = require('node:crypto');
 const TEAM_LINE = 'Using this at work? Team puts one policy on every seat. agentguard.run/pricing';
+const SCORE_LINE = 'Free AgentGuard Score: five questions tell you whether your agent is payment-ready and what to fix. Ask for the agentguard-score skill.';
 const WEEK = 7 * 86400000;
 const homeDirectory = () => path.resolve(process.env.AGENTGUARD_HOME || path.join(os.homedir(), '.agentguard'));
 const directory = home => path.join(home || homeDirectory(), 'upgrade-moments');
@@ -49,6 +50,11 @@ function whatsNew(version, options = {}) {
   if (!/^[A-Za-z0-9.+_-]{1,80}$/.test(version) || !claim('plugin-version-' + version, options)) return null;
   return `What's new in AgentGuard ${version}: local policy presets, command rules, inbox protection and Solo policy sync. Run node runtime/policy-cli.cjs show to inspect your policy.`;
 }
+// One informational line per machine inviting the free AgentGuard Score. It
+// is display copy only: no request, no decision change, and Quiet removes it.
+function scoreInvite(options = {}) {
+  return claim('agent-score-invite', options) ? SCORE_LINE : null;
+}
 function registerLedger(data, home = homeDirectory()) {
   // Burn status can find both hosts without copying any ledger content.
   try {
@@ -60,4 +66,4 @@ function registerLedger(data, home = homeDirectory()) {
     finally { try { fs.unlinkSync(temporary); } catch {} }
   } catch { /* Discoverability cannot change a decision. */ }
 }
-module.exports = {TEAM_LINE, WEEK, quiet, dismiss, claim, stopMoment, whatsNew, registerLedger, homeDirectory};
+module.exports = {TEAM_LINE, SCORE_LINE, WEEK, quiet, dismiss, claim, stopMoment, whatsNew, scoreInvite, registerLedger, homeDirectory};

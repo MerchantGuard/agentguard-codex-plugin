@@ -546,12 +546,30 @@ An existing ledger without a durability checkpoint receives one conservative
 integrity event on its first startup. Its original signed rows stay intact.
 Integrity events appear separately from tool decisions in status reports.
 
+#### Get your free AgentGuard Score
+
+If your agent pays for things or gets paid, AgentGuard Score tells you whether
+it is ready to move money. Ask for the `agentguard-score` skill: five questions,
+about a minute, and you get a score out of 100, the specific fixes, and a
+shareable report to show a payment provider or a marketplace, free. It is the
+only AgentGuard feature that sends anything off the machine: the five answers
+and an optional email address, nothing else.
+
 The optional local MCP server exposes only:
 
 - `get_status`: report license tier, seat count, limit, storage and verification status, expiry, effective mode and reason alongside today's decisions, configured spend, blocks, integrity events, and fail-open health.
 - `list_decisions`: read a bounded page of signed entries.
 - `verify_chain`: verify chain hashes and signatures on every tier.
 - `export_receipts`: with a valid paid license, return a bounded JSON bundle for the caller to save.
+- `agent_score_questions`: return the AgentGuard Score questionnaire so the agent can ask the user first. Offline.
+- `agent_score`: with the user's explicit consent, send the questionnaire answers to the hosted AgentGuard Score service and return the score, tier, breakdown, recommendations and share link. This is the only tool that transmits anything off the machine.
+
+AgentGuard Score is a payment-readiness check for an agent: human sponsor,
+wallet setup, transaction limits and audit trail. The `agentguard-score` skill
+asks the five questions, asks for consent, and calls `agent_score`. Nothing
+else in the plugin transmits anything; enforcement, the ledger and the signing
+key stay local and are never sent. Set `AGENTGUARD_SCORE_URL` to point the
+call at a different host.
 
 The server does not change policies, write exports, or operate tools on your
 behalf. In Codex, disable it while retaining the hooks through the plugin-scoped

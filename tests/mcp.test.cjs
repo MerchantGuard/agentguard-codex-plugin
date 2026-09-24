@@ -49,9 +49,9 @@ async function fixture(t, specs = [{ action: 'allow', projectedCents: 5 }]) {
   return { dataDir, store, publicKey, publicKeyHex, entries, reader: createReader({ dataDir }) };
 }
 
-test('MCP exposes exactly four read-only tools and negotiates initialization', async () => {
-  assert.deepEqual(TOOLS.map(tool => tool.name), ['get_status', 'list_decisions', 'verify_chain', 'export_receipts']);
-  for (const tool of TOOLS) assert.deepEqual(tool.annotations, { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false });
+test('MCP exposes four read-only tools plus the opt-in score pair and negotiates initialization', async () => {
+  assert.deepEqual(TOOLS.map(tool => tool.name), ['get_status', 'list_decisions', 'verify_chain', 'export_receipts', 'agent_score_questions', 'agent_score']);
+  for (const tool of TOOLS) assert.deepEqual(tool.annotations, tool.name === 'agent_score' ? { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: true } : { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false });
   const response = await handleRpc({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } }, {});
   assert.equal(response.result.protocolVersion, '2025-06-18');
   assert.deepEqual(response.result.capabilities, { tools: {} });
@@ -190,7 +190,7 @@ test('MCP subprocess speaks JSON-RPC stdio, handles invalid JSON, and has no wri
   assert.equal(result.status, 0, result.stderr);
   const output = result.stdout.trim().split('\n').map(line => JSON.parse(line));
   assert.equal(output[0].error.code, -32700);
-  assert.equal(output[1].result.tools.length, 4);
+  assert.equal(output[1].result.tools.length, 6);
   assert.equal(output[2].result.structuredContent.ok, true);
   assert.equal(output[3].result.isError, true);
 });

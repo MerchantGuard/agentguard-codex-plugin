@@ -44,7 +44,7 @@ test('policy examples parse and validate against the current runtime schema', ()
   const blocks = [...readme.matchAll(/```json\n([\s\S]*?)\n```/g)];
   assert.ok(blocks.length);
   for (const [, block] of blocks) validatePolicy(JSON.parse(block));
-  for (const name of ['agentguard-policy', 'agentguard-status', 'agentguard-verify']) {
+  for (const name of ['agentguard-policy', 'agentguard-score', 'agentguard-status', 'agentguard-verify']) {
     const skill = read(`skills/${name}/SKILL.md`);
     assert.match(skill, new RegExp(`^---\\nname: ${name}\\n`));
     assert.match(skill, /description: .+/);

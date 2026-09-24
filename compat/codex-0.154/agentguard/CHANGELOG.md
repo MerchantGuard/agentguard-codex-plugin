@@ -1,3 +1,9 @@
+## 0.3.7 - 2026-09-24
+
+- Add AgentGuard Score to the plugin: a new `agentguard-score` skill and two MCP tools. `agent_score_questions` returns the five-question payment-readiness questionnaire offline; `agent_score` sends the answers, with the user's explicit consent, to the hosted AgentGuard Score service and returns the score, tier, category breakdown, factors with recommendations and a share link.
+- `agent_score` is the only tool in the package that transmits anything off the machine. It refuses without `consent: true`, refuses answers outside the published questions and options before any request, reads no ledger, policy or key, writes nothing, and returns an error object rather than an estimated score when the service cannot be reached.
+- Tool annotations mark `agent_score` open-world and non-idempotent; the other five tools keep their offline read-only annotations.
+
 ## 0.3.6 - 2026-09-23
 
 - Add local policy presets, validated CLI customization, plain-language status and a once-only setup hint on both hosts.

@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const {spawnSync} = require('node:child_process');
-const {TEAM_LINE, WEEK, claim, stopMoment, whatsNew, dismiss, quiet} = require('../runtime/upgrade-moments.cjs');
+const {TEAM_LINE, SCORE_LINE, WEEK, claim, stopMoment, whatsNew, scoreInvite, dismiss, quiet} = require('../runtime/upgrade-moments.cjs');
 const {run} = require('../runtime/policy-cli.cjs');
 const {Engine} = require('../runtime/engine.cjs');
 const {metadata} = require('../runtime/common.cjs');
@@ -48,18 +48,30 @@ test('version announcements appear once per exact plugin version and persist acr
   assert.equal(whatsNew('../unsafe', {home}), null);
 });
 
+test('the free AgentGuard Score invitation appears once per machine with the exact line', t => {
+  const {home} = fixture(t);
+  assert.equal(scoreInvite({home}), SCORE_LINE);
+  assert.equal(SCORE_LINE, 'Free AgentGuard Score: five questions tell you whether your agent is payment-ready and what to fix. Ask for the agentguard-score skill.');
+  assert.equal(scoreInvite({home}), null);
+  assert.equal(scoreInvite({home, now: Date.now() + 100 * WEEK}), null);
+  const other = fs.mkdtempSync(path.join(os.tmpdir(), 'ag-upgrade-other-'));
+  t.after(() => fs.rmSync(other, {recursive: true, force: true}));
+  assert.equal(scoreInvite({home: other}), SCORE_LINE);
+});
+
 test('quiet on permanently dismisses every upgrade moment and survives presets and new versions', async t => {
   const {data, home} = fixture(t);
   assert.match(await run(['quiet', 'on'], {data}), /dismissed permanently/); assert.equal(quiet(home), true);
   assert.equal(stopMoment(denied, free, {home, now: Date.now() + 100 * WEEK}).systemMessage, undefined);
   assert.equal(whatsNew('9.0.0', {home}), null); assert.equal(claim('burn-month-2099-01', {home}), false);
+  assert.equal(scoreInvite({home}), null);
   await run(['preset', 'careful'], {data}); assert.equal(quiet(home), true);
   await assert.rejects(run(['quiet', 'off'], {data})); dismiss(home); assert.equal(quiet(home), true);
 });
 
 test('a failed display-state write suppresses copy and never changes a denial', t => {
   const {home} = fixture(t); fs.mkdirSync(home); fs.writeFileSync(path.join(home, 'upgrade-moments'), 'not a directory');
-  assert.deepEqual(stopMoment(denied, free, {home}), denied); assert.equal(whatsNew('0.3.6', {home}), null);
+  assert.deepEqual(stopMoment(denied, free, {home}), denied); assert.equal(whatsNew('0.3.6', {home}), null); assert.equal(scoreInvite({home}), null);
 });
 
 test('SessionStart announces its real version once, and quiet survives another startup', async t => {
@@ -67,6 +79,7 @@ test('SessionStart announces its real version once, and quiet survives another s
   fs.writeFileSync(preload, "require('node:child_process').spawn = () => ({on(){}, unref(){}});");
   const start = () => spawnSync(process.execPath, ['-r', preload, 'hooks/session-start.cjs'], {cwd: root, env: process.env, input: '{"session_id":"synthetic-version"}', encoding: 'utf8'});
   const first = start(); assert.equal(first.status, 0); assert.ok(JSON.parse(first.stdout).systemMessage.includes(`What's new in AgentGuard ${require('../package.json').version}`));
+  assert.ok(JSON.parse(first.stdout).systemMessage.endsWith(SCORE_LINE));
   assert.deepEqual(JSON.parse(start().stdout), {});
   await run(['quiet', 'on'], {data}); assert.deepEqual(JSON.parse(start().stdout), {});
 });

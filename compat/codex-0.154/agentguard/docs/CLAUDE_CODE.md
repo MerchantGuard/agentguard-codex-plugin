@@ -7,7 +7,7 @@ format are shared code. Each host normally has its own plugin data directory.
 ## Released contract
 
 Claude discovers `.claude-plugin/plugin.json`, `hooks/hooks.json`,
-`.mcp.json` and the three `skills` directories at the package root. The
+`.mcp.json` and the four `skills` directories at the package root. The
 manifest does not repeat default component paths as additional sources.
 The public `.claude-plugin/marketplace.json` selects that root. Codex keeps
 its existing generated compatibility directory and hook source path.

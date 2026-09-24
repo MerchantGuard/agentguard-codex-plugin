@@ -90,6 +90,7 @@ runtime/engine.cjs
 runtime/notify-stop.cjs
 runtime/mcp.cjs
 runtime/mcp-legacy.cjs
+runtime/agent-score-questions.cjs
 runtime/owned-log.cjs
 runtime/budget.cjs
 runtime/health.cjs
@@ -102,6 +103,7 @@ hooks/spend-gate.cjs
 hooks/receipt.cjs
 config/default-policy.json
 skills/agentguard-policy/SKILL.md
+skills/agentguard-score/SKILL.md
 skills/agentguard-status/SKILL.md
 skills/agentguard-verify/SKILL.md
 assets/README.md
@@ -140,6 +142,7 @@ tests/compat-output.test.cjs
 tests/dependency-provisioning.test.cjs
 tests/hooks.test.cjs
 tests/mcp.test.cjs
+tests/agent-score.test.cjs
 tests/runtime-recovery.test.cjs
 tests/packaging.test.cjs
 tests/claude-packaging.test.cjs

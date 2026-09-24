@@ -338,14 +338,15 @@ test('supplemental S5: actor tampering fails verification and export without rew
   assert.deepEqual(safeSnapshot(f.data), before);
 });
 
-test('all four MCP annotations match bounded read-only behavior and reject open-ended targets', async t => {
+test('all six MCP annotations match their behavior and reject open-ended targets', async t => {
   const f = await setup(t);
   await f.signedPair();
   const before = safeSnapshot(f.data);
-  assert.deepEqual(TOOLS.map(tool => tool.name), ['get_status', 'list_decisions', 'verify_chain', 'export_receipts']);
+  assert.deepEqual(TOOLS.map(tool => tool.name), ['get_status', 'list_decisions', 'verify_chain', 'export_receipts', 'agent_score_questions', 'agent_score']);
   for (const tool of TOOLS) {
-    assert.deepEqual(tool.annotations, {readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false});
-    await f.reader.call(tool.name, ['get_status', 'export_receipts'].includes(tool.name) ? {sessionId: SESSION} : {});
+    assert.deepEqual(tool.annotations, tool.name === 'agent_score' ? {readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: true} : {readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false});
+    // agent_score without consent refuses offline; that is the bounded call for this loop.
+    await f.reader.call(tool.name, ['get_status', 'export_receipts'].includes(tool.name) ? {sessionId: SESSION} : tool.name === 'agent_score' ? {answers: {}, consent: false} : {});
     await assert.rejects(f.reader.call(tool.name, {url: 'https://invalid.example/'}), /Unexpected argument/);
     await assert.rejects(f.reader.call(tool.name, {path: 'outside-workspace.json'}), /Unexpected argument/);
   }

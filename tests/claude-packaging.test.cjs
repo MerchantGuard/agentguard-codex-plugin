@@ -43,12 +43,12 @@ test('Claude failure receipts and Codex hooks use the same scripts with host-nat
   assert.deepEqual(Buffer.from(read('hooks/codex-hooks.json')), require('../scripts/build-compat.cjs').codexHooks());
 });
 
-test('README offers three commands per host while sharing all three skills', () => {
+test('README offers three commands per host while sharing all four skills', () => {
   const intro = read('README.md').split('\n## Details\n')[0];
   const blocks = [...intro.matchAll(/```sh\n([\s\S]*?)\n```/g)].map(match => match[1].split('\n').filter(line => line && !line.startsWith('#')));
   assert.equal(blocks.length, 2);
   assert.deepEqual(blocks[1], ['claude plugin marketplace add MerchantGuard/agentguard-codex-plugin', 'claude plugin install agentguard@agentguard', 'npm ci']);
-  for (const skill of ['agentguard-policy', 'agentguard-status', 'agentguard-verify']) {
+  for (const skill of ['agentguard-policy', 'agentguard-score', 'agentguard-status', 'agentguard-verify']) {
     const file = `skills/${skill}/SKILL.md`;
     assert.equal(read(file), read(`compat/codex-0.154/agentguard/${file}`));
   }

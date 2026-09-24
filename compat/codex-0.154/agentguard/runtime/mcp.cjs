@@ -2,6 +2,8 @@
 'use strict';
 
 // Read-only stdio MCP. This module never initializes keys, policies, or ledgers.
+// One opt-in tool, agent_score, sends questionnaire answers to the hosted
+// AgentGuard Score service; every other tool stays offline.
 const fs = require('node:fs');
 const path = require('node:path');
 const readline = require('node:readline');
@@ -12,23 +14,34 @@ const {readPolicy} = require('./policy-file.cjs');
 const {readHealth} = require('./health.cjs');
 const {RULES} = require('./guard-pack.cjs');
 const {readSessionLicense, readLatestLicenseStatus} = require('./license.cjs');
+const agentScoreQuestions = require('./agent-score-questions.cjs');
 
 const MAX_LEDGER_BYTES = 64 * 1024 * 1024;
 const MAX_ROWS = 100000;
 const PAGE_LIMIT = 200;
+const SCORE_URL = 'https://www.merchantguard.ai';
+const SCORE_TIMEOUT_MS = 10000;
+const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,189}\.[^\s@]{2,63}$/;
 const schemas = {
   get_status: { type: 'object', properties: { day: { type: 'string', description: 'UTC day, YYYY-MM-DD. Defaults to today.' }, sessionId: {type: 'string', description: 'Current host session identifier.'} }, additionalProperties: false },
   list_decisions: { type: 'object', properties: { fromSequence: { type: 'integer', minimum: 0 }, limit: { type: 'integer', minimum: 1, maximum: PAGE_LIMIT } }, additionalProperties: false },
   verify_chain: { type: 'object', properties: {}, additionalProperties: false },
   export_receipts: { type: 'object', properties: { sessionId: {type: 'string', description: 'Current host session identifier.'}, fromSequence: { type: 'integer', minimum: 0 }, limit: { type: 'integer', minimum: 1, maximum: PAGE_LIMIT } }, additionalProperties: false },
+  agent_score_questions: { type: 'object', properties: {}, additionalProperties: false },
+  agent_score: { type: 'object', properties: { answers: { type: 'object', description: 'Questionnaire answers keyed by question id: select questions take one of the published option strings, yes/no questions take true or false.' }, email: { type: 'string', description: 'Optional email for the hosted service to attach to the score.' }, consent: { type: 'boolean', description: 'Must be true. Confirms the user agreed that the answers, and the email if given, are sent to the hosted AgentGuard Score service.' } }, required: ['answers', 'consent'], additionalProperties: false },
 };
 const descriptions = {
   get_status: 'Read recorded host, license tier, seat count and limit, seat storage and verification status, expiry, effective mode, shadow reason, daily signed decision totals, and fail-open counts and rates for the last hour and since worker start. License and health reads are offline.',
   list_decisions: 'Read a bounded page of content-free tool decision summaries from the local ledger.',
   verify_chain: 'Verify every local ledger signature and hash link against the local public verification key; never accesses private keys.',
   export_receipts: 'With a valid paid license, return a page of signed content-free receipts and the public verification key for a records custodian. No files are written. Concatenate pages to verify the complete chain.',
+  agent_score_questions: 'Return the AgentGuard Score questionnaire (intro, question ids, wording, options) so the agent can ask the user before scoring. Offline; nothing leaves the machine.',
+  agent_score: 'Send the questionnaire answers, and the email if given, to the hosted AgentGuard Score service and return the score, tier, category breakdown, factors with recommendations and a share link. This is the only tool in this server that transmits anything off the machine; it requires consent: true, reads no local files and writes nothing to the ledger.',
 };
-const TOOLS = Object.keys(schemas).map(name => ({ name, description: descriptions[name], inputSchema: schemas[name], annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } }));
+const annotationsFor = name => name === 'agent_score'
+  ? { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: true }
+  : { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
+const TOOLS = Object.keys(schemas).map(name => ({ name, description: descriptions[name], inputSchema: schemas[name], annotations: annotationsFor(name) }));
 
 const ENTRY_KEYS = new Set(['sequence', 'decision', 'previousHash', 'entryHash', 'signature', 'signerFingerprint', 'builderCode', 'publicKeyHex']);
 const DECISION_KEYS = new Set(['decisionId', 'timestamp', 'action', 'triggeredCap', 'triggeredScopeKey', 'projectedCents', 'windowSpendBefore', 'windowSpendAfter', 'provider', 'modelRequested', 'modelResolved', 'policyId', 'policyVersion', 'enforcementMode', 'reasons', 'entryType', 'originalDecisionId', 'actor', 'costBasis', 'provenance', 'outcomeReceipt', 'governanceReceipt', 'estimatedInputTokens', 'estimatedOutputTokens', 'actualInputTokens', 'actualOutputTokens', 'actualCents', 'deltaCents', 'partial', 'plugin']);
@@ -83,13 +96,51 @@ function validateEntry(entry) {
 
 function assertArgs(name, args) {
   const schema = schemas[name];
-  if (!schema) throw new Error('Unknown read-only tool.');
+  if (!schema) throw new Error('Unknown tool.');
   if (!args || typeof args !== 'object' || Array.isArray(args)) throw new Error('Arguments must be an object.');
   if (Object.keys(args).some(key => !Object.hasOwn(schema.properties, key))) throw new Error('Unexpected argument.');
   if (args.sessionId !== undefined && (typeof args.sessionId !== 'string' || !args.sessionId || args.sessionId.length > 512)) throw new Error('sessionId must be a host session identifier.');
   if (args.fromSequence !== undefined && (!Number.isSafeInteger(args.fromSequence) || args.fromSequence < 0)) throw new Error('fromSequence must be a non-negative integer.');
   if (args.limit !== undefined && (!Number.isSafeInteger(args.limit) || args.limit < 1 || args.limit > PAGE_LIMIT)) throw new Error('limit must be an integer from 1 to 200.');
   if (args.day !== undefined && (typeof args.day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(args.day) || !Number.isFinite(Date.parse(args.day)) || new Date(args.day).toISOString().slice(0, 10) !== args.day)) throw new Error('day must be a valid UTC date.');
+  if (name === 'agent_score') {
+    if (!Object.hasOwn(args, 'answers') || !Object.hasOwn(args, 'consent')) throw new Error('answers and consent are required.');
+    if (typeof args.consent !== 'boolean') throw new Error('consent must be true or false.');
+    if (!args.answers || typeof args.answers !== 'object' || Array.isArray(args.answers)) throw new Error('answers must be an object keyed by question id.');
+    if (args.email !== undefined && (typeof args.email !== 'string' || args.email.length > 254 || !EMAIL.test(args.email))) throw new Error('email must be a valid address.');
+  }
+}
+
+// The one network call in this server. Never reads the ledger, the policy or
+// the keys, and never writes anything. Refuses without explicit consent and
+// refuses answers outside the published questionnaire before any request.
+async function agentScore(args, options) {
+  if (args.consent !== true) {
+    return { ok: false, reason: 'consent_required', message: 'AgentGuard Score sends the questionnaire answers, and the email if given, to the hosted AgentGuard Score service. Unlike every other tool in this server, that leaves the machine. Ask the user, then call again with consent: true.' };
+  }
+  const problems = agentScoreQuestions.validateAnswers(args.answers);
+  if (problems.length) return { ok: false, reason: 'invalid_answers', problems, message: 'Nothing was sent. Use agent_score_questions for the question ids and options.' };
+  const doFetch = options.fetch || globalThis.fetch;
+  const base = (options.scoreUrl || process.env.AGENTGUARD_SCORE_URL || SCORE_URL).replace(/\/+$/, '');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), options.timeoutMs || SCORE_TIMEOUT_MS);
+  let payload;
+  try {
+    const body = { answers: args.answers, tier: 'tier1' };
+    if (args.email) body.email = args.email;
+    const response = await doFetch(`${base}/api/v2/agentscore/calculate`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(body), signal: controller.signal });
+    if (!response.ok) return { ok: false, reason: 'service_error', status: response.status, message: 'The AgentGuard Score service returned an error. No score was produced.' };
+    payload = await response.json();
+  } catch {
+    return { ok: false, reason: 'network', message: 'The AgentGuard Score service could not be reached within the timeout. No score was produced.' };
+  } finally { clearTimeout(timer); }
+  const tiers = ['CRITICAL', 'WARNING', 'FAIR', 'GOOD', 'ELITE'];
+  if (!payload || typeof payload !== 'object' || typeof payload.score !== 'number' || payload.score < 0 || payload.score > 100 || !tiers.includes(payload.tier) || !payload.breakdown || typeof payload.breakdown !== 'object' || !Array.isArray(payload.factors)) {
+    return { ok: false, reason: 'service_error', message: 'The AgentGuard Score service returned an unexpected response. No score was produced.' };
+  }
+  const factors = payload.factors.filter(factor => factor && typeof factor === 'object').map(factor => ({ factor: String(factor.factor ?? ''), impact: ['positive', 'negative', 'neutral'].includes(factor.impact) ? factor.impact : 'neutral', points: Number.isFinite(factor.points) ? factor.points : 0, ...(typeof factor.recommendation === 'string' ? { recommendation: factor.recommendation } : {}) }));
+  const breakdown = Object.fromEntries(['risk', 'compliance', 'infrastructure', 'history'].filter(key => Number.isFinite(payload.breakdown[key])).map(key => [key, payload.breakdown[key]]));
+  return { ok: true, score: payload.score, tier: payload.tier, breakdown, factors, shareUrl: typeof payload.shareUrl === 'string' && /^https:\/\//.test(payload.shareUrl) ? payload.shareUrl : null, scoredAt: typeof payload.scoredAt === 'string' ? payload.scoredAt : null, validUntil: typeof payload.validUntil === 'string' ? payload.validUntil : null };
 }
 
 function summary(entry) {
@@ -219,6 +270,8 @@ function createReader(options = {}) {
 
   async function call(name, args = {}) {
     assertArgs(name, args);
+    if (name === 'agent_score_questions') return { intro: agentScoreQuestions.INTRO, questions: agentScoreQuestions.QUESTIONS };
+    if (name === 'agent_score') return agentScore(args, options);
     const entries = await snapshot();
     if (name === 'verify_chain') return verify(entries);
     if (name === 'get_status') {
@@ -271,7 +324,7 @@ async function handleRpc(request, reader) {
       } catch (error) {
         if (['license_required', 'seat_limit'].includes(error.code)) return respond({isError: true, content: [{type: 'text', text: `${error.code}: verification is free; receipt export requires a valid paid license and an available seat.`}]});
         // Never return raw filesystem/SDK errors, which could contain contents.
-        return respond({ isError: true, content: [{ type: 'text', text: 'Read-only audit request failed: check arguments, ledger integrity, and the public verification key locally.' }] });
+        return respond({ isError: true, content: [{ type: 'text', text: 'Request failed: check the tool arguments, ledger integrity, and the public verification key locally.' }] });
       }
     }
     default: return { jsonrpc: '2.0', id: request.id, error: { code: -32601, message: 'Method not found.' } };
