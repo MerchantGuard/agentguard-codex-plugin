@@ -708,6 +708,8 @@ security category. Asset sizes are listed in [assets/README.md](assets/README.md
 
 The license terms are the same as the Spend package; see [LICENSE](LICENSE).
 
+If you ask for the report link, the skill offers to open the full visual report in your browser: the score ring, the breakdown bars and every fix, at an agentguard.run address. It opens nothing unless you say yes.
+
 ## Local STOP notifications
 
 On macOS, an enforced STOP posts a local desktop notification with the rule ID and `resume with agentguard-burn resume`. Set `notifyOnStop: false` in the plugin policy to disable it; the default is `true`. Other platforms do not notify. Notifications use only local `osascript`, with no network requests, and cannot change the tool decision. Repeated delivery of the same signed decision does not notify again. Burn resume permits a Burn action; spend caps and other rules must be changed in the policy that stopped the call.

@@ -12,7 +12,7 @@
       "name": "agentguard",
       "source": "./",
       "description": "Local tool policy gates and signed, content-free decision records for Codex, ChatGPT Work and Claude Code.",
-      "version": "0.3.8",
+      "version": "0.3.9",
       "author": {
         "name": "MerchantGuardOps",
         "url": "https://agentguard.run"

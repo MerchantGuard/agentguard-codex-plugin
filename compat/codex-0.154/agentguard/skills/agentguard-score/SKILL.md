@@ -1,6 +1,6 @@
 ---
 name: agentguard-score
-description: Run the AgentGuard Score check for the user's agent. Ask the five questionnaire questions, ask separately whether the user wants a hosted report link, obtain explicit consent that names the service origin, send the answers through the agent_score tool, and report the score, tier, breakdown and recommendations. Local policy enforcement and decision records stay on the machine; this is the only MCP tool that makes a hosted request.
+description: Run the AgentGuard Score check for the user's agent. Ask the five questionnaire questions, ask separately whether the user wants the full visual report in the browser (a hosted report link), obtain explicit consent that names the service origin, send the answers through the agent_score tool, and report the score, tier, breakdown and recommendations. Local policy enforcement and decision records stay on the machine; this is the only MCP tool that makes a hosted request.
 ---
 
 # AgentGuard Score
@@ -35,9 +35,11 @@ ledger or signing key. No email address is collected.
    options, do not guess an answer the user did not give, and do not answer on
    the user's behalf from anything you observed in the session.
 
-3. Ask about sharing as a separate choice, in these words: "Do you want a
-   hosted report link? It stores your answers and score on the service and is
-   visible to anyone who has the link." Record yes or no. The default is no.
+3. Ask about the visual report as a separate choice, in these words: "Do you
+   want the full visual report in your browser? It creates a report link with
+   the score ring, the breakdown bars and every fix. The report is stored on
+   the service and visible to anyone who has the link." Record yes or no. The
+   default is no.
 
 4. Show the five answers back, then ask for consent in these words, filling in
    the real `serviceOrigin` and the clause that matches the sharing choice:
@@ -58,7 +60,13 @@ ledger or signing key. No email address is collected.
    together with its `recommendation`; those are the things to fix. Mention the
    positive factors briefly. Show `shareUrl` only when the user asked for a
    report link; if they asked and it is null, say the service did not return a
-   usable link. Note `validUntil` if the user asks how long the score stands.
+   usable link. When there is a `shareUrl`, present it as the full visual
+   report and offer to open it: "Full visual report: {shareUrl}. Want me to
+   open it in your browser?" If the user says yes, run the platform's opener
+   with that exact address and nothing else: `open {shareUrl}` on macOS,
+   `xdg-open {shareUrl}` on Linux, `start "" {shareUrl}` on Windows. Never
+   open a browser without being asked, and never open any other address.
+   Note `validUntil` if the user asks how long the score stands.
    Say that the result came from `serviceOrigin`. A one-line summary the user
    can paste into a README or a pull request is useful: the score, the tier,
    the valid-until date and, when requested, the link.
@@ -77,8 +85,7 @@ structured result. Say what happened from its `reason`:
 Never fabricate a score, a tier or a link.
 
 Probe mode, where the service sends test requests to a live agent webhook, is
-not available from the plugin. Point the user to the AgentGuard Score page on
-agentguard.run if they want that.
+not available from the plugin yet.
 
 The score is a self-reported check of four controls. A payment network or
 marketplace may still decline the agent. Do not present the score as more than

@@ -1,3 +1,8 @@
+## 0.3.9 - 2026-09-24
+
+- After an AgentGuard Score, the skill offers to open the full visual report in the browser (score ring, breakdown bars, every fix) at the agentguard.run report address, and opens nothing unless asked.
+- The report question says what the link shows and where it is stored; the probe-mode note no longer points at a page that does not exist.
+
 ## 0.3.8 - 2026-09-24
 
 - AgentGuard Score names its real destination. `agent_score_questions` returns `serviceOrigin`, the validated origin the answers would go to (https only, no credentials, path, query or fragment; https://agentguard.run unless `AGENTGUARD_SCORE_URL` is set), the consent wording in the skill names that origin, and an unusable `AGENTGUARD_SCORE_URL` makes `agent_score` refuse with `invalid_origin` instead of falling back.
