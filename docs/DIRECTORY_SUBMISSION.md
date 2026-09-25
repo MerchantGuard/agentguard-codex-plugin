@@ -1,6 +1,6 @@
 # AgentGuard directory submission pack
 
-Prepared for version 0.3.10 on 2026-09-24. This is a review pack, not a submitted or approved listing. No directory draft, publication or remote MCP deployment was created by preparing it.
+Prepared for version 0.3.11 on 2026-09-24. This is a review pack, not a submitted or approved listing. No directory draft, publication or remote MCP deployment was created by preparing it.
 
 ## Submission route
 
@@ -19,7 +19,7 @@ The proposed public developer name is MerchantGuardOps. The publisher must selec
 Listing values follow. Business identity verification remains pending.
 
 - Package name: `agentguard`.
-- Version: `0.3.10`.
+- Version: `0.3.11`.
 - Display name: `AgentGuard`.
 - Short description: `Tool policy and signed records`.
 - Developer name: `MerchantGuardOps`.

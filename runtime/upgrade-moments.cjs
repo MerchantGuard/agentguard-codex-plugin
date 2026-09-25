@@ -5,6 +5,7 @@ const path = require('node:path');
 const os = require('node:os');
 const {createHash, randomUUID} = require('node:crypto');
 const TEAM_LINE = 'Using this at work? Team puts one policy on every seat. agentguard.run/pricing';
+const SOLO_LINE = 'Refused and signed on this machine. Free stays fully enforced here. Solo runs this same policy on up to three machines and exports these signed receipts: $19 a month, agentguard.run/pricing. Dismiss for good with quiet on.';
 const SCORE_LINE = 'Free AgentGuard Score: if your agent moves money, five questions check the basics (accountable human, wallet, limits, audit trail) and tell you what to fix. Ask for the agentguard-score skill.';
 // One announcement per plugin version. A version without an entry announces
 // nothing and burns no claim, so a stale line can never ship with a new version.
@@ -53,7 +54,7 @@ function claim(name, {home, now = Date.now(), interval} = {}) {
 function stopMoment(output, license, options = {}) {
   if (output?.hookSpecificOutput?.permissionDecision !== 'deny' || license?.paid || license?.tier !== 'free' || license?.mode !== 'enforce' || license?.reason) return output;
   if (!claim('free-stop', {...options, interval: WEEK})) return output;
-  return {...output, systemMessage: [output.systemMessage, TEAM_LINE].filter(Boolean).join('\n')};
+  return {...output, systemMessage: [output.systemMessage, SOLO_LINE].filter(Boolean).join('\n')};
 }
 function whatsNew(version, options = {}) {
   if (!/^[A-Za-z0-9.+_-]{1,80}$/.test(version) || !Object.hasOwn(WHATS_NEW, version) || !claim('plugin-version-' + version, options)) return null;
@@ -76,4 +77,4 @@ function registerLedger(data, home = homeDirectory()) {
     finally { try { fs.unlinkSync(temporary); } catch {} }
   } catch { /* Discoverability cannot change a decision. */ }
 }
-module.exports = {TEAM_LINE, SCORE_LINE, WHATS_NEW, WEEK, quiet, dismiss, claim, stopMoment, whatsNew, scoreInvite, registerLedger, homeDirectory};
+module.exports = {TEAM_LINE, SOLO_LINE, SCORE_LINE, WHATS_NEW, WEEK, quiet, dismiss, claim, stopMoment, whatsNew, scoreInvite, registerLedger, homeDirectory};

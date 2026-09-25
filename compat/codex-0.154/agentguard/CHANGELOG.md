@@ -1,3 +1,7 @@
+## 0.3.11 - 2026-09-24
+
+- The weekly line after a refused action on a free machine now says Free stays enforced there and points at Solo (the same policy on up to three machines, signed receipts export) instead of Team, and says how to dismiss it.
+
 ## 0.3.10 - 2026-09-24
 
 - One yes, then it just happens: when the user asks for the full visual report, the score tool opens it in the default browser the moment the score is ready, through the platform opener with the report address as a single argument. Only on request, only on the consented origin, never on a failure; AGENTGUARD_NO_BROWSER=1 turns it off and a Linux session without a display never tries.
