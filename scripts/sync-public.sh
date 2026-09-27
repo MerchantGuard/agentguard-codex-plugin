@@ -108,7 +108,6 @@ skills/agentguard-score/SKILL.md
 skills/agentguard-status/SKILL.md
 skills/agentguard-verify/SKILL.md
 assets/README.md
-assets/burn-usage-preview.mp4
 assets/logo.svg
 assets/icon-32.png
 assets/icon-128.png

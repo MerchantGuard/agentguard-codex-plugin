@@ -1,9 +1,9 @@
 {
   "name": "agentguard",
-  "version": "0.3.12",
-  "description": "Local tool policy gates and signed, content-free decision records for Codex, ChatGPT Work and Claude Code.",
+  "version": "0.3.13",
+  "description": "Stops a runaway burst of sub-agents until you allow it and shows where your Claude Code or Codex tokens went. Runs on your machine.",
   "author": {
-    "name": "MerchantGuardOps",
+    "name": "AgentGuard",
     "url": "https://agentguard.run"
   },
   "homepage": "https://agentguard.run",

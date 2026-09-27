@@ -10,8 +10,10 @@ const SCORE_LINE = 'Free AgentGuard Score: if your agent moves money, five quest
 // Once per machine. Claude Code holds a launch past a limit behind its own
 // permission prompt; Codex has no prompt, so there the launch is refused until
 // the person runs Burn's resume. Commands after ! run in the person's shell.
-const FIRST_RUN_LINE = 'AgentGuard is on. If a session passes 15 sub-agents in 15 active minutes, 40 in 120, or 5B tokens, the next launch waits for your yes. Nothing leaves this machine. See where a session went: ! npx agentguard-burn why';
-const FIRST_RUN_CODEX_LINE = 'AgentGuard is on. If a session passes 15 sub-agents in 15 active minutes, 40 in 120, or 5B tokens, the next launch is refused until you allow it. Nothing leaves this machine. See where a session went: ! npx agentguard-burn why';
+// "Your sessions stay on this machine" holds for every tier: a paid license
+// check leaves the machine, but no session content ever does.
+const FIRST_RUN_LINE = 'AgentGuard is on. If a session passes 15 sub-agents in 15 active minutes, 40 in 120, or 5B tokens, the next launch waits for your yes. Your sessions stay on this machine. See where a session went: ! npx agentguard-burn why';
+const FIRST_RUN_CODEX_LINE = 'AgentGuard is on. If a session passes 15 sub-agents in 15 active minutes, 40 in 120, or 5B tokens, the next launch is refused until you allow it. Your sessions stay on this machine. See where a session went: ! npx agentguard-burn why';
 // One announcement per plugin version. A version without an entry announces
 // nothing and burns no claim, so a stale line can never ship with a new version.
 const WHATS_NEW = {

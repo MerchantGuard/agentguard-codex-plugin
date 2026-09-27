@@ -86,26 +86,28 @@ test('package-local marketplace selects the compatibility plugin and dependencie
   assert.match(lock.packages['node_modules/@agentguard-run/spend'].version, /^0\.20\./);
 });
 
-test('public README opens with three public install commands and keeps details below them', () => {
+test('public README opens with install commands for each host, links the hosted clip and keeps details below them', () => {
   const text = read('README.md');
   const intro = text.split('\n## Details\n')[0];
-  const commands = intro.match(/```sh\n([\s\S]*?)\n```/)?.[1].split('\n').filter(line => line && !line.startsWith('#'));
-  assert.deepEqual(commands, [
+  const blocks = [...intro.matchAll(/```sh\n([\s\S]*?)\n```/g)].map(match => match[1].split('\n').filter(line => line && !line.startsWith('#')));
+  // Codex and ChatGPT Work do not install Node dependencies, so their block keeps npm ci.
+  assert.ok(blocks.some(commands => JSON.stringify(commands) === JSON.stringify([
     'codex plugin marketplace add MerchantGuard/agentguard-codex-plugin',
     'codex plugin add agentguard@agentguard',
     'npm ci',
-  ]);
+  ])), 'the Codex install block keeps its three commands');
   assert.match(intro, /installed plugin root reported by Codex/);
-  const clip = intro.match(/\]\((assets\/[^)]+\.mp4)\)/)?.[1];
-  assert.ok(clip, 'the install section needs a packaged clip');
-  const bytes = fs.readFileSync(path.join(root, clip));
-  assert.equal(bytes.subarray(4, 8).toString(), 'ftyp', 'the clip must be an MP4');
+  // The clip lives on the site. Claude's directory holds any non-image binary
+  // for manual review, so the package ships images and text only.
+  assert.match(intro, /\]\(https:\/\/agentguard\.run\/burn\)/);
+  assert.doesNotMatch(intro, /\.mp4\b/);
+  assert.deepEqual(fs.readdirSync(path.join(root, 'assets')).filter(name => name !== '.DS_Store' && !/\.(?:png|svg|md)$/.test(name)), []);
   for (const heading of ['Coverage and limits', 'Free and paid features', 'Install', 'Configure policy', 'Publishing']) {
     assert.ok(text.indexOf(`### ${heading}`) > text.indexOf('\n## Details\n'), heading);
   }
   assert.match(text, /docs\/ENTERPRISE_INSTALL\.md/);
   for (const file of ['README.md', 'CHANGELOG.md', 'assets/README.md']) {
-    assert.doesNotMatch(read(file), /\u2014|--|\u2122|\u00ae|Agent Guard|(?<![A-Za-z0-9])\/(?:Users|absolute|enterprise)\//, file);
+    assert.doesNotMatch(read(file), /\u2014|\u2013|--|\u2122|\u00ae|Agent Guard|(?<![A-Za-z0-9])\/(?:Users|absolute|enterprise)\//, file);
   }
 });
 

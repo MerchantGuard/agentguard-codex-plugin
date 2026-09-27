@@ -1,3 +1,12 @@
+## 0.3.13 - 2026-09-27
+
+- Claude Code installs the plugin's dependencies by itself, so installing there is now just the two `claude plugin` commands. If AgentGuard says its dependencies are missing, run `npm ci` in the plugin folder it names. Codex and ChatGPT Work still need `npm ci` after installing.
+- When the plugin's dependencies are missing, session start says "AgentGuard can't start: its dependencies are missing." and names the plugin folder to run `npm ci` in. The once-per-machine lines wait until the dependencies are installed.
+- The README now opens with what AgentGuard does, how to install it in each app and what it sends over the network, and its Burn commands use the short `npx agentguard-burn` name.
+- The first time AgentGuard starts on a machine, the "AgentGuard is on" line now comes first, ahead of the longer preset command, and says "Your sessions stay on this machine."
+- The plugin and package descriptions are now plain language, and the author and developer name are AgentGuard.
+- The package no longer ships a video file. The AgentGuard Burn clip is at agentguard.run/burn.
+
 ## 0.3.12 - 2026-09-27
 
 - A fresh install now enforces the sub-agent limits. Burn's own first-run default is shadow, so a machine with no Burn policy file recorded every STOP and refused none. When the plugin enforces and `burn-policy.json` is missing from the AgentGuard home, it writes Burn's shipped policy there in enforce mode, once, before the first spawn it gates (file 0600, directory 0700), and records that in its signed ledger. An existing policy file is never changed: if you chose shadow, you keep shadow.

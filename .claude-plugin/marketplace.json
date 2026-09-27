@@ -1,20 +1,20 @@
 {
   "name": "agentguard",
   "owner": {
-    "name": "MerchantGuardOps",
+    "name": "AgentGuard",
     "url": "https://agentguard.run"
   },
   "metadata": {
-    "description": "Local tool policy and signed records for Claude Code."
+    "description": "Stops a runaway burst of sub-agents until you allow it and shows where your Claude Code or Codex tokens went. Runs on your machine."
   },
   "plugins": [
     {
       "name": "agentguard",
       "source": "./",
-      "description": "Local tool policy gates and signed, content-free decision records for Codex, ChatGPT Work and Claude Code.",
-      "version": "0.3.12",
+      "description": "Stops a runaway burst of sub-agents until you allow it and shows where your Claude Code or Codex tokens went. Runs on your machine.",
+      "version": "0.3.13",
       "author": {
-        "name": "MerchantGuardOps",
+        "name": "AgentGuard",
         "url": "https://agentguard.run"
       },
       "homepage": "https://agentguard.run",

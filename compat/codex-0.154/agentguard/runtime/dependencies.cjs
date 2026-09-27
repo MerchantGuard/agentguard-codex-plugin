@@ -95,4 +95,17 @@ function loadDependency(name) {
   return result;
 }
 
-module.exports = {loadDependency, durableDataDirectory, dependencyInfo, validateModules, validateProvision};
+// Session start shows this instead of its usual lines when the engine cannot
+// load its locked dependencies, which is when every tool hook fails open with
+// an internal error. It loads exactly what the worker loads, writes nothing,
+// and names the folder where npm ci installs them.
+function missingDependenciesNotice() {
+  try {
+    for (const name of allowed) loadDependency(name);
+    return null;
+  } catch {
+    return `AgentGuard can't start: its dependencies are missing. Run npm ci in ${pluginRoot}, then start a new session.`;
+  }
+}
+
+module.exports = {loadDependency, durableDataDirectory, dependencyInfo, validateModules, validateProvision, missingDependenciesNotice};

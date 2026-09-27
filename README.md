@@ -1,8 +1,21 @@
-# AgentGuard for Codex, ChatGPT Work and Claude Code
+# AgentGuard for Claude Code, Codex and the ChatGPT desktop app
 
 ![AgentGuard: your agents, stopped at the limit. A local plugin that checks agent actions against your policy, refuses runaway spawns and keeps a signed, content-free record on your machine. Free on one machine.](assets/social-card.png)
 
-Codex and ChatGPT Work:
+When a Claude Code session passes 15 sub-agents in 15 active minutes, 40 in 120 active minutes, or 5 billion tokens, AgentGuard makes the next launch wait for your yes (in Codex, it is refused until you allow it). To see where a session's tokens went, run `npx agentguard-burn why`. AgentGuard runs on your machine and is free on one machine.
+
+[Watch the AgentGuard Burn clip](https://agentguard.run/burn).
+
+## Install in Claude Code
+
+```sh
+claude plugin marketplace add MerchantGuard/agentguard-codex-plugin
+claude plugin install agentguard@agentguard
+```
+
+Claude Code installs the plugin's dependencies by itself. If AgentGuard says its dependencies are missing, run `npm ci` in the plugin folder it names, then start a new session.
+
+## Install in Codex and the ChatGPT desktop app (local tasks)
 
 ```sh
 codex plugin marketplace add MerchantGuard/agentguard-codex-plugin
@@ -11,18 +24,11 @@ codex plugin add agentguard@agentguard
 npm ci
 ```
 
-Claude Code:
+## What it sends
 
-```sh
-claude plugin marketplace add MerchantGuard/agentguard-codex-plugin
-claude plugin install agentguard@agentguard
-# In the installed plugin root reported by Claude Code:
-npm ci
-```
+The hooks run on your machine and never open a network connection. Free use sends nothing unless you ask for AgentGuard Score, which sends your five answers to agentguard.run only after you agree. If you also ask for a report link, the service keeps your answers and score, and anyone with the link can see them.
 
-AgentGuard records signed tool decisions in Codex, ChatGPT Work and Claude Code, with free Enforce on one machine and optional paid features.
-
-[Watch the Burn 0.2.5 usage clip](assets/burn-usage-preview.mp4).
+With a license key, AgentGuard checks the license and renews your seat with agentguard.run while a session is open. Those requests carry the license key, a machine fingerprint, an identifier derived from the session and a fingerprint of any shared policy in use. Paid plans also download that shared policy, and `push` uploads your policy settings when you run it. None of these requests includes your prompts, files, tool calls or their output.
 
 ## Details
 
@@ -170,22 +176,27 @@ worker through a private filesystem mailbox. Windows support is not verified.
 
 Use the commands at the top to install from the
 [public repository](https://github.com/MerchantGuard/agentguard-codex-plugin).
-After adding the plugin, change into its installed root before running
-`npm ci` to provision the locked registry dependencies.
+In Claude Code, the two commands under
+[Install in Claude Code](#install-in-claude-code) are the whole installation:
+Claude Code installs locked npm dependencies for cached marketplace plugins
+with lifecycle scripts disabled, and the plugin loads them from its own
+`node_modules`. In Codex and ChatGPT Work, change into the installed plugin
+root after adding the plugin and run `npm ci` to provision the locked registry
+dependencies.
 
 The plugin depends on published `@agentguard-run/spend ^0.20.0` and
-`@agentguard-run/burn ^0.3.18`. It uses no sibling links. Burn's lockfile
+`@agentguard-run/burn ^0.3.19`. It uses no sibling links. Burn's lockfile
 entries include an optional native canvas package for each platform; npm
 installs only the one this machine runs, and the dependency check accepts the
 others as absent while still checking any that are present. Codex's Git
-marketplace installation does not install Node dependencies automatically.
-Claude Code installs locked npm dependencies for cached marketplace plugins
-with lifecycle scripts disabled. The explicit `npm ci` step provisions this
-package and its persistent dependency copy. Local-directory Claude
-marketplaces do not automatically install those dependencies.
+marketplace installation does not install Node dependencies automatically, so
+its explicit `npm ci` step provisions this package and its persistent
+dependency copy. Local-directory Claude marketplaces do not install those
+dependencies either. When the dependencies are missing, session start says so
+and names the plugin folder to run `npm ci` in.
 Dependency setup may access npm; the hooks make no network requests.
 
-Keep npm lifecycle scripts enabled for this step. In a Codex cache installation,
+Keep npm lifecycle scripts enabled for the Codex step. In a Codex cache installation,
 the postinstall script also provisions the locked dependencies in the plugin's
 persistent data directory. Codex 0.154 can replace its installation cache when
 a session starts; the runtime uses this persistent copy if the cache no longer
@@ -723,7 +734,7 @@ Say yes once to the full visual report and it opens in your browser the moment t
 
 ## Sub-agent STOP and override
 
-Burn's limits apply from the first session. Burn's own first-run default is shadow, so without a policy file it would record each STOP and refuse none. When this plugin enforces and `burn-policy.json` is missing from `AGENTGUARD_HOME` (default `~/.agentguard`), the plugin writes Burn's shipped policy there in enforce mode, once, before the first spawn it gates: file mode 0600, directory 0700, recorded as one `burn_policy_seeded` row in the plugin's signed ledger. An existing policy file is never replaced, so a machine where you chose shadow (`npx @agentguard-run/burn shadow`) stays in shadow until you run `npx @agentguard-run/burn enforce`. The shipped limits are 15 sub-agents in any 15 active minutes, 40 in any 120 active minutes, 5B tokens in one session, and sub-agents at most two levels deep.
+Burn's limits apply from the first session. Burn's own first-run default is shadow, so without a policy file it would record each STOP and refuse none. When this plugin enforces and `burn-policy.json` is missing from `AGENTGUARD_HOME` (default `~/.agentguard`), the plugin writes Burn's shipped policy there in enforce mode, once, before the first spawn it gates: file mode 0600, directory 0700, recorded as one `burn_policy_seeded` row in the plugin's signed ledger. An existing policy file is never replaced, so a machine where you chose shadow (`npx agentguard-burn shadow`) stays in shadow until you run `npx agentguard-burn enforce`. The shipped limits are 15 sub-agents in any 15 active minutes, 40 in any 120 active minutes, 5B tokens in one session, and sub-agents at most two levels deep.
 
 What happens at a limit depends on where the session runs:
 
@@ -738,4 +749,4 @@ The agent cannot lift a STOP itself. While Burn enforces, the plugin refuses an 
 
 On macOS, an enforced STOP posts a local desktop notification with the rule ID and the override command the STOP box prints. A launch waiting for your answer in Claude Code does not notify: the prompt is already in front of you. Set `notifyOnStop: false` in the plugin policy to disable it; the default is `true`. Other platforms do not notify. Notifications use only local `osascript`, with no network requests, and cannot change the tool decision. Repeated delivery of the same signed decision does not notify again. Burn resume permits a Burn action; spend caps and other rules must be changed in the policy that stopped the call.
 
-Free upgrade moments are local display only. After an enforced STOP, one Solo line can appear separately from the block reason, at most once in a rolling seven-day window. Burn status shows UTC month-to-date local counts and one Team invitation per month. SessionStart announces each plugin version once, and once per machine says AgentGuard is on, what the limits are and how to see where a session went (`! npx @agentguard-run/burn why`); that line waits while this machine is in shadow. `quiet on` shares a permanent local marker with Burn under `AGENTGUARD_HOME` or the default AgentGuard home; presets do not reset it. No request, decision reason or receipt contains upgrade copy.
+Free upgrade moments are local display only. After an enforced STOP, one Solo line can appear separately from the block reason, at most once in a rolling seven-day window. Burn status shows UTC month-to-date local counts and one Team invitation per month. SessionStart announces each plugin version once, and once per machine says AgentGuard is on, what the limits are and how to see where a session went (`! npx agentguard-burn why`); that line waits while this machine is in shadow or the plugin's dependencies are missing. `quiet on` shares a permanent local marker with Burn under `AGENTGUARD_HOME` or the default AgentGuard home; presets do not reset it. No request, decision reason or receipt contains upgrade copy.

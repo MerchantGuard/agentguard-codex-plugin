@@ -11,13 +11,18 @@ test('Claude marketplace installs the shared root without renaming the public pa
   const manifest = json('.claude-plugin/plugin.json');
   const portable = json('plugin.json');
   for (const field of ['name', 'version', 'description', 'author', 'homepage', 'repository', 'license']) assert.deepEqual(manifest[field], portable[field]);
+  // Directory listings show this text: plain words, 160 characters or fewer.
+  assert.ok(manifest.description.length <= 160, manifest.description);
+  assert.doesNotMatch(manifest.description, /[–—]|--/);
+  assert.equal(manifest.author.name, 'AgentGuard');
   assert.equal(manifest.hooks, undefined, 'default hooks must not also be declared as an additional source');
   const market = json('.claude-plugin/marketplace.json');
   assert.equal(market.name, 'agentguard');
-  assert.equal(market.owner.name, 'MerchantGuardOps');
+  assert.equal(market.owner.name, 'AgentGuard');
   assert.equal(market.plugins.length, 1);
   assert.equal(market.plugins[0].source, './');
   assert.equal(market.plugins[0].version, manifest.version);
+  for (const field of ['description', 'author']) assert.deepEqual(market.plugins[0][field], manifest[field]);
   assert.equal(json('package.json').name, '@agentguard-run/codex-plugin');
   for (const file of ['.claude-plugin', '.mcp.json']) assert.ok(json('package.json').files.includes(file));
   assert.deepEqual(json('.mcp.json').mcpServers.agentguard, {command: 'node', args: ['${CLAUDE_PLUGIN_ROOT}/runtime/mcp.cjs']});
@@ -43,11 +48,14 @@ test('Claude failure receipts and Codex hooks use the same scripts with host-nat
   assert.deepEqual(Buffer.from(read('hooks/codex-hooks.json')), require('../scripts/build-compat.cjs').codexHooks());
 });
 
-test('README offers three commands per host while sharing all four skills', () => {
+test('README gives Claude Code its two install commands first while sharing all four skills', () => {
   const intro = read('README.md').split('\n## Details\n')[0];
   const blocks = [...intro.matchAll(/```sh\n([\s\S]*?)\n```/g)].map(match => match[1].split('\n').filter(line => line && !line.startsWith('#')));
   assert.equal(blocks.length, 2);
-  assert.deepEqual(blocks[1], ['claude plugin marketplace add MerchantGuard/agentguard-codex-plugin', 'claude plugin install agentguard@agentguard', 'npm ci']);
+  // Claude Code installs the locked dependencies of a marketplace plugin itself;
+  // npm ci stays as the fallback, in the folder session start names when they are missing.
+  assert.deepEqual(blocks[0], ['claude plugin marketplace add MerchantGuard/agentguard-codex-plugin', 'claude plugin install agentguard@agentguard']);
+  assert.match(intro, /Claude Code installs the plugin's dependencies by itself\. If AgentGuard says its dependencies are missing, run `npm ci` in the plugin folder it names/);
   for (const skill of ['agentguard-policy', 'agentguard-score', 'agentguard-status', 'agentguard-verify']) {
     const file = `skills/${skill}/SKILL.md`;
     assert.equal(read(file), read(`compat/codex-0.154/agentguard/${file}`));

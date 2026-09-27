@@ -105,6 +105,42 @@ test('missing durable dependencies fail open with an unsigned recovery record an
   assert.equal(fs.existsSync(path.join(f.data, 'ledger', 'decisions.ndjson')), false);
 });
 
+test('without its dependencies, session start names the plugin folder instead of saying AgentGuard is on, and keeps the first-run line', t => {
+  // The state in which every tool hook fails open: no node_modules in the
+  // installed plugin and no provisioned copy in its data directory.
+  const temporary = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ag-missing-dependencies-')));
+  t.after(() => fs.rmSync(temporary, { recursive: true, force: true }));
+  const root = path.join(temporary, 'plugins', 'cache', 'agentguard', 'agentguard', '0.1.0');
+  for (const name of ['runtime', 'hooks', 'config', 'package.json', 'package-lock.json']) {
+    fs.cpSync(path.join(sourceRoot, name), path.join(root, name), { recursive: true });
+  }
+  const home = path.join(temporary, 'home'), agentguardHome = path.join(home, '.agentguard'), data = path.join(temporary, 'plugin-data');
+  fs.mkdirSync(home);
+  fs.mkdirSync(data, { mode: 0o700 });
+  // Only the hook's own output is under test, so it starts no lifecycle worker.
+  const preload = path.join(temporary, 'no-child.cjs');
+  fs.writeFileSync(preload, "require('node:child_process').spawn = () => ({ on() {}, unref() {} });");
+  const env = { PATH: process.env.PATH ?? '/usr/bin:/bin', HOME: home, AGENTGUARD_HOME: agentguardHome, CLAUDE_PLUGIN_ROOT: root, CLAUDE_PLUGIN_DATA: data,
+    AGENTGUARD_NOTIFY_SUPPRESS: '1', AGENTGUARD_NO_BEACON: '1', AGENTGUARD_TELEMETRY: '0' };
+  const start = () => {
+    const child = spawnSync(process.execPath, ['-r', preload, path.join(root, 'hooks', 'session-start.cjs')], { env, encoding: 'utf8', timeout: 10000,
+      input: JSON.stringify({ session_id: 'synthetic-missing-dependencies', hook_event_name: 'SessionStart', source: 'startup' }) });
+    assert.equal(child.status, 0, child.stderr);
+    assert.equal(child.stderr, '');
+    return JSON.parse(child.stdout);
+  };
+  const notice = { systemMessage: `AgentGuard can't start: its dependencies are missing. Run npm ci in ${root}, then start a new session.` };
+  const firstRun = path.join(agentguardHome, 'upgrade-moments', 'first-run');
+  assert.deepEqual(start(), notice);
+  assert.equal(fs.existsSync(firstRun), false, 'the once-per-machine first-run line is still unused');
+  assert.equal(fs.existsSync(path.join(data, 'policy-preset-hint-seen')), false, 'the preset hint is still unused');
+  assert.deepEqual(start(), notice, 'every session start says it until the dependencies are installed');
+  // Once the dependencies are installed, the next session start says AgentGuard is on.
+  fs.cpSync(path.join(sourceRoot, 'node_modules'), path.join(root, 'node_modules'), { recursive: true, verbatimSymlinks: true });
+  assert.match(start().systemMessage, /^AgentGuard is on\. [^\n]+\nAgentGuard presets: /);
+  assert.equal(fs.existsSync(firstRun), true);
+});
+
 test('a changed lockfile refuses a previously provisioned dependency set and fails open', t => {
   const f = fixture(t);
   f.provision();

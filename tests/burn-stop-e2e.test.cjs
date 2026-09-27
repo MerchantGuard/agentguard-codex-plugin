@@ -90,8 +90,10 @@ test('Claude Code end to end: a fresh install enforces, asks the person in inter
   const f = fixture(t);
   const start = f.hook('session-start', {session_id: f.sessionId, transcript_path: f.transcript, cwd: f.project, hook_event_name: 'SessionStart', source: 'startup'});
   const pasteable = `! CLAUDE_PLUGIN_DATA=${moments.shellPath(f.data)} node ${moments.shellPath(path.join(root, 'runtime', 'policy-cli.cjs'))} preset careful`;
-  assert.equal(start.systemMessage, `AgentGuard presets: solo-dev, careful and strict. No key or network is needed. Apply one by typing: ${pasteable}\n${moments.FIRST_RUN_LINE}`);
-  assert.equal(moments.FIRST_RUN_LINE, 'AgentGuard is on. If a session passes 15 sub-agents in 15 active minutes, 40 in 120, or 5B tokens, the next launch waits for your yes. Nothing leaves this machine. See where a session went: ! npx agentguard-burn why');
+  // The short first-run line leads; the long pasteable preset command follows it.
+  assert.equal(start.systemMessage, `${moments.FIRST_RUN_LINE}\nAgentGuard presets: solo-dev, careful and strict. No key or network is needed. Apply one by typing: ${pasteable}`);
+  assert.equal(moments.FIRST_RUN_LINE, 'AgentGuard is on. If a session passes 15 sub-agents in 15 active minutes, 40 in 120, or 5B tokens, the next launch waits for your yes. Your sessions stay on this machine. See where a session went: ! npx agentguard-burn why');
+  assert.equal(moments.FIRST_RUN_CODEX_LINE, 'AgentGuard is on. If a session passes 15 sub-agents in 15 active minutes, 40 in 120, or 5B tokens, the next launch is refused until you allow it. Your sessions stay on this machine. See where a session went: ! npx agentguard-burn why');
   // Once per machine: a second startup does not repeat it.
   assert.doesNotMatch(f.hook('session-start', {session_id: 'e2e-second-session', hook_event_name: 'SessionStart', source: 'startup'}).systemMessage ?? '', /AgentGuard is on/);
   assert.equal(f.started(), true, 'The session reaches Free enforcement once startup resolves.');

@@ -1,6 +1,6 @@
 # AgentGuard directory submission pack
 
-Prepared for version 0.3.12 on 2026-09-27. This is a review pack, not a submitted or approved listing. No directory draft, publication or remote MCP deployment was created by preparing it.
+Prepared for version 0.3.13 on 2026-09-27. This is a review pack, not a submitted or approved listing. No directory draft, publication or remote MCP deployment was created by preparing it.
 
 ## Submission route
 
@@ -12,17 +12,17 @@ Keep the public marketplace installation available while this is resolved. Do no
 
 The submitter needs Apps Management Write in the selected organization and project, plus a verified developer or business identity. Organization owners already have write access. Company publishers need business verification. These are documented prerequisites; this pack has not inspected the publisher's account, roles or verification state. [Submission permissions and identity](https://developers.openai.com/plugins/deploy/submission#before-you-start).
 
-The proposed public developer name is MerchantGuardOps. The publisher must select its actual verified business identity in the portal; no verified company selection is assumed here. A GitHub account or ownership of a website does not establish OpenAI verification.
+The proposed public developer name is AgentGuard. The publisher must select its actual verified business identity in the portal; no verified company selection is assumed here. A GitHub account or ownership of a website does not establish OpenAI verification.
 
 ## Info fields
 
 Listing values follow. Business identity verification remains pending.
 
 - Package name: `agentguard`.
-- Version: `0.3.12`.
+- Version: `0.3.13`.
 - Display name: `AgentGuard`.
 - Short description: `Tool policy and signed records`.
-- Developer name: `MerchantGuardOps`.
+- Developer name: `AgentGuard`.
 - Category: `Productivity`.
 - Website: [AgentGuard](https://agentguard.run).
 - Support: [AgentGuard help](https://agentguard.run/help).

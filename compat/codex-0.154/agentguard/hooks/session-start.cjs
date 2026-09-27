@@ -31,6 +31,13 @@ try {
   child.on('error', () => {});
   child.unref();
 } catch { process.stderr.write('agentguard: session startup unavailable; cached license or shadow mode applies.\n'); }
+// Without its dependencies the engine cannot run and every tool call fails
+// open, so AgentGuard is not on. Say that in one line with the folder to fix,
+// and show or use up no once-only line (first run, presets, version, Score)
+// until the dependencies load.
+let missing = null;
+try { missing = require('../runtime/dependencies.cjs').missingDependenciesNotice(); } catch { /* Startup continues as before. */ }
+if (missing) { process.stdout.write(JSON.stringify({systemMessage: missing}) + '\n'); return; }
 let output = {};
 const moments = require('../runtime/upgrade-moments.cjs');
 try {
@@ -51,9 +58,10 @@ try {
   }
 } catch { /* Version copy never affects startup. */ }
 try {
-  // Once per machine, after the lines above; its claim is taken only when shown.
+  // Once per machine; its claim is taken only when shown. It is placed first,
+  // ahead of the long preset command, so the person reads it before anything else.
   const line = moments.firstRun({host: require('../runtime/common.cjs').hostContext().host, enforcing: enforcing(sessionId)});
-  if (line) output.systemMessage = [output.systemMessage, line].filter(Boolean).join('\n');
+  if (line) output.systemMessage = [line, output.systemMessage].filter(Boolean).join('\n');
 } catch { /* The first-run line never affects startup. */ }
 try {
   // The invitation waits for a session with nothing else to say. Its claim is
