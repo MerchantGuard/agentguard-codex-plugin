@@ -1,3 +1,9 @@
+## 0.3.14 - 2026-09-27
+
+- Runs Burn 0.3.20 (the plugin now depends on `@agentguard-run/burn ^0.3.20`). `npx agentguard-burn calendar` shows tokens per day for every Claude Code and Codex session on this machine, and `npx agentguard-burn why` now ends with the one change that matters most for that session.
+- Burn's help and version flags work: `npx agentguard-burn help` prints the help and `npx agentguard-burn -v` prints the version, and both exit cleanly.
+- A new social card, which says AgentGuard asks before runaway sub-agents start.
+
 ## 0.3.13 - 2026-09-27
 
 - Claude Code installs the plugin's dependencies by itself, so installing there is now just the two `claude plugin` commands. If AgentGuard says its dependencies are missing, run `npm ci` in the plugin folder it names. Codex and ChatGPT Work still need `npm ci` after installing.

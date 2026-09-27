@@ -1,6 +1,6 @@
 # AgentGuard for Claude Code, Codex and the ChatGPT desktop app
 
-![AgentGuard: your agents, stopped at the limit. A local plugin that checks agent actions against your policy, refuses runaway spawns and keeps a signed, content-free record on your machine. Free on one machine.](assets/social-card.png)
+![AgentGuard: your agents, stopped at the limit. A local plugin that checks every agent action against your policy, asks before runaway sub-agents start, and keeps a signed, content-free record on your machine. Free on one machine.](assets/social-card.png)
 
 When a Claude Code session passes 15 sub-agents in 15 active minutes, 40 in 120 active minutes, or 5 billion tokens, AgentGuard makes the next launch wait for your yes (in Codex, it is refused until you allow it). To see where a session's tokens went, run `npx agentguard-burn why`. AgentGuard runs on your machine and is free on one machine.
 
@@ -185,7 +185,7 @@ root after adding the plugin and run `npm ci` to provision the locked registry
 dependencies.
 
 The plugin depends on published `@agentguard-run/spend ^0.20.0` and
-`@agentguard-run/burn ^0.3.19`. It uses no sibling links. Burn's lockfile
+`@agentguard-run/burn ^0.3.20`. It uses no sibling links. Burn's lockfile
 entries include an optional native canvas package for each platform; npm
 installs only the one this machine runs, and the dependency check accepts the
 others as absent while still checking any that are present. Codex's Git
