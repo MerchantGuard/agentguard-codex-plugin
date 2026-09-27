@@ -98,12 +98,20 @@ test('Burn hook subprocess observes the recorded Bash shape and admits then deni
   assert.equal(f.rows().some(row => row.decision.entryType === 'outcome' && row.decision.originalDecisionId === allowed.decisionId), true);
   const deniedRaw = { ...admitted, tool_use_id: 'call_SYNTHETIC_DENIED_SPAWN' };
   const denied = f.invoke('burn-gate', deniedRaw);
-  assert.equal(permission(denied), 'deny');
-  assert.equal(denied.output.hookSpecificOutput.permissionDecisionReason.includes('\n'), false);
+  // The recorded Claude payload is in default permission mode, so the STOP
+  // waits for the person behind Claude Code's prompt; Codex refuses with the box.
+  assert.equal(permission(denied), matrix.isClaude ? 'ask' : 'deny');
+  const reason = denied.output.hookSpecificOutput.permissionDecisionReason;
+  if (matrix.isClaude) assert.match(reason, /^AgentGuard: .+\nSession so far: .+\nAllow this one launch\? If you say no, nothing starts\.$/);
+  else {
+    assert.match(reason, /AGENTGUARD STOP {3}sub-agent launch refused/);
+    assert.ok(reason.includes(burn.OVERRIDE_COMMAND) && reason.split('agentguard-burn resume').length === reason.split('npx agentguard-burn resume').length && reason.endsWith('┘'), reason);
+  }
   const deniedDecision = f.rows().find(row => row.decision.plugin.toolUseId === deniedRaw.tool_use_id)?.decision;
   assert.ok(deniedDecision, 'The capped call must produce its normal signed denial.');
   assert.equal(deniedDecision.plugin.event, 'decision');
   assert.equal(deniedDecision.action, 'block');
+  assert.equal(deniedDecision.plugin.asked === true, matrix.isClaude);
   const receipts = f.receipts();
   assert.equal(receipts.length, 2);
   assert.equal(receipts.every(receipt => burn.verifyReceipt(receipt)), true);
@@ -130,7 +138,7 @@ test('Burn hook subprocess preserves sustained-burn enforcement from observed tr
   const f = setup(t, { fanout: { warn: 24, stop: 40, maxDepth: 2 }, sustained: { warnTokens: 100, stopTokens: 200 } });
   const { spawn, bash } = payloads(f, 201);
   assert.equal(permission(f.invoke('burn-gate', bash)), 'allow');
-  assert.equal(permission(f.invoke('burn-gate', spawn)), 'deny');
+  assert.equal(permission(f.invoke('burn-gate', spawn)), matrix.isClaude ? 'ask' : 'deny');
   const selected = f.rows().find(row => row.decision.plugin.toolUseId === spawn.tool_use_id)?.decision;
   assert.ok(selected, 'The sustained-burn call must deny on its first attempt.');
   assert.equal(selected.plugin.event, 'decision');

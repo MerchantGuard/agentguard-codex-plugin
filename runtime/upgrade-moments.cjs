@@ -7,6 +7,11 @@ const {createHash, randomUUID} = require('node:crypto');
 const TEAM_LINE = 'Using this at work? Team puts one policy on every seat. agentguard.run/pricing';
 const SOLO_LINE = 'Refused and signed on this machine. Free stays fully enforced here. Solo runs this same policy on up to three machines and exports these signed receipts: $19 a month, agentguard.run/pricing. Dismiss for good with quiet on.';
 const SCORE_LINE = 'Free AgentGuard Score: if your agent moves money, five questions check the basics (accountable human, wallet, limits, audit trail) and tell you what to fix. Ask for the agentguard-score skill.';
+// Once per machine. Claude Code holds a launch past a limit behind its own
+// permission prompt; Codex has no prompt, so there the launch is refused until
+// the person runs Burn's resume. Commands after ! run in the person's shell.
+const FIRST_RUN_LINE = 'AgentGuard is on. If a session passes 15 sub-agents in 15 active minutes, 40 in 120, or 5B tokens, the next launch waits for your yes. Nothing leaves this machine. See where a session went: ! npx agentguard-burn why';
+const FIRST_RUN_CODEX_LINE = 'AgentGuard is on. If a session passes 15 sub-agents in 15 active minutes, 40 in 120, or 5B tokens, the next launch is refused until you allow it. Nothing leaves this machine. See where a session went: ! npx agentguard-burn why';
 // One announcement per plugin version. A version without an entry announces
 // nothing and burns no claim, so a stale line can never ship with a new version.
 const WHATS_NEW = {
@@ -66,6 +71,24 @@ function whatsNew(version, options = {}) {
 function scoreInvite(options = {}) {
   return claim('agent-score-invite', options) ? SCORE_LINE : null;
 }
+// The first-run line describes enforcement, so it waits (unclaimed) while this
+// machine is in shadow; quiet removes it like every other moment.
+function firstRun({host, enforcing = true, ...options} = {}) {
+  if (!enforcing || !claim('first-run', options)) return null;
+  return host === 'codex' ? FIRST_RUN_CODEX_LINE : FIRST_RUN_LINE;
+}
+// A path the person can paste into a shell: double quotes for ordinary paths,
+// single quotes (with any single quote escaped) for anything else.
+function shellPath(value) {
+  return /^[A-Za-z0-9_@%+=:,./ -]+$/.test(value) ? `"${value}"` : `'${value.replace(/'/g, `'\\''`)}'`;
+}
+// The preset hint names a command the person can paste. ! runs it in their own
+// shell, which does not carry the plugin's data variable, so the command names
+// the data directory the hooks use along with the plugin's absolute path.
+function presetHint({root, data, host}) {
+  const variable = data ? `${host === 'claude-code' ? 'CLAUDE_PLUGIN_DATA' : 'PLUGIN_DATA'}=${shellPath(path.resolve(data))} ` : '';
+  return `AgentGuard presets: solo-dev, careful and strict. No key or network is needed. Apply one by typing: ! ${variable}node ${shellPath(path.join(path.resolve(root), 'runtime', 'policy-cli.cjs'))} preset careful`;
+}
 function registerLedger(data, home = homeDirectory()) {
   // Burn status can find both hosts without copying any ledger content.
   try {
@@ -77,4 +100,4 @@ function registerLedger(data, home = homeDirectory()) {
     finally { try { fs.unlinkSync(temporary); } catch {} }
   } catch { /* Discoverability cannot change a decision. */ }
 }
-module.exports = {TEAM_LINE, SOLO_LINE, SCORE_LINE, WHATS_NEW, WEEK, quiet, dismiss, claim, stopMoment, whatsNew, scoreInvite, registerLedger, homeDirectory};
+module.exports = {TEAM_LINE, SOLO_LINE, SCORE_LINE, FIRST_RUN_LINE, FIRST_RUN_CODEX_LINE, WHATS_NEW, WEEK, quiet, dismiss, claim, stopMoment, whatsNew, scoreInvite, firstRun, presetHint, shellPath, registerLedger, homeDirectory};

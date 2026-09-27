@@ -174,7 +174,10 @@ After adding the plugin, change into its installed root before running
 `npm ci` to provision the locked registry dependencies.
 
 The plugin depends on published `@agentguard-run/spend ^0.20.0` and
-`@agentguard-run/burn ^0.2.3`. It uses no sibling links. Codex's Git
+`@agentguard-run/burn ^0.3.18`. It uses no sibling links. Burn's lockfile
+entries include an optional native canvas package for each platform; npm
+installs only the one this machine runs, and the dependency check accepts the
+others as absent while still checking any that are present. Codex's Git
 marketplace installation does not install Node dependencies automatically.
 Claude Code installs locked npm dependencies for cached marketplace plugins
 with lifecycle scripts disabled. The explicit `npm ci` step provisions this
@@ -335,13 +338,21 @@ under the user's configured AgentGuard home. A corrupt policy causes a
 recorded fail-open, not a guessed policy.
 Burn continues using its existing user policy and ledger under
 `AGENTGUARD_HOME` or `~/.agentguard`; this plugin does not run Burn init or
-enforce commands.
+enforce commands. When the plugin enforces and that directory has no
+`burn-policy.json`, it writes Burn's shipped policy in enforce mode there once,
+before the first spawn it gates; an existing file is never changed. See
+[Sub-agent STOP and override](#sub-agent-stop-and-override).
 
 ### Customize your policy
 
 Run `node runtime/policy-cli.cjs` from the installed plugin directory with the
 current host's plugin data environment. The policy skill supplies those paths.
-A new session gives the preset hint once per installation.
+A new session gives the preset hint once per installation, as a command you
+can paste with this installation's absolute paths, for example
+`! CLAUDE_PLUGIN_DATA="<data directory>" node "<plugin root>/runtime/policy-cli.cjs" preset careful`
+in Claude Code (`PLUGIN_DATA` in Codex). A `!` command runs in your own shell,
+which does not carry the plugin's variables, so the command names the data
+directory itself.
 
 - `preset solo-dev`: original defaults, no cap, inbox guard off.
 - `preset careful`: block force pushes, recognized deploys and rm outside the workspace; $15 daily cap; inbox guard on.
@@ -710,8 +721,21 @@ The license terms are the same as the Spend package; see [LICENSE](LICENSE).
 
 Say yes once to the full visual report and it opens in your browser the moment the score is ready: the score ring, the breakdown bars and every fix, at an agentguard.run address. Nothing opens unless you said yes, and `AGENTGUARD_NO_BROWSER=1` turns it off.
 
+## Sub-agent STOP and override
+
+Burn's limits apply from the first session. Burn's own first-run default is shadow, so without a policy file it would record each STOP and refuse none. When this plugin enforces and `burn-policy.json` is missing from `AGENTGUARD_HOME` (default `~/.agentguard`), the plugin writes Burn's shipped policy there in enforce mode, once, before the first spawn it gates: file mode 0600, directory 0700, recorded as one `burn_policy_seeded` row in the plugin's signed ledger. An existing policy file is never replaced, so a machine where you chose shadow (`npx @agentguard-run/burn shadow`) stays in shadow until you run `npx @agentguard-run/burn enforce`. The shipped limits are 15 sub-agents in any 15 active minutes, 40 in any 120 active minutes, 5B tokens in one session, and sub-agents at most two levels deep.
+
+What happens at a limit depends on where the session runs:
+
+- Claude Code in default, accept edits, auto or plan mode: the launch waits behind Claude Code's own permission prompt. The prompt names the one limit that fired, the session so far, and asks "Allow this one launch? If you say no, nothing starts." Claude Code shows that text to you, not to Claude, and since Claude Code 2.1.211 auto mode cannot approve it on its own. The plugin's signed decision is a block with `asked: true` and the permission mode; if you say yes, the launch's outcome links to it.
+- Claude Code in bypass permissions or don't ask mode, print mode, and Codex: the launch is refused with Burn's STOP box, which names the limit with its real number and window, the session so far, what to do, and how to continue once. `"stopStyle": "deny"` in `burn-policy.json` refuses outright in every mode.
+
+To continue once, you run Burn's override yourself, exactly as the box prints it: `npx agentguard-burn resume` for one launch, with your reason. In Claude Code the box puts `!` in front; a `!` command runs in your own shell and never passes through a hook. In Codex, run it in a terminal. Both work on a plugin-only install, which never puts `agentguard-burn` on your PATH. Every override is written to Burn's decisions ledger with its reason, and the line after the launch names the limit it passed.
+
+The agent cannot lift a STOP itself. While Burn enforces, the plugin refuses an agent shell command that runs Burn's `resume`, `shadow` or `calibrate` in any form (through `npx`, `agentguard-burn`, or node running Burn's `cli.js`, including quoted, wrapped and nested forms), or that names `override.json` or `burn-policy.json` in the AgentGuard home, and any file tool write to those two files. The agent is told to ask you to run the override yourself. The command text stays in the hook process; the signed row records only `burn_override:command` or `burn_override:file`. With Burn in shadow there is no STOP to lift, and the AgentGuard home stays protected as plugin state as before.
+
 ## Local STOP notifications
 
-On macOS, an enforced STOP posts a local desktop notification with the rule ID and `resume with agentguard-burn resume`. Set `notifyOnStop: false` in the plugin policy to disable it; the default is `true`. Other platforms do not notify. Notifications use only local `osascript`, with no network requests, and cannot change the tool decision. Repeated delivery of the same signed decision does not notify again. Burn resume permits a Burn action; spend caps and other rules must be changed in the policy that stopped the call.
+On macOS, an enforced STOP posts a local desktop notification with the rule ID and the override command the STOP box prints. A launch waiting for your answer in Claude Code does not notify: the prompt is already in front of you. Set `notifyOnStop: false` in the plugin policy to disable it; the default is `true`. Other platforms do not notify. Notifications use only local `osascript`, with no network requests, and cannot change the tool decision. Repeated delivery of the same signed decision does not notify again. Burn resume permits a Burn action; spend caps and other rules must be changed in the policy that stopped the call.
 
-Free upgrade moments are local display only. After an enforced STOP, one Solo line can appear separately from the block reason, at most once in a rolling seven-day window. Burn status shows UTC month-to-date local counts and one Team invitation per month. SessionStart announces each plugin version once. `quiet on` shares a permanent local marker with Burn under `AGENTGUARD_HOME` or the default AgentGuard home; presets do not reset it. No request, decision reason or receipt contains upgrade copy.
+Free upgrade moments are local display only. After an enforced STOP, one Solo line can appear separately from the block reason, at most once in a rolling seven-day window. Burn status shows UTC month-to-date local counts and one Team invitation per month. SessionStart announces each plugin version once, and once per machine says AgentGuard is on, what the limits are and how to see where a session went (`! npx @agentguard-run/burn why`); that line waits while this machine is in shadow. `quiet on` shares a permanent local marker with Burn under `AGENTGUARD_HOME` or the default AgentGuard home; presets do not reset it. No request, decision reason or receipt contains upgrade copy.

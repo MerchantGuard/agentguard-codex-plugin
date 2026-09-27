@@ -12,7 +12,7 @@ const { OwnedLogStore } = require('./owned-log.cjs');
 const {readSessionLicense} = require('./license.cjs');
 const {guardResult} = require('./guard-pack.cjs');
 const {notifyStop} = require('./notify-stop.cjs');
-const { locations, allow, deny, SPAWN, hostContext, runBurnHook, matchingExternalBurn, outcomeFlow, minimumCapability } = require('./common.cjs');
+const { locations, allow, deny, stopDeny, SPAWN, hostContext, runBurnHook, matchingExternalBurn, outcomeFlow, minimumCapability } = require('./common.cjs');
 const tiers = ['read_only', 'data_write', 'payment_initiate', 'payment_execute'];
 const durations = { per_minute: 60000, per_hour: 3600000, per_day: 86400000, per_month: 2592000000 };
 const startWindow = (window, now = Date.now()) => Math.floor(now / durations[window]) * durations[window];
@@ -23,6 +23,23 @@ const governs = meta => meta.gate === 'spend' ? !SPAWN.has(meta.toolName) : meta
 const matches = (patterns, name) => (patterns ?? []).some(pattern => new RegExp(pattern, 'i').test(name));
 const CHARGE_FOLD = 2048;
 const BUILT_IN = {plugin_state: 'AgentGuard protects its own policy, approval and worker files.', policy_cli: 'Policy changes and approvals belong to the operator, in the operator\'s own terminal.'};
+const burnHome = () => process.env.AGENTGUARD_HOME || path.join(os.homedir(), '.agentguard');
+// What the agent is told when it tries to lift a Burn STOP itself. Claude Code
+// gets Burn's own words (a command typed with ! runs in the person's shell and
+// never reaches a hook); Codex has no such prefix, so the person uses a terminal.
+function overrideRefusal(host) {
+  return host === 'claude-code' ? burn.AGENT_OVERRIDE_REASON
+    : `AgentGuard: overrides come from the person, not the agent. Ask them to run it themselves in a terminal:\n${burn.OVERRIDE_COMMAND}`;
+}
+// Burn has no policy override parameter. Its gateway and hook helpers read the
+// loadPolicy export of Burn's policy module (policy.js in 0.3.x) at call time,
+// so the engine adapts that one writable export for the length of a call.
+function burnPolicyModule() {
+  return Object.values(require.cache).find(module => {
+    const descriptor = Object.getOwnPropertyDescriptor(module.exports ?? {}, 'loadPolicy');
+    return descriptor?.writable === true && descriptor.value === burn.loadPolicy;
+  });
+}
 
 const {validatePolicy} = require('./policy-schema.cjs');
 
@@ -89,7 +106,8 @@ class Engine {
       if (meta.event === 'decision') {
         if (meta.gate === 'spend' && decision.action !== 'block' && meta.chargedCents) this.addCharge(decision.actor, meta.chargedCents);
         this.completed.set(`${meta.gate}:${callKey(meta)}`, decision);
-        if (decision.action !== 'block') this.pending.set(callKey(meta), decision);
+        // A launch held for the person's answer runs if they say yes, so its outcome links here.
+        if (decision.action !== 'block' || meta.asked === true) this.pending.set(callKey(meta), decision);
         for (const window of decision.action === 'block' ? [] : meta.chargedWindows ?? []) {
           if (window.windowStart === startWindow(window.window)) await this.spendStore.incrementWindowSpend(window.scopeKey, window.window, meta.chargedCents ?? 0);
         }
@@ -252,11 +270,12 @@ class Engine {
       // A command scan the hook could not run at all is recorded as exactly that.
       if (meta.commandScanFailed) return await this.failure(meta, 'scan_incomplete');
       const previous = this.completed.get(`${meta.gate}:${callKey(meta)}`);
-      if (previous && !previous.plugin.approvalNeeded) {
+      // A launch held for the person's answer is evaluated again, never replayed as a denial.
+      if (previous && !previous.plugin.approvalNeeded && previous.plugin.asked !== true) {
         if (previous.action !== 'block') return {output: {...(previous.plugin.approvalRuleId ? {hookSpecificOutput: {hookEventName: 'PreToolUse', permissionDecision: 'ask', permissionDecisionReason: `AgentGuard ${previous.plugin.approvalRuleId} requires your approval for this call.`}} : allow()), ...(previous.plugin.guardPackMessage ? {systemMessage: previous.plugin.guardPackMessage} : {})}};
         // A prior denial must not survive a switch to shadow mode.
         const {mode} = this.context(meta);
-        if (mode === 'enforce') return {output: deny(previous.reasons.join('; '))};
+        if (mode === 'enforce') return {output: /^burn_override:/.test(previous.plugin.reasonCode ?? '') ? stopDeny(overrideRefusal(meta.host)) : deny(previous.reasons.join('; '))};
       }
       if (meta.gate === 'burn') return await this.burn(meta, message.transcriptPath, message.workingDirectory);
       return await this.spend(meta);
@@ -301,45 +320,101 @@ class Engine {
       }
       return {output: {...allow(), ...(guard.warning ? {systemMessage: guard.message} : {})}};
     }
-    if (!this.gateway) this.gateway = new burn.Gateway(process.env.AGENTGUARD_HOME || path.join(os.homedir(), '.agentguard'));
+    // Fresh installs enforce: Burn's policy is written, once, before the first
+    // spawn this plugin gates in enforce mode.
+    if (mode === 'enforce' && SPAWN.has(meta.toolName)) await this.seedBurnPolicy(meta);
+    if (!this.gateway) this.gateway = new burn.Gateway(burnHome());
     let decision;
     const original = this.gateway.beforeSpawn;
     let output, observationFailed = false;
-    // Burn 0.2.3 has no policy override parameter. Its synchronous gateway
-    // reads this CommonJS export before reserving or signing. Temporarily
-    // adapting that read keeps its real home, ledger and receipt semantics,
-    // including shadow mode, without rewriting the user's policy file.
-    const policyModule = Object.values(require.cache).find(module => {
-      const descriptor = Object.getOwnPropertyDescriptor(module.exports ?? {}, 'loadPolicy');
-      return descriptor?.writable === true && descriptor.value === burn.loadPolicy;
-    });
+    // Burn's synchronous gateway reads its policy through loadPolicy before
+    // reserving or signing. Adapting that one read for this call keeps Burn's
+    // real home, ledger and receipt semantics without rewriting the policy
+    // file: shadow is forced while this plugin is in shadow, and Burn's
+    // once-per-home notice about missing fields stays off stderr, where any
+    // write here means a failed observation.
+    const policyModule = burnPolicyModule();
     if (mode === 'shadow' && !policyModule) throw new Error('burn_policy_adapter_unavailable');
     const loadPolicy = policyModule?.exports.loadPolicy;
     this.gateway.beforeSpawn = (...args) => { decision = original.apply(this.gateway, args); return decision; };
-    if (mode === 'shadow') policyModule.exports.loadPolicy = (...args) => ({...loadPolicy(...args), mode: 'shadow'});
+    if (policyModule) policyModule.exports.loadPolicy = (home, options) => {
+      const policy = loadPolicy(home, {...options, notice: false});
+      return mode === 'shadow' ? {...policy, mode: 'shadow'} : policy;
+    };
     const stderrWrite = process.stderr.write;
     process.stderr.write = () => { observationFailed = true; return true; };
     try { output = runBurnHook(burn, this.gateway, meta, transcriptPath); }
-    finally { this.gateway.beforeSpawn = original; process.stderr.write = stderrWrite; if (mode === 'shadow') policyModule.exports.loadPolicy = loadPolicy; }
+    finally { this.gateway.beforeSpawn = original; process.stderr.write = stderrWrite; if (policyModule) policyModule.exports.loadPolicy = loadPolicy; }
     if (decision?.failedClosed || observationFailed) throw new Error('burn_internal_error');
+    const verdict = output.hookSpecificOutput?.permissionDecision;
+    // Held behind Claude Code's own permission prompt: the person answers.
+    const asked = verdict === 'ask' && decision?.blocked === true;
     if (decision) {
       const mirror = this.basic(meta, mode === 'shadow' && !license.paid ? 'shadow' : (decision.blocked ? 'block' : decision.wouldBlock ? 'shadow' : 'allow'), `burn_${decision.verdict.toLowerCase()}`);
       mirror.enforcementMode = decision.mode;
       mirror.plugin.burnReceiptId = decision.receipt?.receiptId ?? decision.decisionId;
+      if (asked) mirror.plugin.asked = true;
       if (guard.matches.length) { mirror.plugin.guardPack = guard.matches; mirror.plugin.guardPackMessage = guard.message; }
       this.licenseMetadata(mirror, license, decision.mode);
       await this.append(mirror); this.completed.set(`burn:${callKey(meta)}`, mirror);
-      if (decision.verdict === 'STOP' && decision.blocked) this.notifyStop(config, mirror, decision.report.findings.filter(finding => finding.verdict === 'STOP').map(finding => finding.detector));
-      if (!decision.blocked) this.pending.set(callKey(meta), mirror);
+      // The person is already looking at the prompt for an asked launch.
+      if (decision.verdict === 'STOP' && decision.blocked && !asked) this.notifyStop(config, mirror, decision.report.findings.filter(finding => finding.verdict === 'STOP').map(finding => finding.detector));
+      if (!decision.blocked || asked) this.pending.set(callKey(meta), mirror);
     }
-    if (output.hookSpecificOutput?.permissionDecision === 'deny') return { output: this.decorate(deny(output.hookSpecificOutput.permissionDecisionReason), {...license, mode}) };
+    if (asked) return {output: {hookSpecificOutput: output.hookSpecificOutput}};
+    // The STOP box is Burn's own text and keeps its lines.
+    if (verdict === 'deny') return { output: this.decorate(stopDeny(output.hookSpecificOutput.permissionDecisionReason), {...license, mode}) };
     const messages = [output.systemMessage, guard.warning ? guard.message : null].filter(Boolean);
     return { output: { ...allow(), ...(messages.length ? { systemMessage: messages.join(' ').replace(/[\r\n]+/g, ' ') } : {}) } };
+  }
+  // Fresh installs enforce. Burn's own first-run default is shadow, so a
+  // machine with no Burn policy file recorded every STOP and refused none.
+  // While this plugin enforces, it writes Burn's shipped policy in enforce mode
+  // once. An existing file is never replaced: a person who chose shadow keeps
+  // shadow. The link is atomic and fails if a file appeared meanwhile.
+  async seedBurnPolicy(meta) {
+    const home = burnHome(), file = path.join(home, 'burn-policy.json');
+    if (fs.existsSync(file)) return false;
+    const text = JSON.stringify({...burn.DEFAULT_POLICY, mode: 'enforce'}, null, 2) + '\n';
+    let created = false;
+    try {
+      fs.mkdirSync(home, {recursive: true, mode: 0o700});
+      const temporary = `${file}.${process.pid}.${crypto.randomUUID()}.tmp`;
+      fs.writeFileSync(temporary, text, {flag: 'wx', mode: 0o600});
+      try {
+        try { fs.linkSync(temporary, file); created = true; }
+        catch (error) {
+          if (error.code === 'EEXIST') return false;
+          // A volume without hard links still never overwrites an existing file.
+          fs.copyFileSync(temporary, file, fs.constants.COPYFILE_EXCL); created = true;
+        }
+      } finally { try { fs.unlinkSync(temporary); } catch { /* Already gone. */ } }
+    } catch { return false; } // An unwritable home leaves Burn's own behavior in place.
+    if (!created) return false;
+    const row = this.basic({toolName: 'burn_policy', sessionId: meta.sessionId, toolUseId: crypto.randomUUID(), gate: 'control'}, 'allow', 'burn_policy_seeded');
+    row.plugin = {...row.plugin, event: 'burn_policy_seeded', burnPolicyMode: 'enforce', burnPolicySha256: crypto.createHash('sha256').update(text).digest('hex')};
+    // A ledger that refuses the row keeps it beside the chain; the spawn is still gated.
+    try { await this.append(row); } catch { this.keepAside(row); }
+    return true;
+  }
+  // The Burn gate enforces when this plugin enforces and Burn's policy is in
+  // enforce mode. With no policy file yet, the first gated spawn writes one in
+  // enforce mode, so the gate is already enforcing.
+  burnEnforcing(mode) {
+    if (mode !== 'enforce') return false;
+    const home = burnHome();
+    if (!fs.existsSync(path.join(home, 'burn-policy.json'))) return true;
+    return burn.loadPolicy(home, {notice: false}).mode === 'enforce';
   }
   async spend(meta) {
     const {config, license, mode} = this.context(meta), session = config.sessions?.[meta.sessionId] ?? {};
     const guard = guardResult(meta.guardRuleIds ?? [], config.guardPack, mode, meta.guardScanReason === 'guard_branch_unknown' ? ['GP003', 'GP004'] : []);
     if (meta.builtInStop !== undefined && !Object.hasOwn(BUILT_IN, meta.builtInStop)) throw new Error('built_in_stop_invalid');
+    if (meta.burnOverride !== undefined && !['command', 'file'].includes(meta.burnOverride)) throw new Error('burn_override_invalid');
+    // The agent cannot lift a Burn STOP itself while the Burn gate enforces:
+    // running resume, shadow or calibrate, or writing Burn's override or policy
+    // file, is refused and the agent is told to ask the person.
+    const overrideAttempt = meta.burnOverride !== undefined && this.burnEnforcing(mode) ? `burn_override:${meta.burnOverride}` : undefined;
     const match = /^mcp__(.+?)__(.+)$/.exec(meta.toolName);
     const provider = match?.[1] ?? meta.host ?? hostContext().host, model = match?.[2] ?? meta.toolName;
     const actor = { tenantId: config.tenantId ?? 'local', sessionId: meta.sessionId, agentId: meta.agentId ?? session.agentId ?? meta.sessionId,
@@ -356,7 +431,7 @@ class Engine {
     if (tiers.indexOf(capability) < tiers.indexOf(minimumClassification)) capability = minimumClassification;
     const command = require('./command-policy.cjs').commandResult(config, meta);
     // The built-in stop is not a configurable rule: no layer can turn it off.
-    let reason = guard.stop ? guard.message : meta.builtInStop ? `built_in:${meta.builtInStop}` : command?.action === 'block' ? `command_rule:${command.id}` : undefined;
+    let reason = guard.stop ? guard.message : overrideAttempt ?? (meta.builtInStop ? `built_in:${meta.builtInStop}` : command?.action === 'block' ? `command_rule:${command.id}` : undefined);
     for (const scope of [config, session]) {
       const allowlists = scope.allowedToolGroups ?? (scope.allowedTools === undefined ? [] : [scope.allowedTools]);
       if (allowlists.some(patterns => !matches(patterns, meta.toolName))) reason = 'tool_not_allowlisted';
@@ -425,16 +500,19 @@ class Engine {
     if (approvalOutput && decision.action !== 'block') decision.plugin.approvalRuleId = command.id;
     this.licenseMetadata(decision, license, mode);
     const explanation = meta.builtInStop && reason === `built_in:${meta.builtInStop}` ? ` ${BUILT_IN[meta.builtInStop]}` : '';
-    if (decision.action === 'block') this.computedBlocks.set(`spend:${callKey(meta)}`, {decision, output: deny(decision.reasons.join('; ') + explanation), license: {...license, mode}});
+    // An override attempt is answered in Burn's words, which tell the agent to ask the person.
+    const refusedOverride = overrideAttempt !== undefined && reason === overrideAttempt;
+    const refusal = () => refusedOverride ? stopDeny(overrideRefusal(meta.host)) : deny(decision.reasons.join('; ') + explanation);
+    if (decision.action === 'block') this.computedBlocks.set(`spend:${callKey(meta)}`, {decision, output: refusal(), license: {...license, mode}});
     await this.append(decision); this.computedBlocks.delete(`spend:${callKey(meta)}`);
     if (decision.action !== 'block' && unitCostCents) this.addCharge(actor, unitCostCents);
     this.completed.set(`spend:${callKey(meta)}`, decision);
-    if (decision.action === 'block' && mode === 'enforce') {
+    if (decision.action === 'block' && mode === 'enforce' && !refusedOverride) {
       const ids = guard.matches.filter(rule => rule.action === 'stop').map(rule => rule.id);
       this.notifyStop(config, decision, ids.length ? ids : [decision.triggeredCap ? `cap:${decision.triggeredCap.window}` : reason || 'tool_policy']);
     }
     if (decision.action !== 'block') this.pending.set(callKey(meta), decision);
-    return { output: decision.action === 'block' ? this.decorate(deny(decision.reasons.join('; ') + explanation), {...license, mode}) : {...(approvalOutput ?? allow()), ...(guard.warning ? {systemMessage: guard.message} : {})} };
+    return { output: decision.action === 'block' ? this.decorate(refusal(), {...license, mode}) : {...(approvalOutput ?? allow()), ...(guard.warning ? {systemMessage: guard.message} : {})} };
   }
   async receipt(meta) {
     const original = this.pending.get(callKey(meta));

@@ -139,6 +139,8 @@ tests/lifecycle.test.cjs
 tests/engine-license.test.cjs
 tests/offline-hooks.test.cjs
 tests/burn-hook.test.cjs
+tests/burn-stop-e2e.test.cjs
+tests/burn-stop-flow.test.cjs
 tests/compat-output.test.cjs
 tests/dependency-provisioning.test.cjs
 tests/hooks.test.cjs

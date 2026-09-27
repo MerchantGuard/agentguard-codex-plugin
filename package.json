@@ -1,6 +1,6 @@
 {
   "name": "@agentguard-run/codex-plugin",
-  "version": "0.3.11",
+  "version": "0.3.12",
   "description": "Local tool policy hooks and content-free signed records for Codex, ChatGPT Work and Claude Code.",
   "license": "SEE LICENSE IN LICENSE",
   "type": "commonjs",
@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@agentguard-run/spend": "^0.20.0",
-    "@agentguard-run/burn": "^0.2.3"
+    "@agentguard-run/burn": "^0.3.19"
   },
   "files": [
     "plugin.json",

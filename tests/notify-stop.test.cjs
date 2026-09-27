@@ -14,7 +14,7 @@ test('an enforced STOP invokes only local osascript with bounded argv data', () 
     calls++;
     assert.equal(file, '/usr/bin/osascript');
     assert.match(args[1], /display notification \(item 1 of argv\)/);
-    assert.equal(args[2], 'GP001: resume with agentguard-burn resume');
+    assert.equal(args[2], 'GP001: resume with npx agentguard-burn resume --once');
     assert.equal(options.shell, undefined);
     assert.equal(options.timeout, 1500);
     callback(new Error('notification permission denied'));
@@ -48,7 +48,7 @@ test('the engine notifies a signed guard STOP once and retains the denial if not
   assert.equal((await engine.handle(message)).output.hookSpecificOutput.permissionDecision, 'deny');
   await engine.handle(message);
   assert.equal(notifications.length, 1);
-  assert.match(notifications[0].args[2], /^GP001: resume with agentguard-burn resume$/);
+  assert.match(notifications[0].args[2], /^GP001: resume with npx agentguard-burn resume --once$/);
   assert.doesNotMatch(JSON.stringify(notifications), /private|example.invalid/);
   engine.stopNotifier = () => {throw Error('failed');};
   message.meta.toolUseId = 'second';
@@ -65,7 +65,7 @@ test('a daily spend cap notification identifies the cap', async t => {
   const {engine, notifications} = await fixture(t, {toolRules: [{pattern: '^Read$', unitCostCents: 11}], caps: [{window: 'per_day', amountCents: 10}]});
   await engine.handle({meta: metadata({tool_name: 'Read', tool_input: {}, tool_use_id: 'daily', session_id: 'notify'}, 'spend')});
   assert.equal(notifications.length, 1);
-  assert.equal(notifications[0].args[2], 'cap:per_day: resume with agentguard-burn resume');
+  assert.equal(notifications[0].args[2], 'cap:per_day: resume with npx agentguard-burn resume --once');
 });
 
 test('Burn STOP uses the detector ID, while Burn shadow remains silent', async t => {
@@ -77,7 +77,7 @@ test('Burn STOP uses the detector ID, while Burn shadow remains silent', async t
   fs.writeFileSync(path.join(process.env.AGENTGUARD_HOME, 'burn-policy.json'), JSON.stringify(policy));
   for (let i = 0; i < 3; i++) await engine.handle({meta: metadata({session_id: 'notify-burn', tool_name: 'spawn_agent', tool_use_id: `spawn-${i}`, tool_input: {}}, 'burn')});
   assert.ok(notifications.length > 0);
-  assert.ok(notifications.every(item => /fanout.*resume with agentguard-burn resume/.test(item.args[2])));
+  assert.ok(notifications.every(item => /fanout.*resume with npx agentguard-burn resume --once/.test(item.args[2])));
   notifications.length = 0;
   engine.licenseReader = () => ({paid: false, mode: 'shadow', reason: 'seat_revoked', tier: 'free'});
   await engine.handle({meta: metadata({session_id: 'notify-burn', tool_name: 'spawn_agent', tool_use_id: 'shadow-spawn', tool_input: {}}, 'burn')});

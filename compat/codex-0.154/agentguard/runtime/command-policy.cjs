@@ -28,6 +28,21 @@ const KEYWORDS = new Set(['{', '}', '!', 'if', 'then', 'else', 'elif', 'fi', 'fo
 // inside the name, and the words a node one-liner must mention to count.
 const MODULE_REFERENCE = /policy-(?:cl|approv|stat).{0,8}\.c?js\b/i;
 const MODULE_MENTION = /policy-(?:cli|approval|state)|policy\.json|policy-approvals|org-policy|\.agentguard\b/i;
+// An agent lifting a Burn STOP itself: Burn's resume, shadow or calibrate
+// (which writes a shadow policy) run in any form, or Burn's override or policy
+// file touched. The raw-text patterns are Burn 0.3.18's own
+// (agentOverrideAttempt); the parse below also sees quoting, wrappers, nested
+// shells and node running Burn's cli.js. Only a flag leaves the hook.
+const BURN_VERBS = new Set(['resume', 'shadow', 'calibrate']);
+const BURN_OVERRIDE_TEXT = /(?:@agentguard-run\/burn|agentguard-burn)\S*\s+(?:resume|shadow|calibrate)\b/;
+const BURN_STATE_TEXT = /\.agentguard[\\/](?:override|burn-policy)\.json\b/;
+const BURN_FILES = ['override.json', 'burn-policy.json'];
+const BURN_PACKAGE = /^@agentguard-run\/burn(?:@[^\s/]*)?$/;
+const BURN_CLI = /(?:agentguard-burn|@agentguard-run[\\/]burn)[\\/](?:dist[\\/](?:src[\\/])?)?cli\.js$/;
+const BURN_CODE = /@agentguard-run\/burn|agentguard-burn/;
+const BURN_CODE_OVERRIDE = /\b(?:writeOverride|consumeOverride|clearOverride|resume|shadow|calibrate)\b|override\.json|burn-policy\.json/;
+const BURN_MENTION = /agentguard-burn|@agentguard-run\/burn|override\.json|burn-policy\.json/;
+const burnHome = () => path.resolve(process.env.AGENTGUARD_HOME || path.join(os.homedir(), '.agentguard'));
 let currentUser = null;
 try { currentUser = os.userInfo().username; } catch { /* No user name means no ~user form to expand. */ }
 const expandHome = value => value.replace(/^~([^/]*)(?=\/|$)|^\$\{?HOME\}?(?=\/|$)/, (match, user) => user === undefined || user === '' || user === currentUser ? os.homedir() : match);
@@ -141,6 +156,38 @@ function invokesCli(value, ctx) {
   if (/^policy-cl.{0,8}\.c?js$/i.test(path.basename(value))) return true;
   if (!/^(?:[~$./]|.*\/)/.test(value)) return false;
   return realTarget(path.resolve(ctx.cwd, expandHome(value)), ctx.memo) === cli(ctx.memo);
+}
+// Burn's override or policy file in the Burn home, as configured or as its
+// real path, in any spelling the scan resolves.
+function burnStateTarget(value, ctx) {
+  for (const candidate of value.includes('=') ? [value, value.slice(value.indexOf('=') + 1)] : [value]) {
+    const expanded = expandHome(candidate);
+    if (BURN_STATE_TEXT.test(expanded)) return true;
+    if (!BURN_FILES.includes(path.basename(expanded))) continue;
+    if (/\$\{?AGENTGUARD_HOME\b/.test(expanded)) return true;
+    if (ctx.burnFiles().includes(realTarget(path.resolve(ctx.cwd, expanded), ctx.memo))) return true;
+  }
+  return false;
+}
+// The Burn verb a command runs, or null when the program is not Burn: the
+// scoped package after a runner (npx, bunx, npm exec, dlx), its bin, or node
+// running its cli.js. `npx -p @agentguard-run/burn agentguard-burn <verb>` names
+// both. The first word that is not a flag is the verb.
+function burnVerb(list) {
+  let at = -1;
+  const name = path.basename(list[0] ?? '').toLowerCase();
+  if (BURN_PACKAGE.test(list[0] ?? '')) at = 1;
+  else if (/^agentguard-burn(?:\.cmd)?$/.test(name)) at = 1;
+  else if (/^node(?:\.exe)?$/.test(name)) { const script = list.findIndex((value, index) => index > 0 && BURN_CLI.test(value)); if (script > 0) at = script + 1; }
+  if (at < 0) return null;
+  if (/^agentguard-burn(?:\.cmd)?$/.test(path.basename(list[at] ?? '').toLowerCase())) at++;
+  return list.slice(at).find(value => !value.startsWith('-')) ?? null;
+}
+// Burn's own check, loaded only when the input names Burn at all: the plugin's
+// scan above covers it, and this keeps the two in step as Burn adds forms.
+function burnLibraryAttempt(tool, input) {
+  try { return require('./dependencies.cjs').loadDependency('@agentguard-run/burn').agentOverrideAttempt({tool_name: tool, tool_input: input}, burnHome()); }
+  catch { return null; } // The plugin's own scan still applies.
 }
 // A pattern the scan will not walk is judged by where it starts: from inside a
 // protected root, or from any directory above one, it can reach that root.
@@ -262,6 +309,13 @@ function categories(tool, input, options) {
   const configuredRoots = () => rootsConfigured ?? (rootsConfigured = (() => { const loc = locations(options.data); return [loc.data, loc.ipc, path.resolve(process.env.AGENTGUARD_HOME || path.join(os.homedir(), '.agentguard'))]; })());
   let builtIn = null;
   const stop = kind => { builtIn = builtIn === 'policy_cli' ? builtIn : kind; };
+  // Burn's override and policy files, configured and real, resolved on first use.
+  let burnFilesResolved = null;
+  const burnFilesConfigured = () => BURN_FILES.map(name => path.join(burnHome(), name));
+  ctx.burnFiles = () => burnFilesResolved ?? (burnFilesResolved = [...new Set([...burnFilesConfigured(), ...burnFilesConfigured().map(file => realTarget(file, ctx.memo))])]);
+  // A command reaching Burn's override is 'command'; a file tool writing one is 'file'.
+  let burnOverride = null;
+  const override = kind => { burnOverride ??= kind; };
   const lines = commands.map(text => boundedLines(text, ctx));
   let exempt = false;
   try {
@@ -281,10 +335,15 @@ function categories(tool, input, options) {
       if (STATE_VARIABLES.test(plain) || configuredRoots().some(root => plain.includes(root)) || /\/(?:policy-approvals|org-policy(?:-status)?\.json|policy\.json)\b/.test(plain) && ctx.roots().some(root => plain.includes(root))) stop('plugin_state');
       if (!exempt && MODULE_REFERENCE.test(plain)) stop('policy_cli');
       if (!exempt && MODULE_MENTION.test(plain) && lines[index].some(line => { const list = tokens(line).map(token => path.basename(token)); return ordered(list, is(/^node(?:\.exe)?$/i), is(/^(?:-e|--eval|-p|--print|-)$/)); })) stop('policy_cli');
+      if (BURN_OVERRIDE_TEXT.test(plain) || BURN_STATE_TEXT.test(plain) || burnFilesConfigured().some(file => plain.includes(file))) override('command');
+      if (BURN_CODE.test(plain) && BURN_CODE_OVERRIDE.test(plain) && lines[index].some(line => { const list = tokens(line).map(token => path.basename(token)); return ordered(list, is(/^node(?:\.exe)?$/i), is(/^(?:-e|--eval|-p|--print|-)$/)); })) override('command');
     }
     if (ctx.incomplete) for (const list of lines) rawCategories(list, found);
     if (WRITE.test(tool) && !(typeof input?.command === 'string' && input.command === 'view')) {
-      for (const target of writePaths(input)) if (stateTarget(unescape(target), ctx)) stop('plugin_state');
+      for (const target of writePaths(input)) {
+        if (stateTarget(unescape(target), ctx)) stop('plugin_state');
+        if (burnStateTarget(unescape(target), ctx)) override('file');
+      }
     }
     // The workspace root is needed only for a delete, so it is resolved on first use.
     let workspace = null;
@@ -326,20 +385,25 @@ function categories(tool, input, options) {
           if (++examined > MAX_WORDS || ctx.forms > MAX_GLOB * 2) { ctx.incomplete = true; break; }
           const {list: forms, uncertain} = spellings(value, ctx);
           ctx.forms += forms.length;
-          verdict = {state: false, cli: false};
+          verdict = {state: false, cli: false, burn: false};
           for (const form of forms) {
             if (stateTarget(form, ctx)) verdict.state = true;
             // Any invocation of the helper other than the exact read-only form stops,
             // so a verb the shell fills in later is never trusted.
             if (invokesCli(form, ctx)) verdict.cli = true;
+            if (burnStateTarget(form, ctx)) verdict.burn = true;
           }
           for (const item of uncertain) { const reach = uncertainReaches(item, ctx); verdict.state ||= reach.state; verdict.cli ||= reach.cli; }
           ctx.verdicts.set(key, verdict);
         }
         if (verdict.state) stop('plugin_state');
         if (verdict.cli && !exempt) stop('policy_cli');
+        if (verdict.burn) override('command');
       }
       list = unwrap(list);
+      // A Burn verb the shell fills in later ($verb, a substitution) is not trusted either.
+      const verb = list.length ? burnVerb(list) : null;
+      if (verb !== null && (BURN_VERBS.has(verb) || /[$`]/.test(verb))) override('command');
       if (list.length) {
         const name = path.basename(list[0]).toLowerCase().replace(/@[^@]+$/, '');
         if (name === 'eval') nested(list.slice(1).join(' '));
@@ -388,12 +452,17 @@ function categories(tool, input, options) {
     ctx.incomplete = true;
     for (const list of lines) rawCategories(list, found);
   }
-  return {found, commands, lines, incomplete: ctx.incomplete, builtIn};
+  if (!burnOverride) {
+    let text = '';
+    try { text = JSON.stringify(input) ?? ''; } catch { /* An input that cannot be serialized names nothing here. */ }
+    if (BURN_MENTION.test(text)) { const attempt = burnLibraryAttempt(tool, input); if (attempt === 'command' || attempt === 'file') override(attempt); }
+  }
+  return {found, commands, lines, incomplete: ctx.incomplete, builtIn, burnOverride};
 }
 function scanCommands(config, tool, input, options = {}) {
   const ruleGroups = groups(config);
-  const {found, commands, lines, incomplete, builtIn} = categories(tool, input, options);
-  const result = {...(builtIn ? {builtInStop: builtIn} : {}), ...(incomplete ? {commandScanIncomplete: true} : {})};
+  const {found, commands, lines, incomplete, builtIn, burnOverride} = categories(tool, input, options);
+  const result = {...(builtIn ? {builtInStop: builtIn} : {}), ...(burnOverride ? {burnOverride} : {}), ...(incomplete ? {commandScanIncomplete: true} : {})};
   if (!ruleGroups.some(group => group.length)) return result;
   // Patterns see the whole text (continuations joined) only when it is short;
   // otherwise each bounded line is tested on its own and the split is recorded.
@@ -416,4 +485,4 @@ function commandResult(config, meta) {
   if (matches.some((match, index) => !match && meta.commandRuleIds[index] !== null)) throw new Error('command_rule_invalid');
   return matches.find(rule => rule?.action === 'block') ?? matches.find(rule => rule?.action === 'ask') ?? null;
 }
-module.exports = {scanCommands, commandResult, commandHash, POLICY_VERBS, MAX_SCAN_CHARS};
+module.exports = {scanCommands, commandResult, commandHash, POLICY_VERBS, BURN_VERBS, MAX_SCAN_CHARS};

@@ -4,7 +4,7 @@ const crypto = require('node:crypto');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const {warmBudget, COLD_MS} = require('./budget.cjs');
-const { locations, allow, metadata, spoolFailure, writeWorkerPid, hostContext, normalizeHookOutput } = require('./common.cjs');
+const { locations, allow, metadata, identifier, spoolFailure, writeWorkerPid, hostContext, normalizeHookOutput } = require('./common.cjs');
 
 function ensurePrivateIpc(loc) {
   fs.mkdirSync(loc.data, { recursive: true, mode: 0o700 });
@@ -104,6 +104,11 @@ async function run(gate, options = {}) {
   try {
     const raw = JSON.parse(text);
     meta = metadata(raw, gate);
+    // The host's permission mode (default, acceptEdits, auto, plan, dontAsk,
+    // bypassPermissions) decides whether a Burn STOP can wait for the person.
+    // It is a host setting, not tool input: only this bounded identifier crosses
+    // the IPC boundary, never the input or its text.
+    if (gate === 'burn') { const mode = identifier(raw.permission_mode, null); if (mode) meta.permissionMode = mode; }
     const result = await request({ meta, ...(gate === 'burn' && typeof raw.cwd === 'string' ? {workingDirectory: raw.cwd} : {}), ...(gate === 'burn' && typeof raw.transcript_path === 'string' ? { transcriptPath: raw.transcript_path } : {}) });
     if (result.warning) process.stderr.write('agentguard: internal error; allowed tool call; fail-open event recorded.'
       + (result.healthWarning ? ' ' + result.healthWarning.replace(/^agentguard: /, '') : '') + '\n');

@@ -8,7 +8,7 @@ function notifyStop({mode, stopped, ruleIds = [], notifyOnStop = true}, options 
   if ((options.platform ?? process.platform) !== 'darwin' || mode !== 'enforce' || !stopped || notifyOnStop === false) return false;
   const ids = [...new Set(ruleIds.filter(id => typeof id === 'string' && /^[A-Za-z0-9_.:-]{1,80}$/.test(id)))].slice(0, 14);
   if (!ids.length) ids.push('policy');
-  const message = ids.join(', ') + ': resume with agentguard-burn resume';
+  const message = ids.join(', ') + ': resume with npx agentguard-burn resume --once';
   try {
     const child = (options.execFile ?? execFile)('/usr/bin/osascript', ['-e', SCRIPT, message], {timeout: 1500, maxBuffer: 1024, windowsHide: true, detached: true, stdio: 'ignore'}, () => {});
     // Never hold the hook process open for the notification.

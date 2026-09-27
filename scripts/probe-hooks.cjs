@@ -93,7 +93,10 @@ async function runProbe({callsPerGate = 12, diskDelayMs = 0} = {}) {
       deniedTools: ['^mcp__synthetic__save_document$'], caps: [], toolRules: [], sessions: {}}), {mode: 0o600});
     const policy = structuredClone(burn.DEFAULT_POLICY);
     policy.mode = 'enforce';
-    policy.thresholds.fanout = {warn: callsPerGate + 5, stop: callsPerGate + 10, maxDepth: 10};
+    // Every measured spawn is admitted: fan-out and Burn 0.3's enforced spawn
+    // rate (16 in 15 active minutes by default) sit above the probe's count.
+    policy.thresholds.fanout = {...policy.thresholds.fanout, warn: callsPerGate + 5, stop: callsPerGate + 10, maxDepth: 10};
+    policy.thresholds.spawnRate = {...policy.thresholds.spawnRate, warn: callsPerGate + 5, stop: callsPerGate + 10};
     fs.writeFileSync(path.join(home, 'burn-policy.json'), JSON.stringify(policy), {mode: 0o600});
     const transcript = path.join(data, 'synthetic-transcript.jsonl');
     fs.writeFileSync(transcript, JSON.stringify({timestamp: new Date().toISOString(), usage: {input_tokens: 10, output_tokens: 1}}) + '\n', {mode: 0o600});

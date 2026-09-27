@@ -30,6 +30,14 @@ function writeWorkerPid(lock, pid) {
   fs.renameSync(temporary, lock);
 }
 function deny(reason) { return { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: reason.replace(/[\r\n]+/g, ' ').slice(0, 700) } }; }
+// Burn's own words (the STOP box, the override refusal) keep their lines: they
+// are rendered by Burn from counts, never from policy or tool text, and the box
+// is longer than one ordinary reason. Still bounded.
+const STOP_TEXT_LIMIT = 4000;
+function stopDeny(text) { return { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: String(text).replace(/\r/g, '').slice(0, STOP_TEXT_LIMIT) } }; }
+// Claude Code shows an ask as its own permission prompt: the person answers,
+// and the reason is shown to the person, not to Claude.
+function ask(reason) { return { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'ask', permissionDecisionReason: String(reason).replace(/\r/g, '').slice(0, STOP_TEXT_LIMIT) } }; }
 function identifier(value, fallback = 'unknown') {
   return typeof value === 'string' && /^[A-Za-z0-9_.:@/-]{1,256}$/.test(value) ? value : fallback;
 }
@@ -143,6 +151,22 @@ function matchingExternalBurn(meta, workingDirectory, env = process.env) {
   return false;
 }
 const claudeReaders = new WeakMap();
+// A Burn 0.3 cursor holds two maps: the depth of each transcript line and, per
+// model response, the usage already counted (Claude repeats one response's
+// usage on every content block). Each attempt works on its own copies, and the
+// file keeps both as entry lists. A cursor saved without the usage map (an
+// older plugin) resumes with an empty one, which Burn creates on first use.
+function copyCursor(cursor) {
+  return {...cursor, depthByUuid: new Map(cursor.depthByUuid),
+    usageByMessage: cursor.usageByMessage instanceof Map ? new Map(cursor.usageByMessage) : undefined};
+}
+function savedCursor(cursor) {
+  return {...cursor, depthByUuid: [...cursor.depthByUuid], usageByMessage: cursor.usageByMessage instanceof Map ? [...cursor.usageByMessage] : undefined};
+}
+function restoredCursor(saved) {
+  return {...saved, depthByUuid: new Map(saved.depthByUuid),
+    usageByMessage: Array.isArray(saved.usageByMessage) ? new Map(saved.usageByMessage) : undefined};
+}
 function claudeUsage(burn, gateway, meta, transcriptPath) {
   if (!transcriptPath) return;
   let readers = claudeReaders.get(gateway);
@@ -155,13 +179,13 @@ function claudeUsage(burn, gateway, meta, transcriptPath) {
     let saved;
     try { saved = JSON.parse(fs.readFileSync(file, 'utf8')); } catch {}
     reader = saved?.inode === inode && saved.cursor && Array.isArray(saved.cursor.depthByUuid)
-      ? {inode, index: saved.index, cursor: {...saved.cursor, depthByUuid: new Map(saved.cursor.depthByUuid)}}
+      ? {inode, index: saved.index, cursor: restoredCursor(saved.cursor)}
       : {inode, index: 0, cursor: burn.newCursor()};
   }
   if (reader.inode !== inode || fs.existsSync(transcriptPath) && fs.statSync(transcriptPath).size < reader.cursor.offset)
     reader = {inode, index: 0, cursor: burn.newCursor()};
   // Advance the persisted cursor only after the gateway stores the observations.
-  const next = {inode, index: reader.index, cursor: {...reader.cursor, depthByUuid: new Map(reader.cursor.depthByUuid)}};
+  const next = {inode, index: reader.index, cursor: copyCursor(reader.cursor)};
   const events = [];
   for (const record of burn.readIncremental(transcriptPath, next.cursor)) {
     const id = identifier(record.uuid, `line-${next.index++}`);
@@ -177,10 +201,12 @@ function claudeUsage(burn, gateway, meta, transcriptPath) {
   gateway.observe(events);
   fs.mkdirSync(directory, {recursive: true, mode: 0o700});
   const temporary = file + '.' + crypto.randomUUID();
-  fs.writeFileSync(temporary, JSON.stringify({...next, cursor: {...next.cursor, depthByUuid: [...next.cursor.depthByUuid]}}), {mode: 0o600});
+  fs.writeFileSync(temporary, JSON.stringify({...next, cursor: savedCursor(next.cursor)}), {mode: 0o600});
   fs.renameSync(temporary, file);
   readers.set(key, next);
 }
+// A warning names what happens at the limit, as Burn 0.3.18's own Claude hook does.
+const WARN_CONSEQUENCE = new Set(['spawn_rate', 'fanout', 'sustained_burn']);
 function runBurnHook(burn, gateway, meta, transcriptPath) {
   const raw = {session_id: meta.sessionId, tool_name: meta.toolName, tool_use_id: meta.toolUseId,
     hook_event_name: 'PreToolUse', transcript_path: transcriptPath, ...(meta.agentId ? {agent_id: meta.agentId} : {})};
@@ -205,11 +231,26 @@ function runBurnHook(burn, gateway, meta, transcriptPath) {
   const decision = gateway.beforeSpawn({schemaVersion: 1, kind: 'spawn_requested', eventId: `claude:request:${meta.toolUseId}`,
     host: 'claude-code', sessionId: meta.sessionId, at: Date.now(), spawnId: meta.toolUseId,
     proposedDepth: meta.agentId ? 2 : 1, attribution: 'high'});
-  if (decision.blocked) return {...observation, ...deny(burn.renderStop(decision.report, {colour: false}))};
+  // Only the host's permission mode crosses into this decision, never tool input.
+  // Claude Code can show its own prompt in default, acceptEdits, auto and plan
+  // mode (auto cannot approve it silently); bypassPermissions, dontAsk and
+  // print mode cannot, and a policy with "stopStyle": "deny" never asks.
+  const asks = burn.asksPerson({permission_mode: meta.permissionMode}, burn.loadPolicy(gateway.dataDirectory));
+  if (decision.blocked) {
+    if (asks) return {...observation, ...ask(burn.askReason(decision.report))};
+    // Burn's leading word joiner keeps Claude Code's "Error:" prefix off the box.
+    return {...observation, ...stopDeny('\u2060\n' + burn.renderStop(decision.report, {colour: false, host: 'claude-code'}))};
+  }
   const warnings = [observation.systemMessage];
-  if (decision.overridden) warnings.push(`AgentGuard STOP overridden${decision.overridden.once ? ' once' : ''}: ${decision.report.findings[0]?.summary ?? ''}`);
-  else if (decision.notify && decision.verdict !== 'OK') warnings.push(`AgentGuard ${decision.verdict}${decision.mode === 'shadow' && decision.wouldBlock ? ' (shadow: would have blocked)' : ''}: ${decision.report.findings[0]?.summary ?? ''}`);
+  // The line after an override names the limit it passed, not the first finding.
+  if (decision.overridden) warnings.push(burn.overriddenLine(decision.report, decision.overridden));
+  else if (decision.notify && decision.verdict !== 'OK') {
+    const warn = decision.verdict === 'WARN' ? decision.report.findings.find(finding => finding.verdict === 'WARN') : undefined;
+    const consequence = decision.mode === 'enforce' && warn && WARN_CONSEQUENCE.has(warn.detector)
+      ? (asks ? ' Past the limit, the next launch waits for your yes.' : ' Past the limit, the next launch is refused.') : '';
+    warnings.push(`AgentGuard ${decision.verdict}${decision.mode === 'shadow' && decision.wouldBlock ? ' (shadow: would have refused)' : ''}: ${burn.primarySummary(decision.report)}${consequence}`);
+  }
   return warnings.some(Boolean) ? {systemMessage: warnings.filter(Boolean).join('\n')} : {};
 }
-module.exports = { locations, allow, deny, metadata, identifier, spoolFailure, writeWorkerPid, SPAWN,
+module.exports = { locations, allow, deny, stopDeny, ask, metadata, identifier, spoolFailure, writeWorkerPid, SPAWN,
   hostContext, normalizeHookOutput, outcomeFlow, outcomeSuccess, minimumCapability, matchingExternalBurn, standaloneBurnCommand, runBurnHook };

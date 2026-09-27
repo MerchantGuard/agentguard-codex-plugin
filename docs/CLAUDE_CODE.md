@@ -16,6 +16,10 @@ its existing generated compatibility directory and hook source path.
 Command hooks use the regular-expression matcher `.*`. A policy denial uses
 `hookSpecificOutput` with `hookEventName: PreToolUse`,
 `permissionDecision: deny` and a one-line `permissionDecisionReason`.
+Burn's STOP box and its refusal of an agent override keep Burn's own lines.
+A Burn STOP in default, acceptEdits, auto or plan mode returns
+`permissionDecision: ask` with Burn's three-line reason, which Claude Code
+shows to the person in its own permission prompt and not to Claude.
 An admission returns an empty successful object, preserving Claude's own
 permission checks. Internal failures also abstain and attempt to record a
 fail-open event. Successful and failed calls have separate receipt events:
@@ -34,6 +38,7 @@ capture files and authentication state are excluded from the distribution.
 - `tool_input`: Compute SHA256, serialized byte count and key count in memory.
 - `transcript_path`: Pass the locator to Burn for local usage observation.
 - `cwd`: Find an applicable standalone Burn hook.
+- `permission_mode`: Decide whether a Burn STOP waits for the person (default, acceptEdits, auto, plan) or is refused (bypassPermissions, dontAsk, absent). Only this bounded identifier reaches the worker.
 - `hook_event_name`: Distinguish a failed tool from a successful receipt event.
 - `tool_response`: Measure serialized output bytes without retaining output text.
 - `agent_id`: Preserve the host's subagent identifier when present.

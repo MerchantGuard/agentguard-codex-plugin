@@ -52,6 +52,10 @@ function validateModules(modules, info) {
   modules = fs.realpathSync(modules);
   for (const [relative, expected] of info.packages) {
     const directory = path.join(modules, relative.slice('node_modules/'.length));
+    // The lockfile lists an optional native package for every platform (Burn's
+    // canvas binaries), and npm installs only the one this machine runs. An
+    // absent optional package is expected; a present one is checked like any other.
+    if (expected.optional === true && !fs.lstatSync(directory, {throwIfNoEntry: false})) continue;
     if (!contained(fs.realpathSync(directory), modules)) throw new Error('AgentGuard dependency escapes its installation.');
     const actual = JSON.parse(fs.readFileSync(path.join(directory, 'package.json'), 'utf8'));
     if (actual.version !== expected.version) throw new Error('AgentGuard installed dependency version differs from the lockfile.');
