@@ -20,11 +20,22 @@ function enforcing(sessionId) {
   catch (error) { return error.code === 'ENOENT'; }
   return burn?.mode === 'enforce' && Boolean(burn.thresholds);
 }
+// A Burn policy file that exists but that Burn ignores (bad JSON, no "mode", no
+// "thresholds") leaves the defaults, which only watch: enforcement is off and
+// nothing said so. Burn 0.3.21 names the file and the fix in one line; this
+// shows it word for word. Burn 0.3.20 has no such check.
+function ignoredPolicyLine() {
+  const burn = require('../runtime/dependencies.cjs').loadDependency('@agentguard-run/burn');
+  if (typeof burn.checkPolicyFile !== 'function') return null;
+  const check = burn.checkPolicyFile(process.env.AGENTGUARD_HOME || path.join(os.homedir(), '.agentguard'));
+  return check?.status === 'ignored' && typeof check.line === 'string' ? check.line : null;
+}
 function normal() {
-let sessionId;
+let sessionId, source;
 try {
   const raw = JSON.parse(text);
   sessionId = raw.session_id || raw.sessionId;
+  if (typeof raw.source === 'string') source = raw.source;
   if (typeof sessionId !== 'string' || sessionId.length > 512 || !sessionId) throw new Error();
   const child = spawn(process.execPath, [path.join(__dirname, '../runtime/session-start.cjs'), sessionId, String(process.ppid)],
     {detached: true, stdio: 'ignore', env: process.env});
@@ -38,6 +49,10 @@ try {
 let missing = null;
 try { missing = require('../runtime/dependencies.cjs').missingDependenciesNotice(); } catch { /* Startup continues as before. */ }
 if (missing) { process.stdout.write(JSON.stringify({systemMessage: missing}) + '\n'); return; }
+// An ignored policy file is an error, so its line shows even with quiet on,
+// comes first, and holds the first-run line (which says limits are on) unclaimed.
+let policyLine = null;
+try { policyLine = ignoredPolicyLine(); } catch { /* The check never affects startup. */ }
 let output = {};
 const moments = require('../runtime/upgrade-moments.cjs');
 try {
@@ -60,17 +75,24 @@ try {
 try {
   // Once per machine; its claim is taken only when shown. It is placed first,
   // ahead of the long preset command, so the person reads it before anything else.
-  const line = moments.firstRun({host: require('../runtime/common.cjs').hostContext().host, enforcing: enforcing(sessionId)});
+  const line = moments.firstRun({host: require('../runtime/common.cjs').hostContext().host, enforcing: !policyLine && enforcing(sessionId)});
   if (line) output.systemMessage = [line, output.systemMessage].filter(Boolean).join('\n');
 } catch { /* The first-run line never affects startup. */ }
 try {
   // The invitation waits for a session with nothing else to say. Its claim is
   // only taken when it is shown, so a later quiet startup still carries it.
-  if (!output.systemMessage) {
+  if (!output.systemMessage && !policyLine) {
     const invite = moments.scoreInvite();
     if (invite) output.systemMessage = invite;
   }
 } catch { /* The invitation never affects startup. */ }
+if (policyLine) output.systemMessage = [policyLine, output.systemMessage].filter(Boolean).join('\n');
+try {
+  // The tip from the last session comes after every other line and uses up
+  // none of them. It reads one small file and waits for nothing.
+  const tip = require('../runtime/session-tip.cjs').take({sessionId, source});
+  if (tip) output.systemMessage = [output.systemMessage, tip].filter(Boolean).join('\n');
+} catch { /* The tip never affects startup. */ }
 process.stdout.write(JSON.stringify(output) + '\n');
 }
 // Benchmark mode handles the call only with the operator's signed consent for

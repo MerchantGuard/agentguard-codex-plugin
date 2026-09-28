@@ -185,7 +185,7 @@ root after adding the plugin and run `npm ci` to provision the locked registry
 dependencies.
 
 The plugin depends on published `@agentguard-run/spend ^0.20.0` and
-`@agentguard-run/burn ^0.3.20`. It uses no sibling links. Burn's lockfile
+`@agentguard-run/burn ^0.3.21`. It uses no sibling links. Burn's lockfile
 entries include an optional native canvas package for each platform; npm
 installs only the one this machine runs, and the dependency check accepts the
 others as absent while still checking any that are present. Codex's Git
@@ -376,7 +376,7 @@ directory itself.
 - `push`: explicitly sync policy configuration to your Solo machines.
 - `pending`: list the Codex calls that are held for approval, with their tokens, in the operator's own terminal.
 - `approve <token>`: approve one exact held Codex call after operator confirmation, in the operator's own terminal.
-- `quiet on`: permanently dismiss the weekly STOP invitation, monthly Burn summary and per-version announcement on this machine.
+- `quiet on`: permanently dismiss the weekly STOP invitation, monthly Burn summary, per-version announcement and the tip from your last session on this machine.
 
 Writes validate before an atomic replacement and print a before and after
 diff. Presets replace mode, caps, command rules and guard settings, preserving
@@ -749,4 +749,4 @@ The agent cannot lift a STOP itself. While Burn enforces, the plugin refuses an 
 
 On macOS, an enforced STOP posts a local desktop notification with the rule ID and the override command the STOP box prints. A launch waiting for your answer in Claude Code does not notify: the prompt is already in front of you. Set `notifyOnStop: false` in the plugin policy to disable it; the default is `true`. Other platforms do not notify. Notifications use only local `osascript`, with no network requests, and cannot change the tool decision. Repeated delivery of the same signed decision does not notify again. Burn resume permits a Burn action; spend caps and other rules must be changed in the policy that stopped the call.
 
-Free upgrade moments are local display only. After an enforced STOP, one Solo line can appear separately from the block reason, at most once in a rolling seven-day window. Burn status shows UTC month-to-date local counts and one Team invitation per month. SessionStart announces each plugin version once, and once per machine says AgentGuard is on, what the limits are and how to see where a session went (`! npx agentguard-burn why`); that line waits while this machine is in shadow or the plugin's dependencies are missing. `quiet on` shares a permanent local marker with Burn under `AGENTGUARD_HOME` or the default AgentGuard home; presets do not reset it. No request, decision reason or receipt contains upgrade copy.
+Free upgrade moments are local display only. After an enforced STOP, one Solo line can appear separately from the block reason, at most once in a rolling seven-day window. Burn status shows UTC month-to-date local counts and one Team invitation per month. SessionStart announces each plugin version once, and once per machine says AgentGuard is on, what the limits are and how to see where a session went (`! npx agentguard-burn why`); that line waits while this machine is in shadow or the plugin's dependencies are missing. When a session ends, a detached process reads its transcript with Burn and keeps the one tip `npx agentguard-burn why` would end it with, except that where `why` points to this plugin the tip names the action a STOP gives instead ("Give related work to one sub-agent instead of several."); the next new session (a startup or `/clear`, not a resume or compaction) shows it once, after every other line, as "AgentGuard tip from your last session: ...". The same words are not shown twice within a day, and the hooks themselves never read a transcript. If Burn ignores `burn-policy.json` (bad JSON, no "mode", no "thresholds"), enforcement is off, so session start says so first, in Burn's own words, even with `quiet on`, and the "AgentGuard is on" line waits until the file is fixed. `quiet on` shares a permanent local marker with Burn under `AGENTGUARD_HOME` or the default AgentGuard home; presets do not reset it. No request, decision reason or receipt contains upgrade copy.

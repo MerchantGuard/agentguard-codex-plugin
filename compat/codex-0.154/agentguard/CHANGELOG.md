@@ -1,3 +1,14 @@
+## 0.3.15 - 2026-09-27
+
+- Runs Burn 0.3.21 (the plugin now depends on `@agentguard-run/burn ^0.3.21`).
+- In Claude Code, the tokens your sub-agents use now count toward "Session so far" and toward the session's token limit (5B by default), as they do in Burn's own hook. Before, only the main conversation counted: a session Burn put at 4.0M tokens showed 102K here, so the 5B limit came later than it should.
+- The plugin reads each sub-agent's transcript beside the session's own, each from where it stopped last time, so a later tool call reads only new lines. A worker that restarts picks up where the last one stopped.
+- When a STOP holds a launch for your yes, or refuses it, the prompt and the box now end with Burn's line about the session's finished sub-agents, word for word as Burn prints it, for example: "The 3 sub-agents that finished in this session averaged 1.3M tokens each ($1.70 at API prices, not a bill). This one could differ."
+- When a session ends, the plugin keeps the one tip `npx agentguard-burn why` would end it with, and the next new session shows it once, for example: "AgentGuard tip from your last session: sub-agents used 48.9% of this session's tokens. Give related work to one sub-agent instead of several." Where `why` would point you to this plugin, which you already run, the tip names that action instead, the one a STOP shows for too many sub-agents. A separate process reads the transcript after the session ends (with its sub-agents in Claude Code, the rollout in Codex), so ending or starting a session waits for nothing: session start reads one small file. The tip shows only when there is one, only in a new session (a startup or `/clear`, not a resume or a compaction), after every other startup line, and never the same words twice within a day. `quiet on` hides it.
+- If Burn ignores your `burn-policy.json` because of a mistake (bad JSON, no "mode", no "thresholds"), it falls back to defaults that only watch, so enforcement is off. Session start now says so first, in Burn's words, even with `quiet on`, for example: "AgentGuard ignored ~/.agentguard/burn-policy.json: it has no "mode". Using the defaults, which only watch. Add "mode": "enforce" to turn limits back on." The "AgentGuard is on" line waits until the file is fixed.
+- The sub-agent counting is for Claude Code; the tip and the policy line work in Claude Code and Codex.
+- Known limit: the tips use `why`'s words, which are written for Claude Code, so after a Codex session a tip can say "Claude" or name `/compact` and `/clear`.
+
 ## 0.3.14 - 2026-09-27
 
 - Runs Burn 0.3.20 (the plugin now depends on `@agentguard-run/burn ^0.3.20`). `npx agentguard-burn calendar` shows tokens per day for every Claude Code and Codex session on this machine, and `npx agentguard-burn why` now ends with the one change that matters most for that session.
