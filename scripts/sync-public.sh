@@ -73,6 +73,8 @@ runtime/policy-state.cjs
 runtime/policy-cli.cjs
 runtime/policy-approval.cjs
 runtime/upgrade-moments.cjs
+runtime/session-tip.cjs
+runtime/benchmark.cjs
 runtime/open-report.cjs
 runtime/command-policy.cjs
 runtime/presets/solo-dev.json
@@ -127,6 +129,10 @@ tests/org-policy.test.cjs
 tests/org-worker.test.cjs
 tests/policy-ux.test.cjs
 tests/upgrade-moments.test.cjs
+tests/session-tip.test.cjs
+tests/burn-subagents.test.cjs
+tests/burn-policy-line.test.cjs
+tests/helper-session-start.cjs
 tests/solo-policy-sync.test.cjs
 tests/license.test.cjs
 tests/seat-heartbeat.test.cjs
