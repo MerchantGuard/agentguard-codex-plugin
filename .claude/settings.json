@@ -1,0 +1,48 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/secrets/**)",
+      "Read(~/.ssh/**)",
+      "Edit(**/.env)",
+      "Edit(**/.env.*)",
+      "Edit(**/*.pem)",
+      "Edit(**/*.key)",
+      "Edit(**/secrets/**)",
+      "Edit(~/.ssh/**)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f*)",
+      "Bash(git reset --hard*)",
+      "Bash(git reset * --hard*)",
+      "Bash(git clean -f*)",
+      "Bash(git clean -*f*)",
+      "Bash(rm -rf*)",
+      "Bash(rm -fr*)",
+      "Bash(rm -Rf*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CLAUDE_PLUGIN_ROOT=\"$CLAUDE_PROJECT_DIR\" CLAUDE_PLUGIN_DATA=\"$HOME/.agentguard/repo-hooks\" node \"$CLAUDE_PROJECT_DIR/hooks/burn-gate.cjs\"",
+            "timeout": 2
+          },
+          {
+            "type": "command",
+            "command": "CLAUDE_PLUGIN_ROOT=\"$CLAUDE_PROJECT_DIR\" CLAUDE_PLUGIN_DATA=\"$HOME/.agentguard/repo-hooks\" node \"$CLAUDE_PROJECT_DIR/hooks/spend-gate.cjs\"",
+            "timeout": 2
+          }
+        ]
+      }
+    ]
+  }
+}

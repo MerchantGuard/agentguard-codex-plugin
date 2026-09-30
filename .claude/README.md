@@ -1,0 +1,2 @@
+settings.json runs this checkout's own AgentGuard gates (hooks/burn-gate.cjs and hooks/spend-gate.cjs, with state in ~/.agentguard/repo-hooks) before every Claude Code tool call, and denies reads and edits of secret files plus force pushes, hard resets, git clean and rm -rf.
+Run `npm ci` once after cloning, because until its two locked dependencies are installed the hooks allow every call and print an internal error instead of gating.

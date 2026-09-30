@@ -29,6 +29,8 @@ cat > "$sync_tmp/files.txt" <<'FILES'
 .mcp.json
 .claude-plugin/plugin.json
 .claude-plugin/marketplace.json
+.claude/settings.json
+.claude/README.md
 .gitignore
 .agents/plugins/marketplace.json
 plugin.json
@@ -234,6 +236,12 @@ done
 mkdir -p -- "$destination/.agents/plugins"
 rsync -a --delete "$sync_tmp/package/.agents/plugins/" "$destination/.agents/plugins/"
 for file in .app.json .mcp.json .gitignore plugin.json mcp.json package.json package-lock.json README.md LICENSE CHANGELOG.md; do
+  rsync -a "$sync_tmp/package/$file" "$destination/$file"
+done
+# Contributor settings are copied file by file, so a checkout's own
+# .claude/settings.local.json is never deleted.
+mkdir -p -- "$destination/.claude"
+for file in .claude/settings.json .claude/README.md; do
   rsync -a "$sync_tmp/package/$file" "$destination/$file"
 done
 printf '%s\n' 'Public checkout synchronized. Review the working tree before committing or pushing.'
