@@ -99,6 +99,7 @@ runtime/agent-score-questions.cjs
 runtime/owned-log.cjs
 runtime/budget.cjs
 runtime/health.cjs
+runtime/mod-status.cjs
 hooks/hooks.json
 hooks/codex-hooks.json
 hooks/session-start.cjs
@@ -106,6 +107,7 @@ hooks/session-end.cjs
 hooks/burn-gate.cjs
 hooks/spend-gate.cjs
 hooks/receipt.cjs
+hooks/agentguard-live.mjs
 config/default-policy.json
 skills/agentguard-policy/SKILL.md
 skills/agentguard-score/SKILL.md
@@ -133,6 +135,9 @@ tests/policy-ux.test.cjs
 tests/upgrade-moments.test.cjs
 tests/session-tip.test.cjs
 tests/burn-subagents.test.cjs
+tests/mod-status.test.cjs
+tests/reader-metadata.test.cjs
+tests/agentguard-live.test.ts
 tests/burn-policy-line.test.cjs
 tests/helper-session-start.cjs
 tests/solo-policy-sync.test.cjs

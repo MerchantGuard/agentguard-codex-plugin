@@ -1,3 +1,10 @@
+## 0.3.16 - 2026-10-02
+
+- AgentGuard Live, for Claude Code 2.1.287 and later: the plugin now ships a Claude Code mod, so there is nothing more to install. A band above the prompt shows how close the session is to its sub-agent limits (15 in 15 active minutes, 40 in 120) and its 5B token limit, the share of tokens that went to sub-agents, and your plan limit, for example "AgentGuard  sub-agents 12 of 15 · tokens 1.2B of 5B · weekly 76% · /agentguard". A count turns yellow at 70% of its limit and red at the limit.
+- `/agentguard` opens a pane with this session's sub-agent launches, asks and stops, newest first, each a row in AgentGuard's signed ledger, and a key that verifies every signature on this machine.
+- The mod reads the numbers the gates decide on, with Burn's own window sums, and decides nothing itself: enforcement stays in the plugin's hooks, so Codex, older Claude Code and `claude -p` behave as before, and where nothing is drawn the mod does no work. `AGENTGUARD_LIVE=0` turns the band and pane off.
+- Verification and the MCP tools now read every kind of row the gates write in Claude Code: a launch with its permission mode, an asked launch, the Burn policy seeded by the first enforced launch, and an agent's attempt to lift a STOP. Any other field is still refused.
+
 ## 0.3.15 - 2026-09-27
 
 - Runs Burn 0.3.21 (the plugin now depends on `@agentguard-run/burn ^0.3.21`).

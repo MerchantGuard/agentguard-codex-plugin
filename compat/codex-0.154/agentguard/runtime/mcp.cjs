@@ -62,6 +62,20 @@ const DECISION_KEYS = new Set(['decisionId', 'timestamp', 'action', 'triggeredCa
 const PLUGIN_KEYS = new Set(['schema', 'event', 'toolName', 'inputSha256', 'inputBytes', 'inputKeys', 'toolUseId', 'sessionId', 'agentId', 'capabilityTier', 'unitCostCents', 'chargedCents', 'chargedWindows', 'startedAt', 'durationMs', 'durationSource', 'outputBytes', 'success', 'decisionId', 'gate', 'reasonCode', 'burnReceiptId', 'license', 'policyReasonCode', 'requestId', 'integrity', 'host']);
 const FORBIDDEN_KEY = /^(?:tool_input|tool_response|tool_output|input|output|prompt|completion|content|messages|text|body|raw|privateKey|private_key|signingKey|signing_key|secret|secretKey|secret_key|accessToken|access_token|authorization|apiKey|api_key|licenseKey|license_key)$/i;
 for (const key of ['commandPolicyHash', 'commandRuleIds', 'commandScanFailed', 'commandScanIncomplete', 'builtInStop', 'approvalNeeded', 'approvalRuleId', 'guardRuleIds', 'guardScanReason', 'guardPack', 'guardPackMessage']) PLUGIN_KEYS.add(key);
+// Fields the gates write that are not covered above, each with the only values
+// it can hold: the Claude Code permission mode a launch was decided under, an
+// asked launch, the Burn policy the first enforced launch seeded, an agent's
+// attempt to lift a Burn STOP, and a benchmark run's consent.
+const RECORDED_FIELDS = {
+  permissionMode: value => typeof value === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(value),
+  asked: value => value === true,
+  burnPolicyMode: value => value === 'enforce' || value === 'shadow',
+  burnPolicySha256: value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value),
+  burnOverride: value => value === 'command' || value === 'file',
+  runId: value => typeof value === 'string' && /^[A-Za-z0-9_.:-]{1,256}$/.test(value),
+  granted: value => typeof value === 'boolean',
+};
+for (const key of Object.keys(RECORDED_FIELDS)) PLUGIN_KEYS.add(key);
 const GUARD_RULES = new Map(RULES.map(rule => [rule.id, rule]));
 
 function validateGuardMetadata(metadata) {
@@ -103,6 +117,7 @@ function validateEntry(entry) {
     if (metadata !== undefined && (!metadata || typeof metadata !== 'object' || Array.isArray(metadata) || Object.keys(metadata).some(key => !PLUGIN_KEYS.has(key)))) throw new Error('Plugin metadata schema is invalid.');
     if (metadata?.host !== undefined && (typeof metadata.host !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(metadata.host))) throw new Error('Plugin host metadata is invalid.');
     validateGuardMetadata(metadata);
+    for (const [key, valid] of Object.entries(RECORDED_FIELDS)) if (metadata?.[key] !== undefined && !valid(metadata[key])) throw new Error('Plugin recorded metadata is invalid.');
     if (metadata?.integrity !== undefined && (!metadata.integrity || typeof metadata.integrity !== 'object' || Array.isArray(metadata.integrity) || Object.keys(metadata.integrity).some(key => !['reason', 'confirmedSequence', 'confirmedHash', 'recoveredHeadHash', 'recoveredRows', 'truncatedBytes', 'checkpointMissing'].includes(key)))) throw new Error('Integrity metadata schema is invalid.');
     if (metadata?.chargedWindows !== undefined && (!Array.isArray(metadata.chargedWindows) || metadata.chargedWindows.some(window => !window || typeof window !== 'object' || Array.isArray(window) || Object.keys(window).some(key => !['scopeKey', 'window', 'windowStart'].includes(key))))) throw new Error('Plugin budget metadata schema is invalid.');
   }
@@ -219,7 +234,7 @@ async function agentScore(args, options) {
 function summary(entry) {
   const d = entry.decision;
   const metadata = d.plugin || d.outcomeReceipt?.plugin || {};
-  return { sequence: entry.sequence, entryHash: entry.entryHash, decisionId: d.decisionId, timestamp: d.timestamp, action: d.action, entryType: d.entryType || 'decision', provider: d.provider, model: d.modelRequested, actor: d.actor, projectedCents: d.projectedCents, reasons: d.reasons, originalDecisionId: d.originalDecisionId, toolName: metadata.toolName, event: metadata.event, gate: metadata.gate, host: metadata.host || 'unknown' };
+  return { sequence: entry.sequence, entryHash: entry.entryHash, decisionId: d.decisionId, timestamp: d.timestamp, action: d.action, entryType: d.entryType || 'decision', provider: d.provider, model: d.modelRequested, actor: d.actor, projectedCents: d.projectedCents, reasons: d.reasons, originalDecisionId: d.originalDecisionId, toolName: metadata.toolName, event: metadata.event, gate: metadata.gate, host: metadata.host || 'unknown', asked: metadata.asked === true };
 }
 
 function failOpen(decision) {

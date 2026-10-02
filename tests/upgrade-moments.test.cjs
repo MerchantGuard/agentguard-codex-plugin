@@ -52,7 +52,7 @@ test('version announcements appear once per exact plugin version and persist acr
 test('every version line is keyed to its version, and a version without an entry (this release, an unknown one) announces nothing without burning a claim', t => {
   const {home} = fixture(t);
   const version = require('../package.json').version;
-  // 0.3.15 ships without a WHATS_NEW entry on purpose: it announces nothing and burns no claim.
+  // 0.3.16 ships without a WHATS_NEW entry on purpose: it announces nothing and burns no claim.
   assert.equal(Object.hasOwn(WHATS_NEW, version), false, `WHATS_NEW has an entry for ${version}; this release announces nothing`);
   for (const [key, line] of Object.entries(WHATS_NEW)) assert.ok(line.startsWith(`What's new in AgentGuard ${key}:`), key);
   assert.equal(whatsNew(version, {home}), null);
@@ -92,7 +92,7 @@ test('SessionStart announces nothing for a version without an entry, the invitat
   fs.writeFileSync(preload, "require('node:child_process').spawn = () => ({on(){}, unref(){}});");
   const start = () => spawnSync(process.execPath, ['-r', preload, 'hooks/session-start.cjs'], {cwd: root, env: process.env, input: '{"session_id":"synthetic-version"}', encoding: 'utf8'});
   const first = start(); assert.equal(first.status, 0);
-  // 0.3.15 has no WHATS_NEW entry: the first startup carries the once-per-machine first-run line, then the preset hint, no version line, and burns no version claim.
+  // 0.3.16 has no WHATS_NEW entry: the first startup carries the once-per-machine first-run line, then the preset hint, no version line, and burns no version claim.
   assert.match(JSON.parse(first.stdout).systemMessage, /^AgentGuard is on\. [^\n]+\nAgentGuard presets: /);
   assert.ok(!JSON.parse(first.stdout).systemMessage.includes("What's new in AgentGuard"));
   assert.equal(claim('plugin-version-' + require('../package.json').version, {home}), true);

@@ -10,6 +10,8 @@ const jsonBytes = value => Buffer.from(JSON.stringify(value, null, 2) + '\n');
 
 function codexHooks() {
   const source = JSON.parse(fs.readFileSync(path.join(root, 'hooks/hooks.json'), 'utf8'));
+  // Mods are a Claude Code feature; Codex reads the settings hooks alone.
+  delete source.modules;
   delete source.hooks.PostToolUseFailure;
   for (const groups of Object.values(source.hooks)) for (const group of groups) {
     for (const hook of group.hooks) hook.command = hook.command.replaceAll('${CLAUDE_PLUGIN_ROOT}', '${PLUGIN_ROOT}');
