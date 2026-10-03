@@ -3,7 +3,8 @@
 // how close this session is to its sub-agent limits and its token limit, the
 // share of tokens that went to sub-agents, and plan usage. Each launch's row in
 // the conversation gets AgentGuard's word on it: allowed, asked, stopped, with
-// its signed ledger row. The pane lists each launch, ask and stop.
+// its signed ledger row. The pane lists each launch, ask and stop, and the
+// work receipt of the last finished session.
 // Nothing here decides or blocks. The plugin's settings hooks enforce, the
 // same way in Codex and in Claude Code without mods; this module only reads,
 // through runtime/mod-status.cjs, and draws.
@@ -165,6 +166,26 @@ function stampFor(row) {
   return RESULT_PILL[result] ? { label: RESULT_PILL[result], seen, signed } : null
 }
 
+// The last finished session's work receipt, one line of its counts: what the
+// receipt holds and nothing more, so a count it left out stays out
+function receiptLine(receipt) {
+  const parts = []
+  if (typeof receipt.tokens === 'number') parts.push(compact(receipt.tokens) + ' tokens')
+  const sub = receipt.subagents
+  if (sub && typeof sub.started === 'number') parts.push(sub.started + (sub.started === 1 ? ' sub-agent' : ' sub-agents'))
+  const d = receipt.decisions
+  if (d && typeof d.allowed === 'number') {
+    const total = d.allowed + d.asked + d.stopped
+    const notes = []
+    if (d.asked) notes.push(d.asked + ' asked')
+    if (d.stopped) notes.push(d.stopped + ' stopped')
+    parts.push(total + (total === 1 ? ' decision' : ' decisions') + (notes.length ? ', ' + notes.join(', ') : ''))
+  }
+  parts.push('signed #' + receipt.sequence)
+  const when = receipt.at ? resets(receipt.at) : ''
+  return 'Work receipt, last finished session' + (when ? ' (' + when + ')' : '') + ': ' + parts.join(' · ')
+}
+
 function paneLines() {
   const lines = [{ text: 'This session', bold: true }]
   const burn = status && status.burn
@@ -199,6 +220,7 @@ function paneLines() {
     ] })
   }
   lines.push({ text: ' ' })
+  if (ledger && ledger.receipt && typeof ledger.receipt.sequence === 'number') lines.push({ text: receiptLine(ledger.receipt), truncate: true })
   if (ledger) {
     const base = 'Ledger: ' + grouped(ledger.ledger.entries) + ' signed rows'
     if (verified && verified.ok) lines.push({ text: base + ' · signatures verified at ' + clock(verified.at).slice(0, 5), color: 'green', truncate: true })

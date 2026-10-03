@@ -12,7 +12,8 @@ const { OwnedLogStore } = require('./owned-log.cjs');
 const {readSessionLicense} = require('./license.cjs');
 const {guardResult} = require('./guard-pack.cjs');
 const {notifyStop} = require('./notify-stop.cjs');
-const { locations, allow, deny, stopDeny, SPAWN, hostContext, runBurnHook, matchingExternalBurn, outcomeFlow, minimumCapability } = require('./common.cjs');
+const { locations, allow, deny, stopDeny, SPAWN, hostContext, runBurnHook, matchingExternalBurn, outcomeFlow, minimumCapability, identifier, claudeUsage, claudeCursorFile, readsSubagents } = require('./common.cjs');
+const workReceipt = require('./work-receipt.cjs');
 const tiers = ['read_only', 'data_write', 'payment_initiate', 'payment_execute'];
 const durations = { per_minute: 60000, per_hour: 3600000, per_day: 86400000, per_month: 2592000000 };
 const startWindow = (window, now = Date.now()) => Math.floor(now / durations[window]) * durations[window];
@@ -51,6 +52,8 @@ class Engine {
     this.loc = locations(); this.spendStore = new sdk.InMemorySpendStore(); this.pending = new Map(); this.completed = new Map(); this.failures = new Set(); this.computedBlocks = new Map();
     this.outcomes = new sdk.SpendGuard({ policy: basePolicy, spendStore: this.spendStore, licensePostJson: offline });
     this.sessionCharges = new Map(); this.guards = new Map(); this.orgPolicyDigests = new Map(); this.sessionFailures = new Map();
+    // Each session's calls by result, for its work receipt.
+    this.tally = new workReceipt.SessionTally();
   }
   // Session charges are folded per session so a long session cannot grow the
   // worker without bound or slow every later cap check.
@@ -102,6 +105,7 @@ class Engine {
     this.sequence = entries.length; this.previousHash = entries.at(-1)?.entryHash ?? sdk.GENESIS_PREVIOUS_HASH;
     for (const entry of entries) {
       const decision = entry.decision, meta = decision.plugin;
+      this.tally.observe(decision);
       if (!meta) continue;
       if (meta.event === 'decision') {
         if (meta.gate === 'spend' && decision.action !== 'block' && meta.chargedCents) this.addCharge(decision.actor, meta.chargedCents);
@@ -127,6 +131,9 @@ class Engine {
     }
     // Import deferred events only after validating the existing chain.
     await this.drainSpool();
+    // Receipts for sessions that ended while no worker could take them. A
+    // receipt can never stop the worker from starting.
+    try { await this.drainReceiptSpool(); } catch { /* Read again at the next request or start. */ }
   }
   setSessionFailure(sessionId, source, reason) {
     const existing = this.sessionFailures.get(sessionId);
@@ -221,7 +228,65 @@ class Engine {
   async append(decision) {
     const entry = await sdk.signDecision({ sequence: this.sequence, decision, previousHash: this.previousHash, privateKey: this.privateKey, publicKey: this.publicKey });
     await this.logStore.append(entry); this.sequence++; this.previousHash = entry.entryHash;
+    this.tally.observe(decision);
     return decision;
+  }
+  // The work receipt for a session that ended: one signed row with counts
+  // only, at most once per session. Deferred fail-open events are recorded
+  // first, so the receipt counts every call this plugin decided.
+  async sessionReceipt({sessionId, transcriptPath} = {}) {
+    try { await this.drainSpool(); } catch { /* The receipt counts the rows already signed. */ }
+    let result;
+    try { result = await this.writeReceipt({sessionId, transcriptPath}); }
+    catch { result = {receipt: 'failed'}; }
+    // Older requests that waited for a worker come after this one, which knows more.
+    try { await this.drainReceiptSpool(); } catch { /* Read again at the next request or start. */ }
+    return result;
+  }
+  async writeReceipt({sessionId, transcriptPath}) {
+    const id = identifier(sessionId, null);
+    if (!id) return {receipt: 'invalid'};
+    if (this.tally.receipted.has(id)) return {receipt: 'duplicate'};
+    const {cursor, view} = this.burnFacts(id, transcriptPath);
+    const receipt = workReceipt.buildReceipt({counts: this.tally.counts(id), cursor, view,
+      burnPolicyMode: this.burnPolicyMode(), pluginVersion: require('../package.json').version});
+    const row = this.basic({toolName: workReceipt.RECEIPT_EVENT, sessionId: id, toolUseId: crypto.randomUUID(), gate: 'control'}, 'allow', workReceipt.RECEIPT_EVENT);
+    row.plugin = {...row.plugin, event: workReceipt.RECEIPT_EVENT, receipt};
+    await this.append(row);
+    return {receipt: 'appended', sequence: this.sequence - 1, entryHash: this.previousHash};
+  }
+  // Requests that waited for a worker get receipts from the ledger alone: the
+  // transcript locator is never stored, so Burn's counts are left out. A
+  // request that fails waits again for the next request or start.
+  async drainReceiptSpool() {
+    for (const request of workReceipt.takeSpool(this.loc.data)) {
+      try { await this.writeReceipt({sessionId: request.sessionId}); }
+      catch { workReceipt.spoolRequest(this.loc.data, request.sessionId, request.endedAt); }
+    }
+    workReceipt.finishSpool(this.loc.data);
+  }
+  // Burn's reader for a Claude Code session, advanced to the end of its
+  // transcripts the way the burn gate advances it on each tool call: the
+  // cursor (sub-agents) and Burn's record of the session (tokens). Nothing
+  // when the host is not Claude Code, the transcript cannot be read, Burn has
+  // no sub-agent reader, or a session never read here is too large to read now.
+  burnFacts(sessionId, transcriptPath) {
+    if (hostContext().host !== 'claude-code' || !workReceipt.transcriptLocator(transcriptPath) || !readsSubagents(burn)) return {};
+    try {
+      if (!fs.statSync(transcriptPath).isFile()) return {};
+      if (!fs.existsSync(claudeCursorFile(sessionId, transcriptPath).file) && workReceipt.transcriptBytes(transcriptPath) > workReceipt.UNREAD_LIMIT_BYTES) return {};
+      // The burn gate's own gateway when it has one; otherwise one that reads
+      // and records usage without creating Burn's signing key.
+      const gateway = this.gateway ?? (this.receiptGateway ??= new burn.Gateway(burnHome(), {sign: false}));
+      const cursor = claudeUsage(burn, gateway, {sessionId}, transcriptPath);
+      return {cursor, view: gateway.peek(sessionId)};
+    } catch { return {}; }
+  }
+  // The mode in Burn's policy file, as Burn loads it, when the file exists.
+  burnPolicyMode() {
+    const home = burnHome();
+    if (!fs.existsSync(path.join(home, 'burn-policy.json'))) return undefined;
+    try { return burn.loadPolicy(home, {notice: false}).mode; } catch { return undefined; }
   }
   afterReply() { this.logStore.afterReply(); }
   async flush() { return this.logStore.flush(); }

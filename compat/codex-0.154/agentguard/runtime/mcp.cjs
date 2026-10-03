@@ -16,6 +16,7 @@ const {readHealth} = require('./health.cjs');
 const {RULES} = require('./guard-pack.cjs');
 const {readSessionLicense, readLatestLicenseStatus} = require('./license.cjs');
 const agentScoreQuestions = require('./agent-score-questions.cjs');
+const {RECEIPT_EVENT, validateReceipt, receiptView, isReceipt} = require('./work-receipt.cjs');
 
 const MAX_LEDGER_BYTES = 64 * 1024 * 1024;
 const MAX_ROWS = 100000;
@@ -41,6 +42,7 @@ const schemas = {
   list_decisions: { type: 'object', properties: { fromSequence: { type: 'integer', minimum: 0 }, limit: { type: 'integer', minimum: 1, maximum: PAGE_LIMIT } }, additionalProperties: false },
   verify_chain: { type: 'object', properties: {}, additionalProperties: false },
   export_receipts: { type: 'object', properties: { sessionId: {type: 'string', description: 'Current host session identifier.'}, fromSequence: { type: 'integer', minimum: 0 }, limit: { type: 'integer', minimum: 1, maximum: PAGE_LIMIT } }, additionalProperties: false },
+  get_work_receipt: { type: 'object', properties: { sessionId: {type: 'string', description: 'Host session identifier of the session whose receipt to return. Defaults to the latest receipt.'} }, additionalProperties: false },
   agent_score_questions: { type: 'object', properties: {}, additionalProperties: false },
   agent_score: { type: 'object', properties: { answers: { type: 'object', description: 'Answers to every questionnaire question keyed by question id: select questions take one of the published option strings, yes/no questions take true or false.' }, consent: { type: 'boolean', description: 'Must be true. Confirms the user agreed, after being shown the answers and the serviceOrigin returned by agent_score_questions, that the five answers are sent to the AgentGuard Score service at that origin.' }, createShare: { type: 'boolean', description: 'Default false. True only when the user separately asked for a hosted report link, which stores the answers and score on the service and is visible to anyone who has the link.' }, openReport: { type: 'boolean', description: 'Only together with createShare: after a successful score, open the finished report in the default browser on this machine. Nothing else is launched.' } }, required: ['answers', 'consent'], additionalProperties: false },
 };
@@ -49,6 +51,7 @@ const descriptions = {
   list_decisions: 'Read a bounded page of content-free tool decision summaries from the local ledger.',
   verify_chain: 'Verify every local ledger signature and hash link against the local public verification key; never accesses private keys.',
   export_receipts: 'With a valid paid license, return a page of signed content-free receipts and the public verification key for a records custodian. No files are written. Concatenate pages to verify the complete chain.',
+  get_work_receipt: 'Return the signed work receipt of one finished session (the latest receipt when no sessionId is given): counts only, namely first and last activity time, tokens Burn recorded, sub-agents started, finished and ended without finishing, AgentGuard decisions by result, the Burn policy mode and the plugin version. Includes the row signature, whether it is valid and whether the whole local chain verifies against the local public verification key. Offline and read-only; never accesses private keys.',
   agent_score_questions: 'Return the AgentGuard Score questionnaire (intro, question ids, wording, options) and serviceOrigin, the validated address of the service that agent_score would call, so the agent can ask the user and name the destination before scoring. Offline; makes no request.',
   agent_score: 'With the user\'s consent, send the five questionnaire answers to the AgentGuard Score service at the serviceOrigin returned by agent_score_questions (https://agentguard.run unless AGENTGUARD_SCORE_URL is set) and return the score, tier, category breakdown and factors with recommendations. A hosted report link is created only when createShare is true. This is the only MCP tool in this server that makes a hosted request; the request does not include local policy, the decision ledger or the signing key, and the tool reads no local files and writes nothing. It is not read-only because a requested report link is stored by the service. With openReport true, the server launches the operating system browser opener with the report address as a single argument, only after a successful score and only when createShare is also true; AGENTGUARD_NO_BROWSER=1 disables it.',
 };
@@ -76,6 +79,9 @@ const RECORDED_FIELDS = {
   granted: value => typeof value === 'boolean',
 };
 for (const key of Object.keys(RECORDED_FIELDS)) PLUGIN_KEYS.add(key);
+// A work receipt's counts, on its own `session_receipt` control row only, held
+// to the schema the worker signs with (runtime/work-receipt.cjs).
+PLUGIN_KEYS.add('receipt');
 const GUARD_RULES = new Map(RULES.map(rule => [rule.id, rule]));
 
 function validateGuardMetadata(metadata) {
@@ -118,6 +124,10 @@ function validateEntry(entry) {
     if (metadata?.host !== undefined && (typeof metadata.host !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(metadata.host))) throw new Error('Plugin host metadata is invalid.');
     validateGuardMetadata(metadata);
     for (const [key, valid] of Object.entries(RECORDED_FIELDS)) if (metadata?.[key] !== undefined && !valid(metadata[key])) throw new Error('Plugin recorded metadata is invalid.');
+    if (metadata?.receipt !== undefined || metadata?.event === RECEIPT_EVENT) {
+      if (metadata !== decision.plugin || metadata.event !== RECEIPT_EVENT || metadata.gate !== 'control' || metadata.receipt === undefined) throw new Error('Work receipt metadata is invalid.');
+      validateReceipt(metadata.receipt);
+    }
     if (metadata?.integrity !== undefined && (!metadata.integrity || typeof metadata.integrity !== 'object' || Array.isArray(metadata.integrity) || Object.keys(metadata.integrity).some(key => !['reason', 'confirmedSequence', 'confirmedHash', 'recoveredHeadHash', 'recoveredRows', 'truncatedBytes', 'checkpointMissing'].includes(key)))) throw new Error('Integrity metadata schema is invalid.');
     if (metadata?.chargedWindows !== undefined && (!Array.isArray(metadata.chargedWindows) || metadata.chargedWindows.some(window => !window || typeof window !== 'object' || Array.isArray(window) || Object.keys(window).some(key => !['scopeKey', 'window', 'windowStart'].includes(key))))) throw new Error('Plugin budget metadata schema is invalid.');
   }
@@ -234,7 +244,7 @@ async function agentScore(args, options) {
 function summary(entry) {
   const d = entry.decision;
   const metadata = d.plugin || d.outcomeReceipt?.plugin || {};
-  return { sequence: entry.sequence, entryHash: entry.entryHash, decisionId: d.decisionId, timestamp: d.timestamp, action: d.action, entryType: d.entryType || 'decision', provider: d.provider, model: d.modelRequested, actor: d.actor, projectedCents: d.projectedCents, reasons: d.reasons, originalDecisionId: d.originalDecisionId, toolName: metadata.toolName, event: metadata.event, gate: metadata.gate, host: metadata.host || 'unknown', asked: metadata.asked === true, toolUseId: metadata.toolUseId };
+  return { sequence: entry.sequence, entryHash: entry.entryHash, decisionId: d.decisionId, timestamp: d.timestamp, action: d.action, entryType: d.entryType || 'decision', provider: d.provider, model: d.modelRequested, actor: d.actor, projectedCents: d.projectedCents, reasons: d.reasons, originalDecisionId: d.originalDecisionId, toolName: metadata.toolName, event: metadata.event, gate: metadata.gate, host: metadata.host || 'unknown', asked: metadata.asked === true, toolUseId: metadata.toolUseId, ...(metadata.receipt ? {receipt: metadata.receipt} : {}) };
 }
 
 function failOpen(decision) {
@@ -365,10 +375,21 @@ function createReader(options = {}) {
     if (name === 'agent_score') return agentScore(args, options);
     const entries = await snapshot();
     if (name === 'verify_chain') return verify(entries);
+    if (name === 'get_work_receipt') {
+      const entry = entries.findLast(item => isReceipt(item, args.sessionId));
+      if (!entry) return {found: false, ...(args.sessionId ? {sessionId: args.sessionId} : {})};
+      const verification = await verify(entries);
+      const key = Buffer.from(verification.publicKeyHex, 'hex');
+      return {found: true, receipt: receiptView(entry),
+        signature: {sequence: entry.sequence, entryHash: entry.entryHash, previousHash: entry.previousHash, signature: entry.signature,
+          signerFingerprint: entry.signerFingerprint, publicKeyHex: verification.publicKeyHex, valid: await sdk.verifyEntry(entry, key)},
+        chain: {verified: verification.ok === true, entries: verification.entries, lastEntryHash: verification.lastEntryHash,
+          ...(verification.ok ? {} : {failedAtSequence: Number.isSafeInteger(verification.sequence) ? verification.sequence : null})}};
+    }
     if (name === 'get_status') {
       const day = args.day || new Date().toISOString().slice(0, 10);
       const today = entries.filter(entry => entry.decision.timestamp.slice(0, 10) === day);
-      const decisions = today.filter(entry => !['outcome', 'settlement'].includes(entry.decision.entryType) && entry.decision.plugin?.event !== 'integrity');
+      const decisions = today.filter(entry => !['outcome', 'settlement'].includes(entry.decision.entryType) && !['integrity', RECEIPT_EVENT].includes(entry.decision.plugin?.event));
       const health = readHealth({data: dataDir, entries});
       const hostCounts = Object.create(null);
       for (const entry of decisions) {
@@ -401,7 +422,13 @@ function createReader(options = {}) {
     if (!verification.ok) throw new Error('Ledger verification failed; export refused.');
     return { format: 'agentguard-signed-receipts-v1', publicKeyHex: verification.publicKeyHex, verified: true, complete: from === 0 && nextSequence === null, entries: page, nextSequence, totalEntries: entries.length, lastEntryHash: verification.lastEntryHash };
   }
-  return { call, filePath: store.filePath };
+  // The latest work receipt with its ledger row number, read like every other
+  // row but without the signature check, for displays that verify separately.
+  async function latestWorkReceipt(sessionId) {
+    const entry = (await snapshot()).findLast(item => isReceipt(item, sessionId));
+    return entry ? {sequence: entry.sequence, entryHash: entry.entryHash, ...receiptView(entry)} : null;
+  }
+  return { call, latestWorkReceipt, filePath: store.filePath };
 }
 
 async function handleRpc(request, reader) {

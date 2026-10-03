@@ -13,7 +13,11 @@ const text = fs.readFileSync(0, 'utf8');
     // The tip for the next session: this hook records which session ended and
     // starts a detached process that reads its transcript. It reads nothing here.
     try { require('../runtime/session-tip.cjs').ended({sessionId, transcriptPath: raw.transcript_path}); } catch { /* No tip. */ }
-    await request({control: 'session-end', sessionId}, {startWorker: false, timeoutMs: 250});
+    // One request to a running worker ends the session and asks for its work
+    // receipt, which the worker signs before it answers. The wait is bounded;
+    // a request it could not take is kept for its next start. Nothing prints.
+    await require('../runtime/work-receipt.cjs').sessionEnd({sessionId, transcriptPath: raw.transcript_path, request,
+      data: require('../runtime/common.cjs').locations().data});
   } catch { /* Host liveness and the activity lease also stop renewal. */ }
   process.stdout.write('{}\n');
 })();

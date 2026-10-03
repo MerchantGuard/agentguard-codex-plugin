@@ -592,6 +592,7 @@ The optional local MCP server exposes only:
 - `list_decisions`: read a bounded page of signed entries.
 - `verify_chain`: verify chain hashes and signatures on every tier.
 - `export_receipts`: with a valid paid license, return a bounded JSON bundle for the caller to save.
+- `get_work_receipt`: return a finished session's [work receipt](#work-receipts) (the latest by default) with its signature and the chain status. Offline.
 - `agent_score_questions`: return the AgentGuard Score questionnaire and `serviceOrigin`, the validated address the answers would go to, so the agent can ask the user first. Offline.
 - `agent_score`: with the user's explicit consent, send the five questionnaire answers to the AgentGuard Score service at that origin and return the score, tier, breakdown and recommendations, plus a report link only when `createShare` is true. This is the only MCP tool that makes a hosted request, and it is not read-only: a requested report link is stored by the service.
 
@@ -762,3 +763,49 @@ AgentGuard  sub-agents 12 of 15 · tokens 1.2B of 5B · weekly 76% · /agentguar
 The band leads with the sub-agent window closer to its limit (15 in 15 active minutes, or 40 in 120), then the session's tokens against the 5B limit, the share of tokens that went to sub-agents once one has run, and the highest plan limit Claude Code reports. A count turns into a yellow pill at 70% of its limit and a red one at the limit. Under each sub-agent launch in the conversation, AgentGuard stamps its word on Claude Code's own row: ALLOWED, ASKED YOU, YOU SAID YES or YOU SAID NO, or STOPPED, with the count at launch and the number of its signed ledger row, and while Claude works the spinner carries the sub-agent count. `/agentguard` opens a pane with both windows, this session's sub-agent launches, asks and stops, newest first, each one a row in the signed ledger, and a key that verifies every signature in the ledger on this machine.
 
 The mod reads and draws; it decides nothing. The numbers come from `runtime/mod-status.cjs`, which reads Burn's own session state with Burn's own window sums and this plugin's ledger through the read-only reader, and changes no file. Enforcement stays in the hooks above, so Codex, older Claude Code and `claude -p` behave exactly as without the mod. Where nothing is drawn (`claude -p`, the VS Code chat panel) the mod does no work. To turn the band and pane off, set `AGENTGUARD_LIVE=0`; the limits still apply. Anthropic can also turn installed mods off remotely; while it does, Claude Code skips the mod, and the hooks keep enforcing the same limits. `claude plugin validate` lists every event the mod hooks and every call it makes, and `claude plugin test` runs its tests.
+
+## Work receipts
+
+AI pricing is moving from paying per token to paying per result, and a deal priced on results needs a record of what an agent did that both sides can trust. At the end of each session, AgentGuard adds one row to its signed ledger, a work receipt (`session_receipt`), that sums the session up in counts. It is signed and hash-chained like every other row, so changing or removing it breaks verification.
+
+A receipt holds:
+
+- the session id, on the row as on every other row of the session;
+- `firstActivityAt` and `lastActivityAt`: the first and last activity in the session, from AgentGuard's own rows and the model responses Burn read;
+- `tokens`: the tokens Burn recorded for the session, sub-agents included, when every usage Burn recorded was read from the transcripts;
+- `subagents`: `started` (each sub-agent transcript of the session), `finished`, and `endedWithoutFinishing` (failed, killed or stopped, and never completed or resumed), as Burn reads them;
+- `decisions`: AgentGuard's decisions on the session's tool calls, one per call, by result: `allowed` (let through without asking), `asked` (held for your answer), `saidYes` (asked, and the call then ran), `saidNo`, and `stopped` (refused);
+- `burnPolicyMode`: the mode in Burn's policy file, `enforce` or `shadow`, when the file exists;
+- `pluginVersion`.
+
+It never holds a prompt, file path, file name, command, repository name, tool output or any other content. The worker builds it from counts it already keeps and from Burn's counts, and the reader refuses a receipt with any other field. A count AgentGuard cannot prove is left out, never guessed and never set to 0:
+
+- Claude Code does not tell hooks when you refuse a prompt, so `saidNo` appears only when every ask ran, and it is then 0. Otherwise `asked` minus `saidYes` is the number of asks that never ran: refused, or the session ended first.
+- In Codex, Burn reads token usage only as an estimate and does not see how sub-agents ended, so Codex receipts leave out `tokens` and `subagents` for now. Everything else is the same.
+- Without a readable transcript, or for a session this plugin never read that is too large to read in one short pause (over 8 MB), `tokens` and `subagents` are left out.
+
+Example, the row's `plugin.receipt`:
+
+```json
+{
+  "version": 1,
+  "firstActivityAt": "2026-10-03T16:55:19.378Z",
+  "lastActivityAt": "2026-10-03T17:05:20.744Z",
+  "tokens": 2325,
+  "subagents": {"started": 1, "finished": 1, "endedWithoutFinishing": 0},
+  "decisions": {"allowed": 2, "asked": 0, "saidYes": 0, "saidNo": 0, "stopped": 0},
+  "burnPolicyMode": "enforce",
+  "pluginVersion": "0.3.18"
+}
+```
+
+The SessionEnd hook asks the running worker for the receipt as it ends the session, and the worker signs it before it answers. The hook waits at most one second for that answer, prints nothing, and always lets the session end. Each session gets one receipt: a later end of the same session, such as after a resume, adds none. If no worker is running when the session ends, the request waits in the plugin's data folder (the session id and the time it ended, never where the transcript is) and the next worker to start writes the receipt from the ledger alone, so `tokens` and `subagents` are left out.
+
+Receipts stay on your computer, in the same ledger file as every other row (`ledger/decisions.ndjson` in the plugin's data folder). Nothing is sent anywhere.
+
+To check one:
+
+- `get_work_receipt` returns a session's receipt (pass `sessionId`, or nothing for the latest) with its row's signature, whether that signature is valid, and whether the whole chain verifies against the public key in the plugin's data folder.
+- `verify_chain`, the v key in the `/agentguard` pane, or `node runtime/verify.cjs` in the plugin folder checks every signature and hash link, receipts included. Changing one count in a receipt makes its signature and the chain fail.
+- `list_decisions` lists receipts as `session_receipt` rows with their counts, and `export_receipts` (paid) exports them with the rest of the chain. `get_status` does not count them as decisions.
+- In Claude Code, the `/agentguard` pane shows the last finished session's receipt, for example "Work receipt, last finished session (17:05): 2.3K tokens · 1 sub-agent · 2 decisions · signed #6".

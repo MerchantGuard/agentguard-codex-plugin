@@ -100,6 +100,7 @@ runtime/owned-log.cjs
 runtime/budget.cjs
 runtime/health.cjs
 runtime/mod-status.cjs
+runtime/work-receipt.cjs
 hooks/hooks.json
 hooks/codex-hooks.json
 hooks/session-start.cjs
@@ -137,6 +138,8 @@ tests/session-tip.test.cjs
 tests/burn-subagents.test.cjs
 tests/mod-status.test.cjs
 tests/reader-metadata.test.cjs
+tests/work-receipt.test.cjs
+tests/work-receipt-hook.test.cjs
 tests/agentguard-live.test.ts
 tests/burn-policy-line.test.cjs
 tests/helper-session-start.cjs

@@ -180,13 +180,18 @@ function restoredCursor(burn, saved) {
   return {...saved, depthByUuid: new Map(saved.depthByUuid),
     usageByMessage: Array.isArray(saved.usageByMessage) ? new Map(saved.usageByMessage) : undefined};
 }
+// Where the reader cursor of one session transcript is saved: named by a hash
+// of the session id and the transcript locator, never by the path itself.
+function claudeCursorFile(sessionId, transcriptPath) {
+  const key = crypto.createHash('sha256').update(`${sessionId}:${transcriptPath}`).digest('hex');
+  return {key, file: path.join(locations().data, 'claude-cursors', key + '.json')};
+}
 // Returns the cursor it advanced, for the line a STOP prints.
 function claudeUsage(burn, gateway, meta, transcriptPath) {
   if (!transcriptPath) return null;
   let readers = claudeReaders.get(gateway);
   if (!readers) { readers = new Map(); claudeReaders.set(gateway, readers); }
-  const key = crypto.createHash('sha256').update(`${meta.sessionId}:${transcriptPath}`).digest('hex');
-  const directory = path.join(locations().data, 'claude-cursors'), file = path.join(directory, key + '.json');
+  const {key, file} = claudeCursorFile(meta.sessionId, transcriptPath), directory = path.dirname(file);
   let reader = readers.get(key);
   const inode = fs.existsSync(transcriptPath) ? fs.statSync(transcriptPath).ino : null;
   if (!reader) {
@@ -274,4 +279,5 @@ function runBurnHook(burn, gateway, meta, transcriptPath) {
   return warnings.some(Boolean) ? {systemMessage: warnings.filter(Boolean).join('\n')} : {};
 }
 module.exports = { locations, allow, deny, stopDeny, ask, metadata, identifier, spoolFailure, writeWorkerPid, SPAWN,
-  hostContext, normalizeHookOutput, outcomeFlow, outcomeSuccess, minimumCapability, matchingExternalBurn, standaloneBurnCommand, runBurnHook };
+  hostContext, normalizeHookOutput, outcomeFlow, outcomeSuccess, minimumCapability, matchingExternalBurn, standaloneBurnCommand, runBurnHook,
+  claudeUsage, claudeCursorFile, readsSubagents };

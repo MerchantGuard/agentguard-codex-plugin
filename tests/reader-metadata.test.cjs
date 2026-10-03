@@ -85,3 +85,22 @@ test('the reader stays strict: a recorded field with the wrong type is still ref
   await f.engine.flush();
   await assert.rejects(createReader({dataDir: f.data}).call('list_decisions', {}), /metadata/i);
 });
+
+test('the reader reads the work receipt the worker writes when a session ends: list, verify, status and get_work_receipt', async t => {
+  const f = await fixture(t);
+  const launch = metadata(f.raw('Agent', {permission_mode: 'default'}), 'burn');
+  launch.permissionMode = 'default';
+  await f.engine.handle({meta: launch, transcriptPath: f.transcript, workingDirectory: f.cwd});
+  assert.equal((await f.engine.sessionReceipt({sessionId: SESSION, transcriptPath: f.transcript})).receipt, 'appended');
+  await f.engine.flush();
+  const reader = createReader({dataDir: f.data});
+  const listed = await reader.call('list_decisions', {});
+  const row = listed.entries.find(entry => entry.event === 'session_receipt');
+  assert.deepEqual(row.receipt.decisions, {allowed: 0, asked: 1, saidYes: 0, stopped: 0}, 'the asked launch, with said no left out');
+  const verified = await reader.call('verify_chain', {});
+  assert.equal(verified.ok, true);
+  assert.equal(verified.entries, listed.totalEntries);
+  assert.equal((await reader.call('get_status', {sessionId: SESSION})).totalEntries, listed.totalEntries);
+  const receipt = await reader.call('get_work_receipt', {sessionId: SESSION});
+  assert.deepEqual([receipt.found, receipt.signature.sequence, receipt.signature.valid, receipt.chain.verified], [true, row.sequence, true, true]);
+});

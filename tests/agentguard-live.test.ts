@@ -243,6 +243,24 @@ test('a sub-agent launch refreshes the counts once Claude Code has decided it, a
   expect(runs.length).toBe(before + 1)
 })
 
+test('the pane shows the work receipt of the last finished session, and no line when there is none', async ($, on) => {
+  const status: any = structuredClone(STATUS)
+  status.ledger.receipt = {
+    sequence: 1050, at: '2026-10-01T18:40:00.000Z', sessionId: 'previous-session', version: 1, tokens: 1_200_000,
+    subagents: { started: 3, finished: 2, endedWithoutFinishing: 1 }, decisions: { allowed: 39, asked: 2, saidYes: 1, stopped: 1 }, pluginVersion: '0.3.17',
+  }
+  withStatus(on, status)
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  await start($)
+  await $.command.run({ command: 'agentguard', args: '' })
+  const ui = await $.ui.mount(PANE)
+  expect(await ui.find({ type: 'Text', text: /^Work receipt, last finished session \(.+\): 1\.2M tokens · 3 sub-agents · 42 decisions, 2 asked, 1 stopped · signed #1050$/ })).toBeDefined()
+  delete status.ledger.receipt
+  await ui.press({ key: 'refresh' })
+  expect(await ui.find({ type: 'Text', text: /Work receipt/ })).toBeUndefined()
+  await ui.unmount()
+})
+
 test('after /clear the new session id is the one read', async ($, on) => {
   const runs = withStatus(on, STATUS)
   on('classic.SessionStart', () => ({}))

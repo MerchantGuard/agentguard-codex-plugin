@@ -1,3 +1,10 @@
+## 0.3.18 - 2026-10-03
+
+- Work receipts. At the end of each session, AgentGuard adds one signed, hash-chained row to its ledger that sums the session up in counts only: first and last activity time, the tokens Burn recorded, sub-agents started, finished and ended without finishing, AgentGuard's decisions by result (allowed, asked, said yes, said no, stopped), Burn's policy mode and the plugin version. No prompts, paths, commands or other content, and a count that cannot be proved is left out, never guessed. One receipt per session, kept on your computer. See "Work receipts" in the README.
+- New read-only MCP tool `get_work_receipt`: a session's receipt (the latest by default) with its signature and the chain status. `verify_chain`, `list_decisions` and `export_receipts` cover receipts, the reader refuses a receipt with any field outside its schema, and `get_status` does not count receipts as decisions.
+- The `/agentguard` pane shows the last finished session's receipt.
+- SessionEnd asks the running worker for the receipt as it ends the session and waits at most one second. With no worker running, the request waits for the next worker, which writes the receipt from the ledger alone. Codex runs the same hook; its receipts leave out tokens and sub-agent counts for now.
+
 ## 0.3.17 - 2026-10-02
 
 - AgentGuard Live in color: AgentGuard's name is a teal pill in the band, and a sub-agent count turns into a yellow pill near its limit and a red one at it.

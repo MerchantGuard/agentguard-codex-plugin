@@ -73,6 +73,20 @@ function result(row, ran) {
   return SPAWN.has(row.toolName) ? 'started' : 'allowed';
 }
 
+// The work receipt of the last session that ended, counts only, with its
+// ledger row number. The newest rows are searched first; an older receipt is
+// read once more from the ledger. The pane's signature check covers its row.
+async function lastReceipt(reader, rows, total) {
+  const row = rows.findLast(item => item.event === 'session_receipt' && item.receipt);
+  if (row) return {sequence: row.sequence, at: row.timestamp, sessionId: row.actor?.sessionId ?? null, ...row.receipt};
+  if (total <= rows.length) return null;
+  const latest = await reader.latestWorkReceipt();
+  if (!latest) return null;
+  const counts = {...latest};
+  for (const key of ['sequence', 'entryHash', 'signedAt', 'sessionId', 'host']) delete counts[key];
+  return {sequence: latest.sequence, at: latest.signedAt, sessionId: latest.sessionId, ...counts};
+}
+
 async function ledgerStatus(sessionId, dataDir, verify) {
   const reader = createReader({dataDir});
   const total = (await reader.call('list_decisions', {fromSequence: 0, limit: 1})).totalEntries;
@@ -100,6 +114,7 @@ async function ledgerStatus(sessionId, dataDir, verify) {
   return {
     license: {tier: status.license?.tier ?? 'free', paid: status.license?.paid === true, mode: status.license?.mode ?? null},
     ledger,
+    receipt: await lastReceipt(reader, rows, total),
     launches,
     recorded: mine.length,
     asked: mine.filter(row => row.asked).length,

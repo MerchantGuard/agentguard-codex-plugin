@@ -4,8 +4,10 @@ This guide targets the OpenAI source tag `rust-v0.154.0`. IT first reviews a
 specific AgentGuard release, installs its Codex 0.154 compatibility bundle,
 and provisions its registry dependencies with `npm ci`. The five bundled
 hooks are the two tool gates, the outcome recorder, SessionStart license
-resolution and SessionEnd heartbeat cleanup. MCP and skills continue to come
-from the firm's private marketplace.
+resolution and SessionEnd heartbeat cleanup, which also asks the running worker
+for the session's work receipt (one signed ledger row of counts; see "Work
+receipts" in the README). MCP and skills continue to come from the firm's
+private marketplace.
 
 Codex admits an enabled hook only when its trust status is Trusted or Managed,
 unless the operator explicitly bypasses trust. Managed hooks are enabled by

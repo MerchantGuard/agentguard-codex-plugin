@@ -1,6 +1,6 @@
 # AgentGuard directory submission pack
 
-Prepared for version 0.3.17 on 2026-10-02. This is a review pack, not a submitted or approved listing. No directory draft, publication or remote MCP deployment was created by preparing it.
+Prepared for version 0.3.18 on 2026-10-03. This is a review pack, not a submitted or approved listing. No directory draft, publication or remote MCP deployment was created by preparing it.
 
 ## Submission route
 
@@ -19,7 +19,7 @@ The proposed public developer name is AgentGuard. The publisher must select its 
 Listing values follow. Business identity verification remains pending.
 
 - Package name: `agentguard`.
-- Version: `0.3.17`.
+- Version: `0.3.18`.
 - Display name: `AgentGuard`.
 - Short description: `Tool policy and signed records`.
 - Developer name: `AgentGuard`.
@@ -63,7 +63,7 @@ Install the Node 22 runtime dependencies in the plugin root and follow the Codex
 - Static MCP-imported skills: none. The four skills are bundled files.
 - Demo recording URL: pending capture and public hosting. A local filename is not a production URL.
 
-The following annotation values describe each MCP tool, not the separate policy-edit skill or background license worker. Each tool uses the fixed local data root and accepts no arbitrary file or URL target. Five tools make no network call. The sixth, agent_score, is the only MCP tool that makes a hosted request: with the user's consent it sends questionnaire answers to the AgentGuard Score service at a validated origin and is annotated open-world. The offline tests compare file hashes before and after all six calls.
+The following annotation values describe each MCP tool, not the separate policy-edit skill or background license worker. Each tool uses the fixed local data root and accepts no arbitrary file or URL target. Six tools make no network call. The seventh, agent_score, is the only MCP tool that makes a hosted request: with the user's consent it sends questionnaire answers to the AgentGuard Score service at a validated origin and is annotated open-world. The offline tests compare file hashes before and after all seven calls.
 
 ### get_status
 
@@ -96,6 +96,14 @@ Arguments: empty object. Result: `ok`, `entries`, `publicKeyHex`, `lastEntryHash
 It verifies and returns a bounded page of signed local records and the public key to an eligible paid session. The MCP tool does not create a file or upload a bundle. Saving returned data with another tool is a separate action. Free export fails with a license reason; verification still works.
 
 Arguments: optional `sessionId`, `fromSequence` and `limit`, at most 200. Result: `format: agentguard-signed-receipts-v1`, `publicKeyHex`, `verified`, `complete`, `entries`, `nextSequence`, `totalEntries`, `lastEntryHash`.
+
+### get_work_receipt
+
+`readOnlyHint: true`, `openWorldHint: false`, `destructiveHint: false`, `idempotentHint: true`.
+
+It reads the local ledger and returns the work receipt of one finished session: the signed `session_receipt` row the worker appends when a session ends, holding counts only (first and last activity time, tokens recorded, sub-agents started, finished and ended without finishing, decisions by result, Burn's policy mode and the plugin version). It verifies that row's signature and the whole chain against the local public verification key, and never reads the private signing key. Available without a paid license.
+
+Arguments: optional `sessionId`; without it, the latest receipt. Result: `found`, `receipt`, `signature` (`sequence`, `entryHash`, `previousHash`, `signature`, `signerFingerprint`, `publicKeyHex`, `valid`) and `chain` (`verified`, `entries`, `lastEntryHash`).
 
 ### agent_score_questions
 

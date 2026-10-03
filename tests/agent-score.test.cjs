@@ -277,7 +277,7 @@ test('the tool list, annotations, schema and JSON-RPC surface describe the score
   assert.equal(score.inputSchema.properties.createShare.type, 'boolean');
   assert.equal(Object.hasOwn(score.inputSchema.properties, 'email'), false);
   const listed = await handleRpc({jsonrpc: '2.0', id: 1, method: 'tools/list'}, f.reader);
-  assert.equal(listed.result.tools.length, 6);
+  assert.equal(listed.result.tools.length, 7);
   const scored = await f.rpc({answers: GOOD, consent: true, createShare: true});
   assert.equal(scored.result.structuredContent.score, 75);
   assert.equal(scored.result.structuredContent.shareUrl, `${ORIGIN}/score/abc`);

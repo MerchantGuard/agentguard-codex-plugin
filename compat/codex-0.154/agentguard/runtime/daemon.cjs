@@ -120,7 +120,19 @@ async function main() {
           continue;
         }
         if (['session-start', 'session-end', 'license-refresh'].includes(message.control)) {
-          if (message.control === 'session-end') { for (const tag of starts.keys()) { if (JSON.parse(tag)[0] === message.sessionId) starts.delete(tag); } live.forget(message.sessionId); heartbeats.forget(message.sessionId); engine.orgPolicyDigests?.delete(message.sessionId); writeMessage(output, {}); }
+          if (message.control === 'session-end') {
+            for (const tag of starts.keys()) { if (JSON.parse(tag)[0] === message.sessionId) starts.delete(tag); }
+            live.forget(message.sessionId); heartbeats.forget(message.sessionId); engine.orgPolicyDigests?.delete(message.sessionId);
+            // The session's work receipt, when the hook asks for one: one
+            // signed row, written before the reply, at most once per session.
+            let receipt = null;
+            if (message.receipt && typeof message.receipt === 'object') {
+              try { receipt = await engine.sessionReceipt({sessionId: message.sessionId, transcriptPath: message.receipt.transcriptPath}); }
+              catch { receipt = {receipt: 'failed'}; }
+            }
+            writeMessage(output, receipt ?? {});
+            if (receipt) engine.afterReply();
+          }
           else {
             observe(message.sessionId, message.ownerPid, message.ownerIdentity);
             // Never await a network operation in the gate drain. Activation
