@@ -78,7 +78,7 @@ test('package-local marketplace selects the compatibility plugin and dependencie
   assert.equal(pkg.private, undefined);
   assert.deepEqual(pkg.repository, {type: 'git', url: 'https://github.com/MerchantGuard/agentguard-codex-plugin.git'});
   assert.equal(json('plugin.json').repository, 'https://github.com/MerchantGuard/agentguard-codex-plugin');
-  assert.deepEqual(pkg.dependencies, {'@agentguard-run/spend': '^0.20.0', '@agentguard-run/burn': '^0.3.21'});
+  assert.deepEqual(pkg.dependencies, {'@agentguard-run/spend': '^0.20.0', '@agentguard-run/burn': '^0.3.27'});
   assert.equal(pkg.license, json('plugin.json').license);
   const lock = json('package-lock.json');
   assert.deepEqual(lock.packages[''].dependencies, pkg.dependencies);

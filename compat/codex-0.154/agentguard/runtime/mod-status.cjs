@@ -87,6 +87,9 @@ async function ledgerStatus(sessionId, dataDir, verify) {
     && ['decision', 'fail_open', 'fail_closed'].includes(row.event));
   // Launches, and anything that was not a plain allow: the rows a person reads.
   const shown = mine.filter(row => SPAWN.has(row.toolName) || row.action !== 'allow' || row.asked);
+  // Each launch by its tool call, so the mod can stamp Claude Code's own row: the latest row wins.
+  const launches = {};
+  for (const row of mine) if (SPAWN.has(row.toolName) && typeof row.toolUseId === 'string') launches[row.toolUseId] = {sequence: row.sequence, result: result(row, ran)};
   const status = await reader.call('get_status', {sessionId});
   const ledger = {entries: total, verified: null};
   if (verify) {
@@ -97,6 +100,7 @@ async function ledgerStatus(sessionId, dataDir, verify) {
   return {
     license: {tier: status.license?.tier ?? 'free', paid: status.license?.paid === true, mode: status.license?.mode ?? null},
     ledger,
+    launches,
     recorded: mine.length,
     asked: mine.filter(row => row.asked).length,
     stopped: mine.filter(row => !row.asked && (row.action === 'block' || row.event === 'fail_closed')).length,

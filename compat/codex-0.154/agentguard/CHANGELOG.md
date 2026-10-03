@@ -1,3 +1,11 @@
+## 0.3.17 - 2026-10-02
+
+- AgentGuard Live in color: AgentGuard's name is a teal pill in the band, and a sub-agent count turns into a yellow pill near its limit and a red one at it.
+- Under each sub-agent launch in the conversation, AgentGuard stamps its word on Claude Code's own row: ALLOWED, ASKED YOU, YOU SAID YES or YOU SAID NO, or STOPPED, with the sub-agent count at launch and the number of its signed ledger row. Rows of other tools are left as Claude Code draws them.
+- While Claude works, the spinner carries the sub-agent count, for example "Thinking · sub-agents 9/15…".
+- The /agentguard pane shows each launch, ask and stop as the same pills, with its ledger row number.
+- Runs Burn 0.3.27 (the plugin now depends on `@agentguard-run/burn ^0.3.27`). When AgentGuard asks before the next sub-agent launch, the question now also says how many of this session's sub-agents ended without finishing and how many tokens they used, next to what the finished ones averaged. Burn also reads a session file over 256 MB in pieces, so a very long session no longer stops it.
+
 ## 0.3.16 - 2026-10-02
 
 - AgentGuard Live, for Claude Code 2.1.287 and later: the plugin now ships a Claude Code mod, so there is nothing more to install. A band above the prompt shows how close the session is to its sub-agent limits (15 in 15 active minutes, 40 in 120) and its 5B token limit, the share of tokens that went to sub-agents, and your plan limit, for example "AgentGuard  sub-agents 12 of 15 · tokens 1.2B of 5B · weekly 76% · /agentguard". A count turns yellow at 70% of its limit and red at the limit.

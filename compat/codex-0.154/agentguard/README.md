@@ -185,7 +185,7 @@ root after adding the plugin and run `npm ci` to provision the locked registry
 dependencies.
 
 The plugin depends on published `@agentguard-run/spend ^0.20.0` and
-`@agentguard-run/burn ^0.3.21`. It uses no sibling links. Burn's lockfile
+`@agentguard-run/burn ^0.3.27`. It uses no sibling links. Burn's lockfile
 entries include an optional native canvas package for each platform; npm
 installs only the one this machine runs, and the dependency check accepts the
 others as absent while still checking any that are present. Codex's Git
@@ -759,6 +759,6 @@ In Claude Code 2.1.287 and later, the plugin also loads a Claude Code mod, `hook
 AgentGuard  sub-agents 12 of 15 · tokens 1.2B of 5B · weekly 76% · /agentguard
 ```
 
-The band leads with the sub-agent window closer to its limit (15 in 15 active minutes, or 40 in 120), then the session's tokens against the 5B limit, the share of tokens that went to sub-agents once one has run, and the highest plan limit Claude Code reports. A count turns yellow at 70% of its limit and red at the limit. `/agentguard` opens a pane with both windows, this session's sub-agent launches, asks and stops, newest first, each one a row in the signed ledger, and a key that verifies every signature in the ledger on this machine.
+The band leads with the sub-agent window closer to its limit (15 in 15 active minutes, or 40 in 120), then the session's tokens against the 5B limit, the share of tokens that went to sub-agents once one has run, and the highest plan limit Claude Code reports. A count turns into a yellow pill at 70% of its limit and a red one at the limit. Under each sub-agent launch in the conversation, AgentGuard stamps its word on Claude Code's own row: ALLOWED, ASKED YOU, YOU SAID YES or YOU SAID NO, or STOPPED, with the count at launch and the number of its signed ledger row, and while Claude works the spinner carries the sub-agent count. `/agentguard` opens a pane with both windows, this session's sub-agent launches, asks and stops, newest first, each one a row in the signed ledger, and a key that verifies every signature in the ledger on this machine.
 
 The mod reads and draws; it decides nothing. The numbers come from `runtime/mod-status.cjs`, which reads Burn's own session state with Burn's own window sums and this plugin's ledger through the read-only reader, and changes no file. Enforcement stays in the hooks above, so Codex, older Claude Code and `claude -p` behave exactly as without the mod. Where nothing is drawn (`claude -p`, the VS Code chat panel) the mod does no work. To turn the band and pane off, set `AGENTGUARD_LIVE=0`; the limits still apply. Anthropic can also turn installed mods off remotely; while it does, Claude Code skips the mod, and the hooks keep enforcing the same limits. `claude plugin validate` lists every event the mod hooks and every call it makes, and `claude plugin test` runs its tests.

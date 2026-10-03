@@ -1,8 +1,9 @@
-// AgentGuard Live: a band above the prompt and a pane, drawn from what
-// AgentGuard's gates decided. The band shows how close this session is to its
-// sub-agent limits and its token limit, the share of tokens that went to
-// sub-agents, and plan usage. The pane lists each launch, ask and stop in this
-// session; every one is a signed row in AgentGuard's ledger.
+// AgentGuard Live: a band above the prompt, a stamp under each sub-agent
+// launch and a pane, drawn from what AgentGuard's gates decided. The band shows
+// how close this session is to its sub-agent limits and its token limit, the
+// share of tokens that went to sub-agents, and plan usage. Each launch's row in
+// the conversation gets AgentGuard's word on it: allowed, asked, stopped, with
+// its signed ledger row. The pane lists each launch, ask and stop.
 // Nothing here decides or blocks. The plugin's settings hooks enforce, the
 // same way in Codex and in Claude Code without mods; this module only reads,
 // through runtime/mod-status.cjs, and draws.
@@ -10,6 +11,8 @@
 const PANE = 'agentguard'
 const REFRESH_MS = 20000
 const TEAL = '#2abcb4'
+const INK = '#04201e'                 // dark text on a light pill
+const SPAWN_TOOLS = ['Task', 'Agent']
 
 let active = true            // false where nothing draws: claude -p, the VS Code panel
 let sessionId = null
@@ -22,6 +25,7 @@ let againVerify = false
 let stale = false            // a model request finished since the last refresh
 let usage = null             // $.session.usage(), for plan limits
 const live = { main: 0, sub: 0 }  // tokens per request since this session opened
+const stamps = new Map()     // tool_use_id -> Claude Code's decision and the count when it was made
 
 function compact(n) {
   if (typeof n !== 'number' || !isFinite(n)) return '0'
@@ -43,6 +47,11 @@ function level(count, limit) {
 }
 
 const COLOR = { ok: null, near: 'yellow', over: 'red' }
+
+// A filled label, like the coloured agent names Claude Code draws
+function pill(label, background) {
+  return { text: ' ' + label + ' ', background, color: background === 'red' ? 'white' : INK, bold: true }
+}
 
 function clock(at) {
   const time = new Date(typeof at === 'number' && at < 1e12 ? at * 1000 : at)
@@ -87,23 +96,27 @@ function leading(burn) {
 function text(part) {
   const props = { children: [part.text] }
   if (part.color) props.color = part.color
+  if (part.background) props.backgroundColor = part.background
   if (part.bold) props.bold = true
   if (part.dim) props.dimColor = true
   if (part.truncate) props.wrap = 'truncate-end'
   return props
 }
 
-// The band's pieces, in the order they're dropped from the end when the
-// terminal is narrow. The name and the sub-agent count always stay.
+// The band's pieces, dropped from the end when the terminal is narrow. The
+// name and the sub-agent count always stay.
 function bandParts() {
-  const parts = [{ text: 'AgentGuard', color: TEAL, bold: true }]
+  const parts = [{ ...pill('AgentGuard', TEAL), keep: true }]
   const burn = status && status.burn
   if (!burn) {
-    parts.push({ text: failed ? '  status unavailable · /agentguard' : '  starting', dim: true })
+    parts.push({ text: failed ? '  status unavailable · /agentguard' : '  starting', dim: true, keep: true })
     return parts
   }
   const window = leading(burn)
-  parts.push({ text: '  sub-agents ' + window.count + ' of ' + window.limit, color: COLOR[level(window.count, window.limit)] })
+  const near = level(window.count, window.limit)
+  const count = 'sub-agents ' + window.count + ' of ' + window.limit
+  parts.push({ text: ' ', keep: true })
+  parts.push(near === 'ok' ? { text: count, keep: true } : { ...pill(count, COLOR[near]), keep: true })
   parts.push({ text: ' · tokens ' + compact(burn.tokens.used) + ' of ' + compact(burn.tokens.limit), color: COLOR[level(burn.tokens.used, burn.tokens.limit)] })
   const share = subShare()
   if (share !== null) parts.push({ text: ' · ' + share + '% to sub-agents', dim: true })
@@ -117,8 +130,8 @@ function bandParts() {
 function fit(parts, width) {
   const kept = []
   let used = 0
-  for (const [i, part] of parts.entries()) {
-    if (i > 1 && used + part.text.length > width) break
+  for (const part of parts) {
+    if (!part.keep && used + part.text.length > width) break
     kept.push(part)
     used += part.text.length
   }
@@ -126,7 +139,31 @@ function fit(parts, width) {
   return kept
 }
 
-const RESULT_COLOR = { 'stopped': 'red', 'asked you': 'yellow', 'allowed by you': 'green', 'flagged': 'yellow' }
+// What each decision reads as, as a pill
+const RESULT_PILL = {
+  'started': ['ALLOWED', 'green'],
+  'allowed by you': ['YOU SAID YES', 'green'],
+  'asked you': ['ASKED YOU', 'yellow'],
+  'stopped': ['STOPPED', 'red'],
+  'flagged': ['FLAGGED', 'yellow'],
+}
+
+// AgentGuard's word on one launch row: the signed ledger row when there is
+// one, else Claude Code's decision as tool.check saw it, read with the row's
+// own state for an asked launch (refused at the dialog, or running).
+function stampFor(row) {
+  const id = row.tool_use_id
+  const signed = status && status.ledger && status.ledger.launches && status.ledger.launches[id]
+  const seen = stamps.get(id)
+  let result = signed ? signed.result : null
+  if (!result && seen) result = seen.decision === 'deny' ? 'stopped' : seen.decision === 'ask' ? 'asked you' : seen.decision === 'allow' ? 'started' : null
+  if (!result) return null
+  if (result === 'asked you') {
+    if (row.isErrored || row.isInterrupted) return { label: ['YOU SAID NO', 'red'], seen, signed }
+    if (!row.isRunning && row.output !== undefined) return { label: ['YOU SAID YES', 'green'], seen, signed }
+  }
+  return RESULT_PILL[result] ? { label: RESULT_PILL[result], seen, signed } : null
+}
 
 function paneLines() {
   const lines = [{ text: 'This session', bold: true }]
@@ -154,7 +191,12 @@ function paneLines() {
   const rows = (ledger && ledger.decisions) || []
   if (!rows.length) lines.push({ text: 'None in this session yet.', dim: true })
   for (const row of rows.slice(0, 12)) {
-    lines.push({ text: clock(row.at) + '  ' + (row.tool || 'tool') + '  ' + row.result, color: RESULT_COLOR[row.result] || null, dim: !RESULT_COLOR[row.result], truncate: true })
+    const label = RESULT_PILL[row.result]
+    lines.push({ parts: [
+      { text: clock(row.at) + '  ' + (row.tool || 'tool') + '  ', dim: true },
+      label ? pill(label[0], label[1]) : { text: row.result, dim: true },
+      { text: '  #' + row.sequence, dim: true },
+    ] })
   }
   lines.push({ text: ' ' })
   if (ledger) {
@@ -225,15 +267,23 @@ export function register(on) {
       live.sub = 0
       status = null
       verified = null
+      stamps.clear()
     }
     await refresh($, false)
     return next(e)
   })
 
-  // After Claude Code decides a launch, so the band is current before any prompt shows
+  // After Claude Code decides a launch: the band is current before any prompt
+  // shows, and the launch's row remembers the decision and the count then.
   on('tool.check', { tool: ['Task', 'Agent'] }, async ($, e, next) => {
     const decision = await next(e)
     await refresh($, false)
+    if (active && typeof e.tool_use_id === 'string') {
+      const burn = status && status.burn
+      const window = burn ? leading(burn) : null
+      stamps.set(e.tool_use_id, { decision: decision && decision.decision, count: window ? window.count : null, limit: window ? window.limit : null })
+      $.ui.invalidate('ui.render')
+    }
     return decision
   })
 
@@ -278,13 +328,37 @@ export function register(on) {
     return rest ? Box({ flexDirection: 'column', children: [line, rest] }) : line
   })
 
+  // AgentGuard's word under Claude Code's own row for each sub-agent launch
+  on('ui.render', { component: 'ToolUse' }, async ($, e, next) => {
+    const row = await next(e)
+    if (!active || !e.props || !SPAWN_TOOLS.includes(e.props.tool)) return row
+    const stamp = stampFor(e.props)
+    if (!stamp) return row
+    const { Box, Text } = $.ui.resolve(e)
+    const parts = [{ text: '  ⎿  ', dim: true }, pill(stamp.label[0], stamp.label[1]), { text: ' AgentGuard', color: TEAL, bold: true }]
+    const facts = []
+    if (stamp.seen && stamp.seen.count !== null && stamp.seen.limit) facts.push('sub-agents ' + stamp.seen.count + ' of ' + stamp.seen.limit + ' at launch')
+    if (stamp.signed) facts.push('signed #' + stamp.signed.sequence)
+    if (facts.length) parts.push({ text: ' · ' + facts.join(' · '), dim: true, truncate: true })
+    const mark = Box({ flexDirection: 'row', children: parts.map((part) => Text(text(part))) })
+    return row ? Box({ flexDirection: 'column', children: [row, mark] }) : mark
+  })
+
+  // While Claude works, the spinner carries the sub-agent count once one has run
+  on('ui.render', { component: 'Spinner' }, async ($, e, next) => {
+    const burn = status && status.burn
+    if (!active || !burn || !burn.spawns || !e.props) return next(e)
+    const window = leading(burn)
+    return next({ ...e, props: { ...e.props, suffix: ' · sub-agents ' + window.count + '/' + window.limit + (e.props.suffix || '') } })
+  })
+
   on('ui.render', { component: 'Pane' }, async ($, e, next) => {
     if (e.requestId !== PANE) return next(e)
     const { Box, Text, Button } = $.ui.resolve(e)
     return Box({
       flexDirection: 'column',
       children: [
-        ...paneLines().map((part) => Text(text(part))),
+        ...paneLines().map((line) => (line.parts ? Box({ flexDirection: 'row', children: line.parts.map((part) => Text(text(part))) }) : Text(text(line)))),
         Box({
           flexDirection: 'row',
           columnGap: 3,

@@ -234,7 +234,7 @@ async function agentScore(args, options) {
 function summary(entry) {
   const d = entry.decision;
   const metadata = d.plugin || d.outcomeReceipt?.plugin || {};
-  return { sequence: entry.sequence, entryHash: entry.entryHash, decisionId: d.decisionId, timestamp: d.timestamp, action: d.action, entryType: d.entryType || 'decision', provider: d.provider, model: d.modelRequested, actor: d.actor, projectedCents: d.projectedCents, reasons: d.reasons, originalDecisionId: d.originalDecisionId, toolName: metadata.toolName, event: metadata.event, gate: metadata.gate, host: metadata.host || 'unknown', asked: metadata.asked === true };
+  return { sequence: entry.sequence, entryHash: entry.entryHash, decisionId: d.decisionId, timestamp: d.timestamp, action: d.action, entryType: d.entryType || 'decision', provider: d.provider, model: d.modelRequested, actor: d.actor, projectedCents: d.projectedCents, reasons: d.reasons, originalDecisionId: d.originalDecisionId, toolName: metadata.toolName, event: metadata.event, gate: metadata.gate, host: metadata.host || 'unknown', asked: metadata.asked === true, toolUseId: metadata.toolUseId };
 }
 
 function failOpen(decision) {

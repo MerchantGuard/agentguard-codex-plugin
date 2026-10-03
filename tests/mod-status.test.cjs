@@ -101,6 +101,8 @@ test('an asked launch reads "asked you", and "allowed by you" once it ran', asyn
   await f.ran(input);
   out = f.run(['--session', SESSION]);
   assert.equal(out.ledger.decisions[0].result, 'allowed by you');
+  // The same launch, found by its tool call for the row stamp
+  assert.deepEqual(out.ledger.launches[input.tool_use_id], {sequence: out.ledger.decisions[0].sequence, result: 'allowed by you'});
 });
 
 test('a launch under the limit reads "started", plain allows stay out of the rows, and other sessions never show', async t => {
