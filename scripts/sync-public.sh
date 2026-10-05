@@ -93,6 +93,10 @@ runtime/control.cjs
 runtime/daemon.cjs
 runtime/engine.cjs
 runtime/notify-stop.cjs
+runtime/notifier/build.cjs
+runtime/notifier/main.swift
+runtime/notifier/make-icon.swift
+runtime/notifier/Info.plist
 runtime/mcp.cjs
 runtime/mcp-legacy.cjs
 runtime/agent-score-questions.cjs
@@ -123,6 +127,8 @@ assets/logo-512.png
 assets/social-card.png
 tests/budget.test.cjs
 tests/helper-notifications.cjs
+tests/helper-test-env.cjs
+tests/test-isolation.test.cjs
 tests/notify-stop.test.cjs
 tests/durability.test.cjs
 tests/health.test.cjs

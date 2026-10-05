@@ -1,6 +1,6 @@
 {
   "name": "@agentguard-run/codex-plugin",
-  "version": "0.3.18",
+  "version": "0.3.19",
   "description": "Stops a runaway burst of sub-agents until you allow it and shows where your Claude Code or Codex tokens went. Runs on your machine.",
   "license": "SEE LICENSE IN LICENSE",
   "type": "commonjs",
@@ -8,13 +8,13 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --require ./tests/helper-notifications.cjs --test --test-concurrency=1 tests/*.test.cjs",
+    "test": "AGENTGUARD_NOTIFY_SUPPRESS=1 node --require ./tests/helper-notifications.cjs --test --test-concurrency=1 tests/*.test.cjs",
     "start": "node runtime/mcp.cjs",
     "build:compat": "node scripts/build-compat.cjs",
     "check:compat": "node scripts/build-compat.cjs --check",
     "postinstall": "node scripts/provision-dependencies.cjs",
-    "test:claude": "AGENTGUARD_TEST_HOST=claude-code node --require ./tests/helper-notifications.cjs --test --test-concurrency=1 tests/*.test.cjs",
-    "test:hosts": "npm test && npm run test:claude",
+    "test:claude": "AGENTGUARD_NOTIFY_SUPPRESS=1 AGENTGUARD_TEST_HOST=claude-code node --require ./tests/helper-notifications.cjs --test --test-concurrency=1 tests/*.test.cjs",
+    "test:hosts": "AGENTGUARD_NOTIFY_SUPPRESS=1 npm test && AGENTGUARD_NOTIFY_SUPPRESS=1 npm run test:claude",
     "setup:public-evals": "npm ci --ignore-scripts --prefix scripts/public-evals-deps",
     "score:public-evals": "node scripts/score-public-evals.cjs"
   },

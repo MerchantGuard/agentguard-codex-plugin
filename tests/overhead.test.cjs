@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const {spawnSync} = require('node:child_process');
+const {spawnSync} = require('./helper-test-env.cjs');
 const {quantile, CALLS} = require('../scripts/measure-overhead.cjs');
 
 test('overhead percentiles use nearest rank over actual wall-time samples', () => {

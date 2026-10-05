@@ -291,8 +291,10 @@ class Engine {
   afterReply() { this.logStore.afterReply(); }
   async flush() { return this.logStore.flush(); }
   async close() { return this.logStore.close(); }
-  notifyStop(config, decision, ruleIds) {
-    try { this.stopNotifier({mode: decision.enforcementMode, stopped: decision.action === 'block', ruleIds, notifyOnStop: config.notifyOnStop ?? true}); }
+  // summary is one plain sentence from the rule that stopped the call (a Burn finding, the guard pack message
+  // or the cap), so the notification can say why in words; it never carries tool input.
+  notifyStop(config, decision, ruleIds, summary) {
+    try { this.stopNotifier({mode: decision.enforcementMode, stopped: decision.action === 'block', ruleIds, notifyOnStop: config.notifyOnStop ?? true, summary, dataDir: this.loc.data}); }
     catch { /* Desktop notification failure must never change a signed decision. */ }
   }
   async failure(meta, reasonCode) {
@@ -372,7 +374,7 @@ class Engine {
       this.computedBlocks.set(`burn:${callKey(meta)}`, {decision: blocked, output: deny(guard.message), license: {...license, mode}});
       await this.append(blocked); this.computedBlocks.delete(`burn:${callKey(meta)}`);
       this.completed.set(`burn:${callKey(meta)}`, blocked);
-      this.notifyStop(config, blocked, guard.matches.filter(rule => rule.action === 'stop').map(rule => rule.id));
+      this.notifyStop(config, blocked, guard.matches.filter(rule => rule.action === 'stop').map(rule => rule.id), guard.message);
       return {output: this.decorate(deny(guard.message), {...license, mode})};
     }
     if (matchingExternalBurn(meta, workingDirectory)) {
@@ -423,7 +425,10 @@ class Engine {
       this.licenseMetadata(mirror, license, decision.mode);
       await this.append(mirror); this.completed.set(`burn:${callKey(meta)}`, mirror);
       // The person is already looking at the prompt for an asked launch.
-      if (decision.verdict === 'STOP' && decision.blocked && !asked) this.notifyStop(config, mirror, decision.report.findings.filter(finding => finding.verdict === 'STOP').map(finding => finding.detector));
+      if (decision.verdict === 'STOP' && decision.blocked && !asked) {
+        const stops = decision.report.findings.filter(finding => finding.verdict === 'STOP');
+        this.notifyStop(config, mirror, stops.map(finding => finding.detector), stops.map(finding => finding.summary).filter(Boolean).join(' '));
+      }
       if (!decision.blocked || asked) this.pending.set(callKey(meta), mirror);
     }
     if (asked) return {output: {hookSpecificOutput: output.hookSpecificOutput}};
@@ -574,7 +579,7 @@ class Engine {
     this.completed.set(`spend:${callKey(meta)}`, decision);
     if (decision.action === 'block' && mode === 'enforce' && !refusedOverride) {
       const ids = guard.matches.filter(rule => rule.action === 'stop').map(rule => rule.id);
-      this.notifyStop(config, decision, ids.length ? ids : [decision.triggeredCap ? `cap:${decision.triggeredCap.window}` : reason || 'tool_policy']);
+      this.notifyStop(config, decision, ids.length ? ids : [decision.triggeredCap ? `cap:${decision.triggeredCap.window}` : reason || 'tool_policy'], ids.length ? guard.message : decision.reasons?.join('; '));
     }
     if (decision.action !== 'block') this.pending.set(callKey(meta), decision);
     return { output: decision.action === 'block' ? this.decorate(refusal(), {...license, mode}) : {...(approvalOutput ?? allow()), ...(guard.warning ? {systemMessage: guard.message} : {})} };

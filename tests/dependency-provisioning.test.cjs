@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
-const { spawnSync } = require('node:child_process');
+const { spawnSync } = require('./helper-test-env.cjs');
 
 const sourceRoot = path.resolve(__dirname, '..');
 const inputSentinel = 'SYNTHETIC_DEPENDENCY_INPUT_MUST_NOT_APPEAR';

@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const {spawnSync, execFileSync} = require('node:child_process');
+const {spawnSync, execFileSync} = require('./helper-test-env.cjs');
 const root = path.resolve(__dirname, '..');
 
 function fixture(t) {

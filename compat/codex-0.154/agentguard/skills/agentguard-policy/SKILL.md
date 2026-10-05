@@ -141,4 +141,49 @@ to push a weaker policy.
 
 ## Local STOP notifications
 
-On macOS, an enforced STOP posts a local desktop notification with the rule ID and `resume with agentguard-burn resume`. Set `notifyOnStop: false` in the plugin policy to disable it; the default is `true`. Other platforms do not notify. Notifications use only local `osascript`, with no network requests, and cannot change the tool decision. Repeated delivery of the same signed decision does not notify again. Burn resume permits a Burn action; spend caps and other rules must be changed in the policy that stopped the call.
+On macOS, AgentGuard can show a local notification for an enforced STOP. A
+recognized Burn limit gets the title "AgentGuard stopped a sub-agent launch";
+a spend cap or policy rule gets "AgentGuard stopped a tool call". The subtitle
+explains the reason. Burn limits and known spend windows use plain words.
+Policy stops use the engine's summary with the leading STOP label removed,
+or a generic safety or policy reason if no summary is available. Some policy
+summaries can still contain technical reason codes.
+
+The body points to the terminal for details and gives the next step:
+
+- Burn limit: the notification asks the person to type
+  `! npx agentguard-burn resume --once --reason "why"` to allow one launch,
+  with their own reason. The person must type it; do not run it for them.
+- Spend cap: raise the cap in the AgentGuard policy, or wait for it to reset.
+- Policy rule: if the stopped action was intended, change the rule in the
+  AgentGuard policy. A notification is not authorization to loosen a policy.
+
+Alerts are limited to one every 10 minutes for each plugin data folder.
+Further stops during that cooldown are counted; the next eligible STOP alert
+says how many more stops occurred. There is no scheduled catch-up alert when
+the 10 minutes end. Stops while alerts are muted or turned off are not added
+to the count. With the notifier app, a new alert replaces the previous one.
+
+The app offers **Mute 10 minutes**, **Mute 5 minutes**, **Mute 30 minutes**,
+**Mute 1 hour** and **Turn off AgentGuard alerts**. macOS shows the first action
+as a button and the others under Options. The choice is saved in
+`notify-state.json` in the plugin data folder: `${PLUGIN_DATA}` in Codex or
+`${CLAUDE_PLUGIN_DATA}` in Claude Code. Muting does not shorten the 10-minute
+cooldown. Setting `notifyOnStop: false` in the plugin policy disables both the
+app and AppleScript alerts; the policy default is `true`. These choices leave
+enforcement unchanged.
+
+The notifier is a small app built from the bundled source on the person's Mac
+into `~/Library/Application Support/AgentGuard/AgentGuard.app`. The first
+eligible STOP starts the build in the background if the Xcode command line
+tools are available. Until a current build is ready, or without those tools,
+the existing AppleScript notification shows the same words, with the reason
+and next step together in the body. That fallback has no AgentGuard buttons
+or replacement identifier. The app requests macOS notification permission.
+The notifier and its build make no network requests.
+
+A launch waiting for the person's answer in Claude Code does not notify.
+Shadow decisions and other platforms do not notify. Repeated delivery of the
+same signed decision does not notify again. Test runs never post desktop
+notifications: `NODE_TEST_CONTEXT` with a value or
+`AGENTGUARD_NOTIFY_SUPPRESS=1` suppresses real notification calls.
