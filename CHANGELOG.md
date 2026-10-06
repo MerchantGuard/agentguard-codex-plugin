@@ -1,3 +1,9 @@
+## 0.3.21 - 2026-10-06
+
+Changes for the review by Anthropic's plugin directory.
+
+- The public plugin no longer ships `scripts/sync-public.sh`. It is the maintainers' tool for copying a reviewed release into this repository, it writes the plugin's files including the mod, and nothing in the plugin runs it. It stays in the source repository.
+
 ## 0.3.20 - 2026-10-06
 
 Changes for the review by Anthropic's plugin directory.
