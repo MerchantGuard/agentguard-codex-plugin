@@ -42,14 +42,29 @@ function fixture(t) {
   fs.writeFileSync(transcript, line({type: 'user', uuid: 'hook-user', timestamp: iso(T0), message: {role: 'user', content: 'SYNTHETIC_PROMPT_MUST_NOT_APPEAR'}})
     + line(response('p1', T0 + 1_000, 300)));
   const loc = locations(data);
-  t.after(() => {
-    spawnSync(process.execPath, [path.join(root, 'runtime', 'control.cjs'), 'stop'], {env, timeout: 5000});
+  const tracker = path.join(base, 'track-tip.cjs'), children = path.join(base, 'tip-children.ndjson');
+  fs.writeFileSync(tracker, `const cp = require('node:child_process'), fs = require('node:fs'), original = cp.spawn;
+    cp.spawn = function(command, args, options) {
+      const child = original.call(this, command, args, options);
+      if (child.pid && args.some(arg => /runtime[/\\\\]session-tip\\.cjs$/.test(arg))) fs.appendFileSync(${JSON.stringify(children)}, child.pid + '\\n');
+      return child;
+    };`);
+  t.after(async () => {
+    // SessionEnd starts a detached tip reader which may wait for the receipt.
+    // Let it finish before removing the state it reads and writes.
+    const pids = fs.existsSync(children) ? fs.readFileSync(children, 'utf8').trim().split('\n').filter(Boolean).map(Number) : [];
+    const alive = pid => {try { process.kill(pid, 0); return true; } catch { return false; }};
+    const deadline = Date.now() + 10000;
+    while (pids.some(alive) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 20));
+    assert.equal(pids.some(alive), false, 'detached tip processes must exit before teardown');
+    const stopped = spawnSync(process.execPath, [path.join(root, 'runtime', 'control.cjs'), 'stop'], {env, timeout: 5000});
+    assert.equal(stopped.status, 0);
     fs.rmSync(loc.ipc, {recursive: true, force: true});
     fs.rmSync(base, {recursive: true, force: true});
   });
   const hook = (name, input) => {
     const began = Date.now();
-    const child = spawnSync(process.execPath, [path.join(root, 'hooks', name)], {env, input: typeof input === 'string' ? input : JSON.stringify(input), encoding: 'utf8', timeout: 20000});
+    const child = spawnSync(process.execPath, ['--require', tracker, path.join(root, 'hooks', name)], {env, input: typeof input === 'string' ? input : JSON.stringify(input), encoding: 'utf8', timeout: 20000});
     return {status: child.status, stdout: child.stdout, stderr: child.stderr, ms: Date.now() - began};
   };
   let call = 0;

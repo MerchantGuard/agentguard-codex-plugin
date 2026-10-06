@@ -59,7 +59,7 @@ async function measure({iterations = 1000, output, receiptOutput} = {}) {
   const ipc = path.join('/tmp', `ag-plugin-${process.getuid?.() ?? 'local'}-${digest(path.resolve(data)).slice(0, 24)}`);
   const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => !/^(AGENTGUARD_|PLUGIN_|CLAUDE_PLUGIN_|NODE_OPTIONS$)/.test(name)));
   Object.assign(env, {PLUGIN_DATA: data, PLUGIN_ROOT: root, AGENTGUARD_HOME: home, AGENTGUARD_LICENSE_KEY: '',
-    AGENTGUARD_NOTIFY_SUPPRESS: '1', AGENTGUARD_NO_BEACON: '1', AGENTGUARD_TELEMETRY: '0'});
+    AGENTGUARD_NO_BEACON: '1', AGENTGUARD_TELEMETRY: '0', AGENTGUARD_NOTIFY_SUPPRESS: '1'});
   const key = 'ag_SYNTHETIC_OVERHEAD_LICENSE';
   const preload = path.join(data, 'no-network.cjs');
   fs.writeFileSync(preload, networkBlocker(attempts), {mode: 0o600});

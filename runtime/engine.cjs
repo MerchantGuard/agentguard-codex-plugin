@@ -231,8 +231,8 @@ class Engine {
     this.tally.observe(decision);
     return decision;
   }
-  // The work receipt for a session that ended: one signed row with counts
-  // only, at most once per session. Deferred fail-open events are recorded
+  // A fresh cumulative closing receipt after each period of activity.
+  // Repeated endings without changes are idempotent. Deferred events are recorded
   // first, so the receipt counts every call this plugin decided.
   async sessionReceipt({sessionId, transcriptPath} = {}) {
     try { await this.drainSpool(); } catch { /* The receipt counts the rows already signed. */ }
@@ -246,12 +246,15 @@ class Engine {
   async writeReceipt({sessionId, transcriptPath}) {
     const id = identifier(sessionId, null);
     if (!id) return {receipt: 'invalid'};
-    if (this.tally.receipted.has(id)) return {receipt: 'duplicate'};
+    await this.reconcileExternal(id);
     const {cursor, view} = this.burnFacts(id, transcriptPath);
     const receipt = workReceipt.buildReceipt({counts: this.tally.counts(id), cursor, view,
       burnPolicyMode: this.burnPolicyMode(), pluginVersion: require('../package.json').version});
+    const previous = this.tally.receipts.get(id);
+    if (this.tally.receipted.has(id) && JSON.stringify(previous?.plugin.receipt) === JSON.stringify(receipt)) return {receipt: 'duplicate'};
     const row = this.basic({toolName: workReceipt.RECEIPT_EVENT, sessionId: id, toolUseId: crypto.randomUUID(), gate: 'control'}, 'allow', workReceipt.RECEIPT_EVENT);
-    row.plugin = {...row.plugin, event: workReceipt.RECEIPT_EVENT, receipt};
+    row.plugin = {...row.plugin, event: workReceipt.RECEIPT_EVENT, receipt,
+      ...(previous ? {previousReceiptId: previous.decisionId} : {})};
     await this.append(row);
     return {receipt: 'appended', sequence: this.sequence - 1, entryHash: this.previousHash};
   }
@@ -271,6 +274,11 @@ class Engine {
   // when the host is not Claude Code, the transcript cannot be read, Burn has
   // no sub-agent reader, or a session never read here is too large to read now.
   burnFacts(sessionId, transcriptPath) {
+    if (hostContext().host === 'codex' && workReceipt.transcriptLocator(transcriptPath)) {
+      const gateway = this.gateway ?? (this.receiptGateway ??= new burn.Gateway(burnHome(), {sign: false}));
+      require('./launch-policy.cjs').observeCodexUsage(burn, gateway, {sessionId}, transcriptPath);
+      return {view: gateway.peek(sessionId)};
+    }
     if (hostContext().host !== 'claude-code' || !workReceipt.transcriptLocator(transcriptPath) || !readsSubagents(burn)) return {};
     try {
       if (!fs.statSync(transcriptPath).isFile()) return {};
@@ -338,7 +346,8 @@ class Engine {
       if (meta.commandScanFailed) return await this.failure(meta, 'scan_incomplete');
       const previous = this.completed.get(`${meta.gate}:${callKey(meta)}`);
       // A launch held for the person's answer is evaluated again, never replayed as a denial.
-      if (previous && !previous.plugin.approvalNeeded && previous.plugin.asked !== true) {
+      const launchRecheck = previous?.plugin.launch && (previous.plugin.launch.maxDepth !== null || previous.plugin.launch.modelDecision !== 'off');
+      if (previous && !launchRecheck && !previous.plugin.approvalNeeded && previous.plugin.asked !== true) {
         if (previous.action !== 'block') return {output: {...(previous.plugin.approvalRuleId ? {hookSpecificOutput: {hookEventName: 'PreToolUse', permissionDecision: 'ask', permissionDecisionReason: `AgentGuard ${previous.plugin.approvalRuleId} requires your approval for this call.`}} : allow()), ...(previous.plugin.guardPackMessage ? {systemMessage: previous.plugin.guardPackMessage} : {})}};
         // A prior denial must not survive a switch to shadow mode.
         const {mode} = this.context(meta);
@@ -382,8 +391,10 @@ class Engine {
         const mirror = this.basic(meta, 'shadow', 'burn_external_hook');
         if (guard.matches.length) { mirror.plugin.guardPack = guard.matches; mirror.plugin.guardPackMessage = guard.message; }
         this.licenseMetadata(mirror, license, mode);
+        const result = await this.launchAdmission(meta, config, mode, mirror, {...allow(), ...(guard.warning ? {systemMessage: guard.message} : {})}, require('./launch-policy.cjs').observedTokens(this.burnFacts(meta.sessionId, transcriptPath).view));
         await this.append(mirror); this.completed.set(`burn:${callKey(meta)}`, mirror);
-        this.pending.set(callKey(meta), mirror);
+        if (mirror.action !== 'block' || mirror.plugin.asked) this.pending.set(callKey(meta), mirror);
+        return result;
       }
       return {output: {...allow(), ...(guard.warning ? {systemMessage: guard.message} : {})}};
     }
@@ -423,19 +434,78 @@ class Engine {
       if (asked) mirror.plugin.asked = true;
       if (guard.matches.length) { mirror.plugin.guardPack = guard.matches; mirror.plugin.guardPackMessage = guard.message; }
       this.licenseMetadata(mirror, license, decision.mode);
+      const admission = await this.launchAdmission(meta, config, mode, mirror, {...output, ...(guard.warning ? {systemMessage: [output.systemMessage, guard.message].filter(Boolean).join('\n')} : {})}, require('./launch-policy.cjs').observedTokens(this.gateway.peek(meta.sessionId)));
       await this.append(mirror); this.completed.set(`burn:${callKey(meta)}`, mirror);
       // The person is already looking at the prompt for an asked launch.
       if (decision.verdict === 'STOP' && decision.blocked && !asked) {
         const stops = decision.report.findings.filter(finding => finding.verdict === 'STOP');
         this.notifyStop(config, mirror, stops.map(finding => finding.detector), stops.map(finding => finding.summary).filter(Boolean).join(' '));
       }
-      if (!decision.blocked || asked) this.pending.set(callKey(meta), mirror);
+      if (mirror.action !== 'block' || mirror.plugin.asked) this.pending.set(callKey(meta), mirror);
+      if (admission.changed) return admission;
     }
     if (asked) return {output: {hookSpecificOutput: output.hookSpecificOutput}};
     // The STOP box is Burn's own text and keeps its lines.
     if (verdict === 'deny') return { output: this.decorate(stopDeny(output.hookSpecificOutput.permissionDecisionReason), {...license, mode}) };
     const messages = [output.systemMessage, guard.warning ? guard.message : null].filter(Boolean);
     return { output: { ...allow(), ...(messages.length ? { systemMessage: messages.join(' ').replace(/[\r\n]+/g, ' ') } : {}) } };
+  }
+  async launchAdmission(meta, config, mode, mirror, output, sessionTokens) {
+    if (!SPAWN.has(meta.toolName)) return {output};
+    const session = config.sessions?.[meta.sessionId] ?? {};
+    const limits = [config.max_depth, session.max_depth].filter(value => value != null);
+    const maxDepth = limits.length ? Math.min(...limits) : null;
+    const launch = {...(meta.launch ?? {depth: null, source: 'unavailable', callerId: null}), maxDepth,
+      depthDecision: maxDepth === null ? 'off' : meta.launch?.depth == null ? 'lineage_unavailable' : meta.launch.depth > maxDepth ? 'over_limit' : 'within_limit',
+      modelDecision: 'off', toModel: null, tokenBudget: null, sessionTokens};
+    mirror.plugin.launch = launch;
+    const routing = session.helper_models ?? config.helper_models;
+    let routed;
+    if (routing?.enabled && !meta.launch?.resumed) {
+      if (sdk.HELPER_MODEL_ROUTING_VERSION !== 1) throw new Error('helper_routing_sdk_unavailable');
+      routed = await sdk.evaluatePolicy({...basePolicy, mode, requiredCapability: 'read_only',
+        helperModelRouting: {enabled: true, tokenBudget: routing.token_budget, helperTypes: routing.helper_types, keepTypes: [...new Set([...(config.helper_models?.keep_types ?? []), ...(routing.keep_types ?? [])])], downgradeTo: routing.model}},
+      {scope: mirror.actor, provider: meta.host === 'claude-code' ? 'anthropic' : 'openai', model: meta.launch?.fromModel ?? 'inherit',
+        inputTokens: 0, outputTokens: 0, capabilityClaim: 'read_only',
+        helperLaunch: {kind: 'helper', agentType: meta.launch?.agentType ?? '', sessionTokens}}, this.spendStore);
+      launch.tokenBudget = routing.token_budget;
+      launch.modelDecision = 'unchanged';
+      launch.reason = 'helper_policy_unchanged';
+      if (routed.modelResolved !== routed.modelRequested) {
+        launch.toModel = routed.modelResolved;
+        launch.reason = 'helper_token_budget';
+        launch.modelDecision = mode !== 'enforce' ? 'shadow' : meta.launch?.modelRewriteSupported ? 'rewrite' : 'suggestion';
+      }
+    }
+    const reasons = [];
+    if (launch.depthDecision === 'over_limit') reasons.push(`AgentGuard: a ${launch.callerType ?? 'helper'} agent (${launch.callerId ?? 'unknown'}) tried to launch another agent at depth ${launch.depth}. Your depth limit is ${maxDepth}.`);
+    if (launch.modelDecision === 'suggestion') reasons.push(`AgentGuard: Helper ${meta.launch?.agentType} passed your ${launch.tokenBudget} token budget (${sessionTokens} recorded). Choose ${launch.toModel} for this helper. This host has no verified per-launch model override.`);
+    const initial = output.hookSpecificOutput?.permissionDecision;
+    let held = false;
+    if (reasons.length && mode === 'enforce' && initial !== 'deny') {
+      const why = reasons.join(' ');
+      if (meta.host === 'claude-code' && ['default', 'manual', 'acceptEdits', 'auto', 'plan'].includes(meta.permissionMode)) {
+        output = {...output, ...require('./common.cjs').ask([output.hookSpecificOutput?.permissionDecisionReason, why, 'Allow this one launch? If you say no, nothing starts.'].filter(Boolean).join('\n'))};
+        mirror.plugin.asked = true; held = true;
+      } else if (!require('./policy-approval.cjs').consume(this.loc.data, meta, config)) {
+        require('./policy-approval.cjs').requestApproval(this.loc.data, meta, config, Date.now(), launch.depthDecision === 'over_limit' ? 'max_depth' : 'helper_model');
+        output = deny(`${why} The launch is paused until you allow it. In your own terminal, run node runtime/policy-cli.cjs pending, approve the exact call, then retry.`);
+        mirror.plugin.approvalNeeded = true; held = true;
+      }
+      if (held) mirror.action = 'block';
+      mirror.reasons.push(launch.depthDecision === 'over_limit' ? 'launch_depth_limit' : 'helper_model_suggestion');
+    }
+    let modelPatch;
+    if (launch.modelDecision === 'rewrite' && output.hookSpecificOutput?.permissionDecision !== 'deny') {
+      modelPatch = launch.toModel;
+      mirror.modelRequested = routed.modelRequested; mirror.modelResolved = routed.modelResolved;
+      if (!held && mirror.action !== 'block') mirror.action = 'downgrade';
+      mirror.reasons.push(...routed.reasons);
+    } else if (launch.modelDecision === 'rewrite') launch.modelDecision = 'unchanged';
+    if (launch.depthDecision === 'lineage_unavailable' && mode === 'enforce') output = {...output, systemMessage: [output.systemMessage, 'AgentGuard cannot verify launch depth here. The existing count limit still applies.'].filter(Boolean).join('\n')};
+    const missingUsage = routing?.enabled && sessionTokens === null;
+    if (missingUsage) output = {...output, systemMessage: [output.systemMessage, 'AgentGuard cannot read session token usage here. The helper model stays unchanged.'].filter(Boolean).join('\n')};
+    return {output, ...(modelPatch ? {modelPatch} : {}), changed: held || !!modelPatch || launch.depthDecision === 'lineage_unavailable' || missingUsage};
   }
   // Fresh installs enforce. Burn's own first-run default is shadow, so a
   // machine with no Burn policy file recorded every STOP and refused none.
@@ -585,6 +655,7 @@ class Engine {
     return { output: decision.action === 'block' ? this.decorate(refusal(), {...license, mode}) : {...(approvalOutput ?? allow()), ...(guard.warning ? {systemMessage: guard.message} : {})} };
   }
   async receipt(meta) {
+    await this.reconcileExternal(meta.sessionId, meta.toolUseId);
     const original = this.pending.get(callKey(meta));
     if (!original) return this.failure(meta, 'outcome_without_decision');
     const durationMs = meta.durationMs ?? Math.max(0, Date.now() - Date.parse(original.timestamp));
@@ -592,10 +663,43 @@ class Engine {
       status: meta.success === null ? 'unknown' : meta.success ? 'completed' : 'failed', durationMs, outputBytes: meta.outputBytes,
       totalCostCents: original.plugin.unitCostCents ?? 0 });
     decision.originalDecisionId = original.decisionId; decision.actor = original.actor;
-    decision.plugin = { ...meta, event: 'outcome', decisionId: original.decisionId, durationMs, durationSource: meta.durationSource ?? 'elapsed_since_decision' };
+    decision.plugin = { ...meta, ...(original.plugin.launch ? {launch: original.plugin.launch} : {}), event: 'outcome', decisionId: original.decisionId, durationMs, durationSource: meta.durationSource ?? 'elapsed_since_decision' };
     this.failureLicense(decision, meta);
     await this.append(decision); this.pending.delete(callKey(meta));
     return { output: {} };
+  }
+  // Claude runs separate hooks concurrently. Its standalone Burn hook alone
+  // reserves the count; import the signed verdict after hooks finish, before
+  // linking a host outcome or closing the session. Old or unverifiable Burn
+  // receipts leave an explicit gap, never an invented allow or approval.
+  async reconcileExternal(sessionId, toolUseId) {
+    if (typeof burn.readSpawnAdmission !== 'function') return;
+    for (const [key, original] of this.completed) {
+      const m = original.plugin;
+      if (m.sessionId !== sessionId || (toolUseId && m.toolUseId !== toolUseId) ||
+          ![m.reasonCode, m.policyReasonCode].includes('burn_external_hook')) continue;
+      let external;
+      try { external = burn.readSpawnAdmission(burnHome(), sessionId, m.toolUseId); }
+      catch { continue; }
+      if (!external) continue;
+      const row = structuredClone(original), payload = external.payload;
+      row.decisionId = crypto.randomUUID(); row.timestamp = new Date().toISOString();
+      for (const field of ['reasonCode', 'policyReasonCode']) if (row.plugin[field] === 'burn_external_hook') row.plugin[field] = 'burn_external_verified';
+      row.reasons = row.reasons.filter(reason => reason !== 'burn_external_hook');
+      row.reasons.push('burn_external_verified');
+      row.plugin.externalReceiptHash = burn.receiptDigest(external);
+      row.plugin.externalDecisionId = payload.decisionId;
+      if (payload.blocked) {
+        row.action = 'block';
+        if (payload.reasons.includes('decision:ask')) row.plugin.asked = true;
+        else delete row.plugin.asked;
+      } else if (row.action === 'shadow') {
+        row.action = payload.policy.mode === 'shadow' && payload.verdict === 'STOP' ? 'shadow' : 'allow';
+      }
+      await this.append(row); this.completed.set(key, row);
+      if (row.action !== 'block' || row.plugin.asked) this.pending.set(callKey(m), row);
+      else this.pending.delete(callKey(m));
+    }
   }
 }
 module.exports = { Engine, validatePolicy };

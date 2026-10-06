@@ -185,7 +185,9 @@ test('an installed standalone Claude Burn hook owns reservations and receipts wi
   assert.equal(reservations[0].toolUseId, raw.tool_use_id);
   assert.equal(fs.readFileSync(settingsFile, 'utf8'), settings);
   await f.handle({...raw, hook_event_name: 'PostToolUse', tool_response: {status: 'async_launched', agentId: 'synthetic-child'}}, 'receipt');
-  assert.equal(f.rows()[1].decision.originalDecisionId, f.rows()[0].decision.decisionId);
+  assert.equal(f.rows()[1].decision.plugin.reasonCode, 'burn_external_verified');
+  assert.equal(f.rows()[1].decision.plugin.externalReceiptHash, burn.receiptDigest(f.receipts()[0]));
+  assert.equal(f.rows()[2].decision.originalDecisionId, f.rows()[1].decision.decisionId);
   await f.verify();
 });
 

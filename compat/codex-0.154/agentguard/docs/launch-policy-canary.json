@@ -1,0 +1,1962 @@
+{
+  "date": "2026-10-05",
+  "branch": "plugin/depth-and-model-oct5",
+  "versions": {
+    "claude": "2.1.289",
+    "codex": "0.160.0",
+    "codexNode": "22.17.1",
+    "pluginSource": "0.3.18",
+    "spendSource": "0.20.3",
+    "spendBuild": "Unpublished branch build, staged locally"
+  },
+  "sep23": [
+    {
+      "callerId": "a134318a9c7788771",
+      "spawnDepth": 1,
+      "agentIdInTranscript": "a134318a9c7788771",
+      "toolUseId": "toolu_016LfQV36scbbFpz9RZ7WXEc",
+      "ledgerVerdict": "STOP",
+      "enforced": true,
+      "sessionId": "0b0c2202-d0be-4867-97a6-7e050a9b21e0"
+    },
+    {
+      "callerId": "ac3d0ef80bb8e468e",
+      "spawnDepth": 1,
+      "agentIdInTranscript": "ac3d0ef80bb8e468e",
+      "toolUseId": "toolu_018WTCMSkFqnutfd7EitV9if",
+      "ledgerVerdict": "STOP",
+      "enforced": true,
+      "sessionId": "0b0c2202-d0be-4867-97a6-7e050a9b21e0"
+    },
+    {
+      "callerId": "a3b8811a3c89b09c2",
+      "spawnDepth": 1,
+      "agentIdInTranscript": "a3b8811a3c89b09c2",
+      "toolUseId": "toolu_011KcK2p1bimyMd6ipbiTLtm",
+      "ledgerVerdict": "STOP",
+      "enforced": true,
+      "sessionId": "0b0c2202-d0be-4867-97a6-7e050a9b21e0"
+    },
+    {
+      "callerId": "aa0731d5ce774ca2f",
+      "spawnDepth": 1,
+      "agentIdInTranscript": "aa0731d5ce774ca2f",
+      "toolUseId": "toolu_019vVK43FxYRLbxECEpHU5wG",
+      "ledgerVerdict": "STOP",
+      "enforced": true,
+      "sessionId": "0b0c2202-d0be-4867-97a6-7e050a9b21e0"
+    },
+    {
+      "callerId": "aafba9a734258d4cd",
+      "spawnDepth": 1,
+      "agentIdInTranscript": "aafba9a734258d4cd",
+      "toolUseId": "toolu_015L7eWqFMVp8fUczrvfx56x",
+      "ledgerVerdict": "STOP",
+      "enforced": true,
+      "sessionId": "0b0c2202-d0be-4867-97a6-7e050a9b21e0"
+    }
+  ],
+  "claude": {
+    "source": "/var/folders/ng/8pvwxxbx6c11ccsjnkr0htsw0000gn/T/ag-launch-canary-claude-3CMuUA",
+    "exit": {
+      "host": "claude",
+      "status": 0,
+      "signal": null,
+      "error": null
+    },
+    "checks": {
+      "hostExited": true,
+      "boundedLaunches": true,
+      "modelRewrite": true,
+      "depth": true
+    },
+    "publicKeyHex": "f0016e3e83c2966285dfc632a5021317b460d31b38b68daece0d8f2e0c881c88",
+    "verification": {
+      "ok": true
+    },
+    "hooks": [
+      {
+        "event": "PreToolUse",
+        "tool": "Agent",
+        "toolUseId": "toolu_01212fj3GPrhXhZJkFCpjZ7i",
+        "agentId": null,
+        "model": null,
+        "inputModel": "sonnet",
+        "agentType": "search",
+        "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"updatedInput\":{\"description\":\"Read fixture.txt file\",\"prompt\":\"Read the file fixture.txt\",\"subagent_type\":\"search\",\"model\":\"haiku\",\"run_in_background\":false}}}\n",
+        "stderr": ""
+      },
+      {
+        "event": "PreToolUse",
+        "tool": "Read",
+        "toolUseId": "toolu_01KvkSk7UNmW8gRiEkQKjRqn",
+        "agentId": "a3af6afb7ff3115e2",
+        "model": null,
+        "inputModel": null,
+        "agentType": null,
+        "stdout": "{}\n",
+        "stderr": ""
+      },
+      {
+        "event": "PreToolUse",
+        "tool": "Agent",
+        "toolUseId": "toolu_01C2H9o6rKR9FymTeFPY3jKr",
+        "agentId": null,
+        "model": null,
+        "inputModel": "haiku",
+        "agentType": "coordinator",
+        "stdout": "{}\n",
+        "stderr": ""
+      },
+      {
+        "event": "PreToolUse",
+        "tool": "Agent",
+        "toolUseId": "toolu_01XfRPkXyJW25dGuzx1NPXgR",
+        "agentId": "a2d779b389bdf6dae",
+        "model": null,
+        "inputModel": "sonnet",
+        "agentType": "search",
+        "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"AgentGuard: Agent a2d779b389bdf6dae tried to launch at depth 2. Your depth limit is 1.\\nAllow this one launch? If you say no, nothing starts.\",\"updatedInput\":{\"description\":\"Read fixture.txt\",\"prompt\":\"Read fixture.txt\",\"subagent_type\":\"search\",\"model\":\"haiku\",\"run_in_background\":false}}}\n",
+        "stderr": ""
+      }
+    ],
+    "entries": [
+      {
+        "sequence": 0,
+        "decision": {
+          "decisionId": "ada125df-428d-4567-8699-700257fedbaf",
+          "timestamp": "2026-10-05T19:13:33.330Z",
+          "action": "downgrade",
+          "actor": {
+            "tenantId": "local",
+            "sessionId": "d5642286-db50-4124-9e71-9723d320646a",
+            "agentId": "d5642286-db50-4124-9e71-9723d320646a"
+          },
+          "triggeredCap": null,
+          "triggeredScopeKey": null,
+          "projectedCents": 0,
+          "windowSpendBefore": 0,
+          "windowSpendAfter": 0,
+          "provider": "claude-code",
+          "modelRequested": "sonnet",
+          "modelResolved": "haiku",
+          "policyId": "agentguard-codex",
+          "policyVersion": 1,
+          "enforcementMode": "enforce",
+          "reasons": [
+            "burn_external_hook",
+            "Helper token budget exceeded: 11024 tokens, budget 1; route search to haiku."
+          ],
+          "plugin": {
+            "host": "claude-code",
+            "schema": "agentguard.codex.v1",
+            "requestId": "a6a21d65-79b2-42dc-87e5-bed44d1a8f00",
+            "gate": "burn",
+            "toolName": "Agent",
+            "toolUseId": "toolu_01212fj3GPrhXhZJkFCpjZ7i",
+            "sessionId": "d5642286-db50-4124-9e71-9723d320646a",
+            "launch": {
+              "depth": 1,
+              "source": "claude_main",
+              "callerId": "main",
+              "parentAgentId": null,
+              "callerType": null,
+              "agentType": "search",
+              "fromModel": "sonnet",
+              "activeModel": null,
+              "resumed": false,
+              "modelRewriteSupported": true,
+              "maxDepth": 1,
+              "depthDecision": "within_limit",
+              "modelDecision": "rewrite",
+              "toModel": "haiku",
+              "tokenBudget": 1,
+              "sessionTokens": 11024,
+              "reason": "helper_token_budget"
+            },
+            "inputSha256": "347369b2545095322ca15163a1445aefacec94fef8680d7e88571a42c741374f",
+            "inputBytes": 144,
+            "inputKeys": 5,
+            "startedAt": "2026-10-05T19:13:33.312Z",
+            "permissionMode": "default",
+            "event": "decision",
+            "reasonCode": "burn_external_hook",
+            "license": {
+              "paid": false,
+              "tier": "free",
+              "seatsUsed": null,
+              "seatLimit": 1,
+              "expiresAt": null,
+              "mode": "enforce",
+              "reason": null,
+              "offlineGrace": false
+            }
+          }
+        },
+        "previousHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "entryHash": "55234d3c30e88e736ec48f69824c798f5aac4f72c2587076f36bede7662a2570",
+        "signature": "0f8b12dc0d80d69601e23a7c9cef5504d785350c3d0361c485b5d9afda99b80a5fad50facd2e63acb1fbe2fe4e5153d751cd713b0584152f2d93e8c7e44c1302",
+        "signerFingerprint": "4ab9e85c2c108693",
+        "publicKeyHex": "f0016e3e83c2966285dfc632a5021317b460d31b38b68daece0d8f2e0c881c88"
+      },
+      {
+        "sequence": 1,
+        "decision": {
+          "actor": {
+            "tenantId": "local",
+            "agentId": "a3af6afb7ff3115e2",
+            "sessionId": "d5642286-db50-4124-9e71-9723d320646a",
+            "provider": "claude-code"
+          },
+          "decisionId": "649042f8-f883-495b-afb4-fb20523e5eae",
+          "timestamp": "2026-10-05T19:13:36.213Z",
+          "action": "allow",
+          "triggeredCap": null,
+          "triggeredScopeKey": null,
+          "projectedCents": 0,
+          "windowSpendBefore": 0,
+          "windowSpendAfter": 0,
+          "provider": "claude-code",
+          "modelRequested": "Read",
+          "modelResolved": "Read",
+          "policyId": "agentguard-codex",
+          "policyVersion": 1,
+          "enforcementMode": "enforce",
+          "reasons": [
+            "tool_policy_allowed"
+          ],
+          "costBasis": {
+            "inputCentsPerKtok": 0,
+            "outputCentsPerKtok": 0,
+            "rateSource": "override:manual"
+          },
+          "plugin": {
+            "host": "claude-code",
+            "schema": "agentguard.codex.v1",
+            "requestId": "66bbea88-adbd-4e77-aab6-f1690c6a0f00",
+            "gate": "spend",
+            "toolName": "Read",
+            "toolUseId": "toolu_01KvkSk7UNmW8gRiEkQKjRqn",
+            "sessionId": "d5642286-db50-4124-9e71-9723d320646a",
+            "agentId": "a3af6afb7ff3115e2",
+            "inputSha256": "1bd7c9a83efd58142e045f036952215064335887d3db611fffd6bfe5b81c9e55",
+            "inputBytes": 120,
+            "inputKeys": 1,
+            "startedAt": "2026-10-05T19:13:36.194Z",
+            "event": "decision",
+            "capabilityTier": "read_only",
+            "unitCostCents": 0,
+            "chargedCents": 0,
+            "chargedWindows": [],
+            "license": {
+              "paid": false,
+              "tier": "free",
+              "seatsUsed": null,
+              "seatLimit": 1,
+              "expiresAt": null,
+              "mode": "enforce",
+              "reason": null,
+              "offlineGrace": false
+            }
+          }
+        },
+        "previousHash": "55234d3c30e88e736ec48f69824c798f5aac4f72c2587076f36bede7662a2570",
+        "entryHash": "ed7b02ea574b800c18835a761c0e26cda116cc5621ea99a9a6f4a47a5e5bdeea",
+        "signature": "72f5a51a1f739e3443d5f5c9760967988c602dcf47fa9e38a93082603aa4e2910f778e9b028d0c435b9dd0ca5d394b073cc7dd39e873d7cdf8fb13bd04c7ec0d",
+        "signerFingerprint": "4ab9e85c2c108693",
+        "publicKeyHex": "f0016e3e83c2966285dfc632a5021317b460d31b38b68daece0d8f2e0c881c88"
+      },
+      {
+        "sequence": 2,
+        "decision": {
+          "decisionId": "88a6cc0f-a8a7-4977-9986-59c856487ad6",
+          "timestamp": "2026-10-05T19:13:36.644Z",
+          "action": "allow",
+          "triggeredCap": null,
+          "triggeredScopeKey": null,
+          "projectedCents": 0,
+          "windowSpendBefore": 0,
+          "windowSpendAfter": 0,
+          "provider": "unknown",
+          "modelRequested": "outcome-runtime",
+          "modelResolved": "outcome-runtime",
+          "policyId": "agentguard-codex",
+          "policyVersion": 1,
+          "enforcementMode": "enforce",
+          "reasons": [
+            "Outcome runtime metadata receipt recorded locally"
+          ],
+          "entryType": "outcome",
+          "outcomeReceipt": {
+            "flow": "claude-code-tool",
+            "decisionId": "649042f8-f883-495b-afb4-fb20523e5eae",
+            "status": "completed",
+            "durationMs": 2,
+            "outputBytes": 235,
+            "totalCostCents": 0
+          },
+          "originalDecisionId": "649042f8-f883-495b-afb4-fb20523e5eae",
+          "actor": {
+            "tenantId": "local",
+            "agentId": "a3af6afb7ff3115e2",
+            "sessionId": "d5642286-db50-4124-9e71-9723d320646a",
+            "provider": "claude-code"
+          },
+          "plugin": {
+            "host": "claude-code",
+            "schema": "agentguard.codex.v1",
+            "requestId": "fc643c66-5a07-462a-b06d-2f22bad934dd",
+            "gate": "receipt",
+            "toolName": "Read",
+            "toolUseId": "toolu_01KvkSk7UNmW8gRiEkQKjRqn",
+            "sessionId": "d5642286-db50-4124-9e71-9723d320646a",
+            "agentId": "a3af6afb7ff3115e2",
+            "inputSha256": "1bd7c9a83efd58142e045f036952215064335887d3db611fffd6bfe5b81c9e55",
+            "inputBytes": 120,
+            "inputKeys": 1,
+            "startedAt": "2026-10-05T19:13:36.630Z",
+            "outputBytes": 235,
+            "success": true,
+            "durationMs": 2,
+            "durationSource": "host",
+            "event": "outcome",
+            "decisionId": "649042f8-f883-495b-afb4-fb20523e5eae",
+            "license": {
+              "paid": false,
+              "tier": "free",
+              "seatsUsed": null,
+              "seatLimit": 1,
+              "expiresAt": null,
+              "mode": "enforce",
+              "reason": null,
+              "offlineGrace": false
+            }
+          }
+        },
+        "previousHash": "ed7b02ea574b800c18835a761c0e26cda116cc5621ea99a9a6f4a47a5e5bdeea",
+        "entryHash": "155eb1847a7e4abb0a8d1476d7977d15cfc5cbd31d8557d249032eb1c5be1823",
+        "signature": "b09741d3032adbaaca3272aa8130e2d6126e7b311833fd5fcff6df56960f0300db04589d87f163c05bba55287a9eac31f70505654b68d57cb009745b8b1d920a",
+        "signerFingerprint": "4ab9e85c2c108693",
+        "publicKeyHex": "f0016e3e83c2966285dfc632a5021317b460d31b38b68daece0d8f2e0c881c88"
+      },
+      {
+        "sequence": 3,
+        "decision": {
+          "decisionId": "84cbde24-e15d-4bd4-a217-7426dad74d51",
+          "timestamp": "2026-10-05T19:13:37.747Z",
+          "action": "allow",
+          "triggeredCap": null,
+          "triggeredScopeKey": null,
+          "projectedCents": 0,
+          "windowSpendBefore": 0,
+          "windowSpendAfter": 0,
+          "provider": "unknown",
+          "modelRequested": "outcome-runtime",
+          "modelResolved": "outcome-runtime",
+          "policyId": "agentguard-codex",
+          "policyVersion": 1,
+          "enforcementMode": "enforce",
+          "reasons": [
+            "Outcome runtime metadata receipt recorded locally"
+          ],
+          "entryType": "outcome",
+          "outcomeReceipt": {
+            "flow": "claude-code-tool",
+            "decisionId": "ada125df-428d-4567-8699-700257fedbaf",
+            "status": "completed",
+            "durationMs": 4138,
+            "outputBytes": 1116,
+            "totalCostCents": 0
+          },
+          "originalDecisionId": "ada125df-428d-4567-8699-700257fedbaf",
+          "actor": {
+            "tenantId": "local",
+            "sessionId": "d5642286-db50-4124-9e71-9723d320646a",
+            "agentId": "d5642286-db50-4124-9e71-9723d320646a"
+          },
+          "plugin": {
+            "host": "claude-code",
+            "schema": "agentguard.codex.v1",
+            "requestId": "9ae432d1-eaf5-4f32-897d-b6a2bb8d18a1",
+            "gate": "receipt",
+            "toolName": "Agent",
+            "toolUseId": "toolu_01212fj3GPrhXhZJkFCpjZ7i",
+            "sessionId": "d5642286-db50-4124-9e71-9723d320646a",
+            "launch": {
+              "depth": 1,
+              "source": "claude_main",
+              "callerId": "main",
+              "parentAgentId": null,
+              "callerType": null,
+              "agentType": "search",
+              "fromModel": "haiku",
+              "activeModel": null,
+              "resumed": false,
+              "modelRewriteSupported": true
+            },
+            "inputSha256": "66bdc13082e89d98b4a18ee63b7fd7744500f8814dcf2e700b2b0e87f38b4946",
+            "inputBytes": 143,
+            "inputKeys": 5,
+            "startedAt": "2026-10-05T19:13:37.733Z",
+            "outputBytes": 1116,
+            "success": true,
+            "durationMs": 4138,
+            "durationSource": "host",
+            "event": "outcome",
+            "decisionId": "ada125df-428d-4567-8699-700257fedbaf",
+            "license": {
+              "paid": false,
+              "tier": "free",
+              "seatsUsed": null,
+              "seatLimit": 1,
+              "expiresAt": null,
+              "mode": "enforce",
+              "reason": null,
+              "offlineGrace": false
+            }
+          }
+        },
+        "previousHash": "155eb1847a7e4abb0a8d1476d7977d15cfc5cbd31d8557d249032eb1c5be1823",
+        "entryHash": "7fcfeaf9212bf78970b7fe2e2acf09b4e660c1ba5a4fd2c4c92f3c82d282d6f9",
+        "signature": "cda1b72316e6861a0fddcd6aaa9a5afca65a44623a1faac6351172c93a4623259171891f7e5ff76a59a4bc4c3e826b9cd093099762cbdcf257a693c9c9d23e07",
+        "signerFingerprint": "4ab9e85c2c108693",
+        "publicKeyHex": "f0016e3e83c2966285dfc632a5021317b460d31b38b68daece0d8f2e0c881c88"
+      },
+      {
+        "sequence": 4,
+        "decision": {
+          "decisionId": "eb0183e4-9b4f-4ded-9cd8-794d28489683",
+          "timestamp": "2026-10-05T19:13:40.081Z",
+          "action": "shadow",
+          "actor": {
+            "tenantId": "local",
+            "sessionId": "d5642286-db50-4124-9e71-9723d320646a",
+            "agentId": "d5642286-db50-4124-9e71-9723d320646a"
+          },
+          "triggeredCap": null,
+          "triggeredScopeKey": null,
+          "projectedCents": 0,
+          "windowSpendBefore": 0,
+          "windowSpendAfter": 0,
+          "provider": "claude-code",
+          "modelRequested": "Agent",
+          "modelResolved": "Agent",
+          "policyId": "agentguard-codex",
+          "policyVersion": 1,
+          "enforcementMode": "enforce",
+          "reasons": [
+            "burn_external_hook"
+          ],
+          "plugin": {
+            "host": "claude-code",
+            "schema": "agentguard.codex.v1",
+            "requestId": "da204f8f-cacf-4178-a44c-bfe1adeab89b",
+            "gate": "burn",
+            "toolName": "Agent",
+            "toolUseId": "toolu_01C2H9o6rKR9FymTeFPY3jKr",
+            "sessionId": "d5642286-db50-4124-9e71-9723d320646a",
+            "launch": {
+              "depth": 1,
+              "source": "claude_main",
+              "callerId": "main",
+              "parentAgentId": null,
+              "callerType": null,
+              "agentType": "coordinator",
+              "fromModel": "haiku",
+              "activeModel": null,
+              "resumed": false,
+              "modelRewriteSupported": true,
+              "maxDepth": 1,
+              "depthDecision": "within_limit",
+              "modelDecision": "unchanged",
+              "toModel": null,
+              "tokenBudget": 1,
+              "sessionTokens": 27302,
+              "reason": "helper_policy_unchanged"
+            },
+            "inputSha256": "43943411da417af3e04a923cfab65058f183cbffb90407fad74a100386dd6e61",
+            "inputBytes": 194,
+            "inputKeys": 5,
+            "startedAt": "2026-10-05T19:13:40.069Z",
+            "permissionMode": "default",
+            "event": "decision",
+            "reasonCode": "burn_external_hook",
+            "license": {
+              "paid": false,
+              "tier": "free",
+              "seatsUsed": null,
+              "seatLimit": 1,
+              "expiresAt": null,
+              "mode": "enforce",
+              "reason": null,
+              "offlineGrace": false
+            }
+          }
+        },
+        "previousHash": "7fcfeaf9212bf78970b7fe2e2acf09b4e660c1ba5a4fd2c4c92f3c82d282d6f9",
+        "entryHash": "2ac70be826ab907c1d60e8ccc708fd57f9bc9af10446db27266d7ee4d14a6f76",
+        "signature": "000ec3da1473a6ecaadb43c18dc520a31d6cc8acb69086e2fb007734e98783bc2af1364701d774ec553c820c636ce215a4dc6c497089af958a4ae4bbe1f88b0e",
+        "signerFingerprint": "4ab9e85c2c108693",
+        "publicKeyHex": "f0016e3e83c2966285dfc632a5021317b460d31b38b68daece0d8f2e0c881c88"
+      },
+      {
+        "sequence": 5,
+        "decision": {
+          "decisionId": "63c0616d-4ec8-44ad-9a36-0d4411a159ea",
+          "timestamp": "2026-10-05T19:13:43.333Z",
+          "action": "block",
+          "actor": {
+            "tenantId": "local",
+            "sessionId": "d5642286-db50-4124-9e71-9723d320646a",
+            "agentId": "a2d779b389bdf6dae"
+          },
+          "triggeredCap": null,
+          "triggeredScopeKey": null,
+          "projectedCents": 0,
+          "windowSpendBefore": 0,
+          "windowSpendAfter": 0,
+          "provider": "claude-code",
+          "modelRequested": "sonnet",
+          "modelResolved": "haiku",
+          "policyId": "agentguard-codex",
+          "policyVersion": 1,
+          "enforcementMode": "enforce",
+          "reasons": [
+            "burn_external_hook",
+            "launch_depth_limit",
+            "Helper token budget exceeded: 31085 tokens, budget 1; route search to haiku."
+          ],
+          "plugin": {
+            "host": "claude-code",
+            "schema": "agentguard.codex.v1",
+            "requestId": "5d9fc7b4-d35c-40d1-b695-f51063048f32",
+            "gate": "burn",
+            "toolName": "Agent",
+            "toolUseId": "toolu_01XfRPkXyJW25dGuzx1NPXgR",
+            "sessionId": "d5642286-db50-4124-9e71-9723d320646a",
+            "agentId": "a2d779b389bdf6dae",
+            "launch": {
+              "depth": 2,
+              "source": "claude_agent_sidecar",
+              "callerId": "a2d779b389bdf6dae",
+              "parentAgentId": null,
+              "callerType": "coordinator",
+              "agentType": "search",
+              "fromModel": "sonnet",
+              "activeModel": null,
+              "resumed": false,
+              "modelRewriteSupported": true,
+              "maxDepth": 1,
+              "depthDecision": "over_limit",
+              "modelDecision": "rewrite",
+              "toModel": "haiku",
+              "tokenBudget": 1,
+              "sessionTokens": 31085,
+              "reason": "helper_token_budget"
+            },
+            "inputSha256": "f09e881e5bf77067720461a0dc4fb30baa6fbfdded6f322377308332c6685a35",
+            "inputBytes": 130,
+            "inputKeys": 5,
+            "startedAt": "2026-10-05T19:13:43.320Z",
+            "permissionMode": "default",
+            "event": "decision",
+            "reasonCode": "burn_external_hook",
+            "license": {
+              "paid": false,
+              "tier": "free",
+              "seatsUsed": null,
+              "seatLimit": 1,
+              "expiresAt": null,
+              "mode": "enforce",
+              "reason": null,
+              "offlineGrace": false
+            },
+            "asked": true
+          }
+        },
+        "previousHash": "2ac70be826ab907c1d60e8ccc708fd57f9bc9af10446db27266d7ee4d14a6f76",
+        "entryHash": "6955186cc8928b7b7af948bb8335069a22ebed3a6ecd13b4144a4696d91324a2",
+        "signature": "ae20cfb84d685457f46140477631f82c87e5a7147972aa1ad0cf90445e8d253bcc592ef9cbfdc423141102c24a6cd03a229dd8b1b43e024162081fc78e456c06",
+        "signerFingerprint": "4ab9e85c2c108693",
+        "publicKeyHex": "f0016e3e83c2966285dfc632a5021317b460d31b38b68daece0d8f2e0c881c88"
+      },
+      {
+        "sequence": 6,
+        "decision": {
+          "decisionId": "858adb24-dfae-45d1-af48-5669832f4c52",
+          "timestamp": "2026-10-05T19:13:45.988Z",
+          "action": "allow",
+          "triggeredCap": null,
+          "triggeredScopeKey": null,
+          "projectedCents": 0,
+          "windowSpendBefore": 0,
+          "windowSpendAfter": 0,
+          "provider": "unknown",
+          "modelRequested": "outcome-runtime",
+          "modelResolved": "outcome-runtime",
+          "policyId": "agentguard-codex",
+          "policyVersion": 1,
+          "enforcementMode": "enforce",
+          "reasons": [
+            "Outcome runtime metadata receipt recorded locally"
+          ],
+          "entryType": "outcome",
+          "outcomeReceipt": {
+            "flow": "claude-code-tool",
+            "decisionId": "eb0183e4-9b4f-4ded-9cd8-794d28489683",
+            "status": "completed",
+            "durationMs": 5649,
+            "outputBytes": 1279,
+            "totalCostCents": 0
+          },
+          "originalDecisionId": "eb0183e4-9b4f-4ded-9cd8-794d28489683",
+          "actor": {
+            "tenantId": "local",
+            "sessionId": "d5642286-db50-4124-9e71-9723d320646a",
+            "agentId": "d5642286-db50-4124-9e71-9723d320646a"
+          },
+          "plugin": {
+            "host": "claude-code",
+            "schema": "agentguard.codex.v1",
+            "requestId": "c2ab0aa3-172f-4936-a1ea-977d3df468a1",
+            "gate": "receipt",
+            "toolName": "Agent",
+            "toolUseId": "toolu_01C2H9o6rKR9FymTeFPY3jKr",
+            "sessionId": "d5642286-db50-4124-9e71-9723d320646a",
+            "launch": {
+              "depth": 1,
+              "source": "claude_main",
+              "callerId": "main",
+              "parentAgentId": null,
+              "callerType": null,
+              "agentType": "coordinator",
+              "fromModel": "haiku",
+              "activeModel": null,
+              "resumed": false,
+              "modelRewriteSupported": true
+            },
+            "inputSha256": "43943411da417af3e04a923cfab65058f183cbffb90407fad74a100386dd6e61",
+            "inputBytes": 194,
+            "inputKeys": 5,
+            "startedAt": "2026-10-05T19:13:45.974Z",
+            "outputBytes": 1279,
+            "success": true,
+            "durationMs": 5649,
+            "durationSource": "host",
+            "event": "outcome",
+            "decisionId": "eb0183e4-9b4f-4ded-9cd8-794d28489683",
+            "license": {
+              "paid": false,
+              "tier": "free",
+              "seatsUsed": null,
+              "seatLimit": 1,
+              "expiresAt": null,
+              "mode": "enforce",
+              "reason": null,
+              "offlineGrace": false
+            }
+          }
+        },
+        "previousHash": "6955186cc8928b7b7af948bb8335069a22ebed3a6ecd13b4144a4696d91324a2",
+        "entryHash": "24d531891a987a377a30df3088c891880409ec83c66a15e5c9d1c1ccd926aeb3",
+        "signature": "895c9f0012728756200b6e1502ddc911938ea4073b0e5773278ad839224a74b5edeca8f1e346f5f0f9be9437a53f010639b89810c0da9bb1dee987a57e76c507",
+        "signerFingerprint": "4ab9e85c2c108693",
+        "publicKeyHex": "f0016e3e83c2966285dfc632a5021317b460d31b38b68daece0d8f2e0c881c88"
+      },
+      {
+        "sequence": 7,
+        "decision": {
+          "decisionId": "b3954eee-e912-4f46-a1bf-5a50706822f4",
+          "timestamp": "2026-10-05T19:13:48.395Z",
+          "action": "allow",
+          "actor": {
+            "tenantId": "local",
+            "sessionId": "d5642286-db50-4124-9e71-9723d320646a",
+            "agentId": "d5642286-db50-4124-9e71-9723d320646a"
+          },
+          "triggeredCap": null,
+          "triggeredScopeKey": null,
+          "projectedCents": 0,
+          "windowSpendBefore": 0,
+          "windowSpendAfter": 0,
+          "provider": "claude-code",
+          "modelRequested": "session_receipt",
+          "modelResolved": "session_receipt",
+          "policyId": "agentguard-codex",
+          "policyVersion": 1,
+          "enforcementMode": "enforce",
+          "reasons": [
+            "session_receipt"
+          ],
+          "plugin": {
+            "host": "claude-code",
+            "toolName": "session_receipt",
+            "sessionId": "d5642286-db50-4124-9e71-9723d320646a",
+            "toolUseId": "d9dbd813-6eef-46ae-92e4-ca2bf1c9c82d",
+            "gate": "control",
+            "event": "session_receipt",
+            "reasonCode": "session_receipt",
+            "receipt": {
+              "version": 1,
+              "firstActivityAt": "2026-10-05T19:13:31.962Z",
+              "lastActivityAt": "2026-10-05T19:13:47.366Z",
+              "tokens": 47761,
+              "subagents": {
+                "started": 2,
+                "finished": 2,
+                "endedWithoutFinishing": 0
+              },
+              "decisions": {
+                "allowed": 1,
+                "asked": 0,
+                "saidYes": 0,
+                "saidNo": 0,
+                "stopped": 0
+              },
+              "pluginVersion": "0.3.18"
+            }
+          }
+        },
+        "previousHash": "24d531891a987a377a30df3088c891880409ec83c66a15e5c9d1c1ccd926aeb3",
+        "entryHash": "d81bdea412ece339e7f55bc740716d28e1e5b32830410059a8985d4b94d6b483",
+        "signature": "d9c3e3366c30362cb130ca5acd353827317c273c8431fb4aa4bfd9595caf51cc797d4f761338c13d4969c649101ecd16d56281d056b7b32a4c7f314674509108",
+        "signerFingerprint": "4ab9e85c2c108693",
+        "publicKeyHex": "f0016e3e83c2966285dfc632a5021317b460d31b38b68daece0d8f2e0c881c88"
+      }
+    ],
+    "actualModels": [
+      "claude-haiku-4-5-20251001"
+    ],
+    "permissionDenials": [
+      {
+        "tool_name": "Task",
+        "tool_use_id": "toolu_01XfRPkXyJW25dGuzx1NPXgR",
+        "tool_input": {
+          "description": "Read fixture.txt",
+          "prompt": "Read fixture.txt",
+          "subagent_type": "search",
+          "model": "haiku",
+          "run_in_background": false
+        }
+      }
+    ]
+  },
+  "codex": {
+    "source": "/var/folders/ng/8pvwxxbx6c11ccsjnkr0htsw0000gn/T/ag-launch-canary-codex-DH74p7",
+    "exit": {
+      "host": "codex",
+      "status": 0,
+      "signal": null,
+      "error": null
+    },
+    "publicKeyHex": "cd85f813b40bd57b8c7fdbf1a1b078c8305e3e0ec6a133a1e1299445956c3b94",
+    "verification": {
+      "ok": true
+    },
+    "hooks": [
+      {
+        "event": "PreToolUse",
+        "tool": "Bash",
+        "toolUseId": "exec-5b05309f-0a9b-479d-8492-c403649b21d0",
+        "agentId": null,
+        "model": "gpt-6-luna",
+        "inputModel": null,
+        "agentType": null,
+        "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\"}}\n",
+        "stderr": ""
+      },
+      {
+        "event": "PreToolUse",
+        "tool": "collaborationspawn_agent",
+        "toolUseId": "call_VwtPxI6RuPBickB3FjqQ6mIa",
+        "agentId": null,
+        "model": "gpt-6-luna",
+        "inputModel": "gpt-6-sol",
+        "agentType": null,
+        "stdout": "{\"systemMessage\":\"AgentGuard cannot verify launch depth here. The existing count limit still applies.\",\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\",\"updatedInput\":{\"task_name\":\"search\",\"model\":\"gpt-6-luna\",\"fork_turns\":\"none\",\"message\":\"gAAAAABqw_WmQ9gSfJYRIvo12MLQ2cXLXBE2YCdB6Dj3j-mGBVYetU-Lr0TUR01at45K-JJndbdtzA4LsNlU-u_Bnwxk2N6LKkjRmGS0k9r81UToWWN-3G4x16AdfiDIc2NIKatfU8pjr-DTDA7vG65rit8o0aVZavVnFPuEhZV8sBfnseXJLaQzU7rjyNTlJEyXcgoEf_jU\"}}}\n",
+        "stderr": ""
+      },
+      {
+        "event": "PreToolUse",
+        "tool": "collaborationwait_agent",
+        "toolUseId": "call_HLGTDvQ9qsF8psVSdq41PyaE",
+        "agentId": null,
+        "model": "gpt-6-luna",
+        "inputModel": null,
+        "agentType": null,
+        "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\"}}\n",
+        "stderr": ""
+      },
+      {
+        "event": "PreToolUse",
+        "tool": "Bash",
+        "toolUseId": "exec-24cd5095-7114-44fb-b550-cf74fbef6ad7",
+        "agentId": "01a10d77-9310-70b0-861a-fe6062aa6926",
+        "model": "gpt-6-luna",
+        "inputModel": null,
+        "agentType": null,
+        "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\"}}\n",
+        "stderr": ""
+      },
+      {
+        "event": "PreToolUse",
+        "tool": "collaborationsend_message",
+        "toolUseId": "call_Rk6Ggyy78VDk1YkDj4z61LAD",
+        "agentId": "01a10d77-9310-70b0-861a-fe6062aa6926",
+        "model": "gpt-6-luna",
+        "inputModel": null,
+        "agentType": null,
+        "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\"}}\n",
+        "stderr": ""
+      },
+      {
+        "event": "PreToolUse",
+        "tool": "collaborationspawn_agent",
+        "toolUseId": "call_IHoii8sloHQG2CaEYt5VEx4k",
+        "agentId": null,
+        "model": "gpt-6-luna",
+        "inputModel": null,
+        "agentType": null,
+        "stdout": "{\"systemMessage\":\"AgentGuard cannot verify launch depth here. The existing count limit still applies.\"}\n",
+        "stderr": ""
+      },
+      {
+        "event": "PreToolUse",
+        "tool": "collaborationwait_agent",
+        "toolUseId": "call_v9FXyx5XpiRzAeIh1oqCU3dc",
+        "agentId": null,
+        "model": "gpt-6-luna",
+        "inputModel": null,
+        "agentType": null,
+        "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\"}}\n",
+        "stderr": ""
+      }
+    ],
+    "entries": [
+      {
+        "sequence": 0,
+        "decision": {
+          "actor": {
+            "tenantId": "local",
+            "agentId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "provider": "codex"
+          },
+          "decisionId": "8103291b-2b65-4399-bb0a-4118fcc26686",
+          "timestamp": "2026-10-05T19:08:20.543Z",
+          "action": "allow",
+          "triggeredCap": null,
+          "triggeredScopeKey": null,
+          "projectedCents": 0,
+          "windowSpendBefore": 0,
+          "windowSpendAfter": 0,
+          "provider": "codex",
+          "modelRequested": "Bash",
+          "modelResolved": "Bash",
+          "policyId": "agentguard-codex",
+          "policyVersion": 1,
+          "enforcementMode": "enforce",
+          "reasons": [
+            "tool_policy_allowed"
+          ],
+          "costBasis": {
+            "inputCentsPerKtok": 0,
+            "outputCentsPerKtok": 0,
+            "rateSource": "override:manual"
+          },
+          "plugin": {
+            "host": "codex",
+            "schema": "agentguard.codex.v1",
+            "requestId": "e2603d6e-1670-4be8-aebc-cb9b54255a14",
+            "gate": "spend",
+            "toolName": "Bash",
+            "toolUseId": "exec-5b05309f-0a9b-479d-8492-c403649b21d0",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "inputSha256": "0ca503a3ab7aa4391b1eea12086538de0bcddfbdfd8979458717b1cbd2771d2a",
+            "inputBytes": 29,
+            "inputKeys": 1,
+            "startedAt": "2026-10-05T19:08:20.527Z",
+            "event": "decision",
+            "capabilityTier": "data_write",
+            "unitCostCents": 0,
+            "chargedCents": 0,
+            "chargedWindows": [],
+            "license": {
+              "paid": false,
+              "tier": "free",
+              "seatsUsed": null,
+              "seatLimit": 1,
+              "expiresAt": null,
+              "mode": "enforce",
+              "reason": null,
+              "offlineGrace": false
+            }
+          }
+        },
+        "previousHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "entryHash": "2c7840dee86227e2b368a5339d77fefba4d47408b3151aa6423a3c66602bf480",
+        "signature": "d861b20d60b059dd27deb10d6a6fb2936cfe647301b015123e8788d767fa4737f5d1549b4bffafd74e73e8d4ad4b7e0d3d9d3a2614c1851958bda225ec55540a",
+        "signerFingerprint": "5d735a43cc041b5c",
+        "publicKeyHex": "cd85f813b40bd57b8c7fdbf1a1b078c8305e3e0ec6a133a1e1299445956c3b94"
+      },
+      {
+        "sequence": 1,
+        "decision": {
+          "decisionId": "55d6c18b-99f9-4849-bec4-424408ae36fe",
+          "timestamp": "2026-10-05T19:08:20.725Z",
+          "action": "allow",
+          "triggeredCap": null,
+          "triggeredScopeKey": null,
+          "projectedCents": 0,
+          "windowSpendBefore": 0,
+          "windowSpendAfter": 0,
+          "provider": "unknown",
+          "modelRequested": "outcome-runtime",
+          "modelResolved": "outcome-runtime",
+          "policyId": "agentguard-codex",
+          "policyVersion": 1,
+          "enforcementMode": "enforce",
+          "reasons": [
+            "Outcome runtime metadata receipt recorded locally"
+          ],
+          "entryType": "outcome",
+          "outcomeReceipt": {
+            "flow": "codex-tool",
+            "decisionId": "8103291b-2b65-4399-bb0a-4118fcc26686",
+            "status": "unknown",
+            "durationMs": 182,
+            "outputBytes": 40,
+            "totalCostCents": 0
+          },
+          "originalDecisionId": "8103291b-2b65-4399-bb0a-4118fcc26686",
+          "actor": {
+            "tenantId": "local",
+            "agentId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "provider": "codex"
+          },
+          "plugin": {
+            "host": "codex",
+            "schema": "agentguard.codex.v1",
+            "requestId": "9643058e-fd7f-4d8e-bbb4-c2da0dc50d5f",
+            "gate": "receipt",
+            "toolName": "Bash",
+            "toolUseId": "exec-5b05309f-0a9b-479d-8492-c403649b21d0",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "inputSha256": "0ca503a3ab7aa4391b1eea12086538de0bcddfbdfd8979458717b1cbd2771d2a",
+            "inputBytes": 29,
+            "inputKeys": 1,
+            "startedAt": "2026-10-05T19:08:20.713Z",
+            "outputBytes": 40,
+            "success": null,
+            "event": "outcome",
+            "decisionId": "8103291b-2b65-4399-bb0a-4118fcc26686",
+            "durationMs": 182,
+            "durationSource": "elapsed_since_decision",
+            "license": {
+              "paid": false,
+              "tier": "free",
+              "seatsUsed": null,
+              "seatLimit": 1,
+              "expiresAt": null,
+              "mode": "enforce",
+              "reason": null,
+              "offlineGrace": false
+            }
+          }
+        },
+        "previousHash": "2c7840dee86227e2b368a5339d77fefba4d47408b3151aa6423a3c66602bf480",
+        "entryHash": "aba389a97fd6306c32ef9b22147499c8b690c60bd7affaf2dc8d2a0c4e1dec66",
+        "signature": "30b83e89caafaba937727ffaf880bd761ebe1f7d4de205ed2224fe2f0266426dc43b7261856bc4544489d349066dcd861f22763e1985fe406b23eddad6eafd06",
+        "signerFingerprint": "5d735a43cc041b5c",
+        "publicKeyHex": "cd85f813b40bd57b8c7fdbf1a1b078c8305e3e0ec6a133a1e1299445956c3b94"
+      },
+      {
+        "sequence": 2,
+        "decision": {
+          "decisionId": "795c67c3-6f5c-480b-8457-35d6c72d9883",
+          "timestamp": "2026-10-05T19:08:22.636Z",
+          "action": "allow",
+          "actor": {
+            "tenantId": "local",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "agentId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4"
+          },
+          "triggeredCap": null,
+          "triggeredScopeKey": null,
+          "projectedCents": 0,
+          "windowSpendBefore": 0,
+          "windowSpendAfter": 0,
+          "provider": "codex",
+          "modelRequested": "burn_policy",
+          "modelResolved": "burn_policy",
+          "policyId": "agentguard-codex",
+          "policyVersion": 1,
+          "enforcementMode": "enforce",
+          "reasons": [
+            "burn_policy_seeded"
+          ],
+          "plugin": {
+            "host": "codex",
+            "toolName": "burn_policy",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "toolUseId": "bc77a7bf-416a-4b51-ae35-e25817c33dfd",
+            "gate": "control",
+            "event": "burn_policy_seeded",
+            "reasonCode": "burn_policy_seeded",
+            "burnPolicyMode": "enforce",
+            "burnPolicySha256": "9c72dbd0b7bb95b36a65cb8de83a889dad8ebc32744ab30c5ea716add6677547"
+          }
+        },
+        "previousHash": "aba389a97fd6306c32ef9b22147499c8b690c60bd7affaf2dc8d2a0c4e1dec66",
+        "entryHash": "34935dc6030560a0170719b892305aedee000832d0e5c04b5146394b94fe3c98",
+        "signature": "856b9566982045b99b0d0135655d0b069256394caf7006b781004a32cf62e53bd42babe60afe736b987df11c1494b11d09dcc7d75d4a7964eb655ee58b233c02",
+        "signerFingerprint": "5d735a43cc041b5c",
+        "publicKeyHex": "cd85f813b40bd57b8c7fdbf1a1b078c8305e3e0ec6a133a1e1299445956c3b94"
+      },
+      {
+        "sequence": 3,
+        "decision": {
+          "decisionId": "dd526d1f-66ac-493c-a678-326feb5ef02d",
+          "timestamp": "2026-10-05T19:08:22.659Z",
+          "action": "downgrade",
+          "actor": {
+            "tenantId": "local",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "agentId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4"
+          },
+          "triggeredCap": null,
+          "triggeredScopeKey": null,
+          "projectedCents": 0,
+          "windowSpendBefore": 0,
+          "windowSpendAfter": 0,
+          "provider": "codex",
+          "modelRequested": "gpt-6-sol",
+          "modelResolved": "gpt-6-luna",
+          "policyId": "agentguard-codex",
+          "policyVersion": 1,
+          "enforcementMode": "enforce",
+          "reasons": [
+            "burn_ok",
+            "Helper token budget exceeded: 14678 tokens, budget 1; route default to gpt-6-luna."
+          ],
+          "plugin": {
+            "host": "codex",
+            "schema": "agentguard.codex.v1",
+            "requestId": "5190b0cf-5a13-4632-a2a3-ee3de276e0ec",
+            "gate": "burn",
+            "toolName": "collaborationspawn_agent",
+            "toolUseId": "call_VwtPxI6RuPBickB3FjqQ6mIa",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "launch": {
+              "depth": null,
+              "source": "unavailable",
+              "callerId": null,
+              "parentAgentId": null,
+              "callerType": null,
+              "agentType": "default",
+              "fromModel": "gpt-6-sol",
+              "activeModel": "gpt-6-luna",
+              "resumed": false,
+              "modelRewriteSupported": true,
+              "maxDepth": 1,
+              "depthDecision": "lineage_unavailable",
+              "modelDecision": "rewrite",
+              "toModel": "gpt-6-luna",
+              "tokenBudget": 1,
+              "sessionTokens": 14678,
+              "reason": "helper_token_budget"
+            },
+            "inputSha256": "3e1cdc3e203f6aa25f4a1260e252462f5e7aa2a6cdb2d30b1407d61e3edd0067",
+            "inputBytes": 279,
+            "inputKeys": 4,
+            "startedAt": "2026-10-05T19:08:22.621Z",
+            "permissionMode": "bypassPermissions",
+            "event": "decision",
+            "reasonCode": "burn_ok",
+            "burnReceiptId": "muvmhkah-72ipoiz7",
+            "license": {
+              "paid": false,
+              "tier": "free",
+              "seatsUsed": null,
+              "seatLimit": 1,
+              "expiresAt": null,
+              "mode": "enforce",
+              "reason": null,
+              "offlineGrace": false
+            }
+          }
+        },
+        "previousHash": "34935dc6030560a0170719b892305aedee000832d0e5c04b5146394b94fe3c98",
+        "entryHash": "a6b5f307f820b51b190b68a9c792d884713a8ddde4638a3c929777421fa1144a",
+        "signature": "cb7dfe8bd29d9bba3680bc15627bb24c5e9c9861d9ae9081571c91d136cd99d7332e24fdcbee5c317999d4a5842adef3c11281edc91b571119a9b4585343cb04",
+        "signerFingerprint": "5d735a43cc041b5c",
+        "publicKeyHex": "cd85f813b40bd57b8c7fdbf1a1b078c8305e3e0ec6a133a1e1299445956c3b94"
+      },
+      {
+        "sequence": 4,
+        "decision": {
+          "decisionId": "6ec29107-f1de-4804-81a2-28a194274027",
+          "timestamp": "2026-10-05T19:08:22.776Z",
+          "action": "allow",
+          "triggeredCap": null,
+          "triggeredScopeKey": null,
+          "projectedCents": 0,
+          "windowSpendBefore": 0,
+          "windowSpendAfter": 0,
+          "provider": "unknown",
+          "modelRequested": "outcome-runtime",
+          "modelResolved": "outcome-runtime",
+          "policyId": "agentguard-codex",
+          "policyVersion": 1,
+          "enforcementMode": "enforce",
+          "reasons": [
+            "Outcome runtime metadata receipt recorded locally"
+          ],
+          "entryType": "outcome",
+          "outcomeReceipt": {
+            "flow": "codex-tool",
+            "decisionId": "dd526d1f-66ac-493c-a678-326feb5ef02d",
+            "status": "completed",
+            "durationMs": 117,
+            "outputBytes": 34,
+            "totalCostCents": 0
+          },
+          "originalDecisionId": "dd526d1f-66ac-493c-a678-326feb5ef02d",
+          "actor": {
+            "tenantId": "local",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "agentId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4"
+          },
+          "plugin": {
+            "host": "codex",
+            "schema": "agentguard.codex.v1",
+            "requestId": "94a17a73-b65d-421f-b7b3-a27ad0bcbaf9",
+            "gate": "receipt",
+            "toolName": "collaborationspawn_agent",
+            "toolUseId": "call_VwtPxI6RuPBickB3FjqQ6mIa",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "launch": {
+              "depth": null,
+              "source": "unavailable",
+              "callerId": null,
+              "parentAgentId": null,
+              "callerType": null,
+              "agentType": "default",
+              "fromModel": "gpt-6-luna",
+              "activeModel": "gpt-6-luna",
+              "resumed": false,
+              "modelRewriteSupported": true
+            },
+            "inputSha256": "0cf15aaac5e8fd2089af8c08aec3088b76e1e63ac1445c4456dbd93e21a4ad8e",
+            "inputBytes": 280,
+            "inputKeys": 4,
+            "startedAt": "2026-10-05T19:08:22.765Z",
+            "outputBytes": 34,
+            "success": true,
+            "event": "outcome",
+            "decisionId": "dd526d1f-66ac-493c-a678-326feb5ef02d",
+            "durationMs": 117,
+            "durationSource": "elapsed_since_decision",
+            "license": {
+              "paid": false,
+              "tier": "free",
+              "seatsUsed": null,
+              "seatLimit": 1,
+              "expiresAt": null,
+              "mode": "enforce",
+              "reason": null,
+              "offlineGrace": false
+            }
+          }
+        },
+        "previousHash": "a6b5f307f820b51b190b68a9c792d884713a8ddde4638a3c929777421fa1144a",
+        "entryHash": "17c29879a2031c889a1bf3e94dcb40f5eec4419637ed287a1d75356016ff8cc2",
+        "signature": "623fa6035188c4af8f58877a5523a3f022cd8384620b44ca1e18f3c555f2d424fe031af023736e7063f8ff7b2dcc79cd1de5604769a36a18cec4c4e0f143dd07",
+        "signerFingerprint": "5d735a43cc041b5c",
+        "publicKeyHex": "cd85f813b40bd57b8c7fdbf1a1b078c8305e3e0ec6a133a1e1299445956c3b94"
+      },
+      {
+        "sequence": 5,
+        "decision": {
+          "actor": {
+            "tenantId": "local",
+            "agentId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "provider": "codex"
+          },
+          "decisionId": "11e0dcb6-55e2-4934-9e91-86d6bd71cc90",
+          "timestamp": "2026-10-05T19:08:24.260Z",
+          "action": "allow",
+          "triggeredCap": null,
+          "triggeredScopeKey": null,
+          "projectedCents": 0,
+          "windowSpendBefore": 0,
+          "windowSpendAfter": 0,
+          "provider": "codex",
+          "modelRequested": "collaborationwait_agent",
+          "modelResolved": "collaborationwait_agent",
+          "policyId": "agentguard-codex",
+          "policyVersion": 1,
+          "enforcementMode": "enforce",
+          "reasons": [
+            "tool_policy_allowed"
+          ],
+          "costBasis": {
+            "inputCentsPerKtok": 0,
+            "outputCentsPerKtok": 0,
+            "rateSource": "override:manual"
+          },
+          "plugin": {
+            "host": "codex",
+            "schema": "agentguard.codex.v1",
+            "requestId": "0aab8103-b85f-47db-9db6-9e6ddb5d59b6",
+            "gate": "spend",
+            "toolName": "collaborationwait_agent",
+            "toolUseId": "call_HLGTDvQ9qsF8psVSdq41PyaE",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "inputSha256": "7d04d57c16360ab72473962796ad05822bc069874d59d5edcc66fd72a377fbfb",
+            "inputBytes": 22,
+            "inputKeys": 1,
+            "startedAt": "2026-10-05T19:08:24.247Z",
+            "event": "decision",
+            "capabilityTier": "read_only",
+            "unitCostCents": 0,
+            "chargedCents": 0,
+            "chargedWindows": [],
+            "license": {
+              "paid": false,
+              "tier": "free",
+              "seatsUsed": null,
+              "seatLimit": 1,
+              "expiresAt": null,
+              "mode": "enforce",
+              "reason": null,
+              "offlineGrace": false
+            }
+          }
+        },
+        "previousHash": "17c29879a2031c889a1bf3e94dcb40f5eec4419637ed287a1d75356016ff8cc2",
+        "entryHash": "b862608306fadf34b1ba92a75ca95d82fea50decbe499b7bec75e20bc82981ab",
+        "signature": "478dca663e22dc491fe269dc9ef0161a51a16f127350cc712f40a33dc26041003fe8ddcd1f2f8465b997b0cd87232fe433b465c70d17daa498f5ead9afd4bc02",
+        "signerFingerprint": "5d735a43cc041b5c",
+        "publicKeyHex": "cd85f813b40bd57b8c7fdbf1a1b078c8305e3e0ec6a133a1e1299445956c3b94"
+      },
+      {
+        "sequence": 6,
+        "decision": {
+          "actor": {
+            "tenantId": "local",
+            "agentId": "01a10d77-9310-70b0-861a-fe6062aa6926",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "provider": "codex"
+          },
+          "decisionId": "4142f056-2328-45f1-9cf3-4131601fe460",
+          "timestamp": "2026-10-05T19:08:26.587Z",
+          "action": "allow",
+          "triggeredCap": null,
+          "triggeredScopeKey": null,
+          "projectedCents": 0,
+          "windowSpendBefore": 0,
+          "windowSpendAfter": 0,
+          "provider": "codex",
+          "modelRequested": "Bash",
+          "modelResolved": "Bash",
+          "policyId": "agentguard-codex",
+          "policyVersion": 1,
+          "enforcementMode": "enforce",
+          "reasons": [
+            "tool_policy_allowed"
+          ],
+          "costBasis": {
+            "inputCentsPerKtok": 0,
+            "outputCentsPerKtok": 0,
+            "rateSource": "override:manual"
+          },
+          "plugin": {
+            "host": "codex",
+            "schema": "agentguard.codex.v1",
+            "requestId": "451515dc-543d-4ef9-8e65-7fc207cdd303",
+            "gate": "spend",
+            "toolName": "Bash",
+            "toolUseId": "exec-24cd5095-7114-44fb-b550-cf74fbef6ad7",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "agentId": "01a10d77-9310-70b0-861a-fe6062aa6926",
+            "inputSha256": "0ca503a3ab7aa4391b1eea12086538de0bcddfbdfd8979458717b1cbd2771d2a",
+            "inputBytes": 29,
+            "inputKeys": 1,
+            "startedAt": "2026-10-05T19:08:26.574Z",
+            "event": "decision",
+            "capabilityTier": "data_write",
+            "unitCostCents": 0,
+            "chargedCents": 0,
+            "chargedWindows": [],
+            "license": {
+              "paid": false,
+              "tier": "free",
+              "seatsUsed": null,
+              "seatLimit": 1,
+              "expiresAt": null,
+              "mode": "enforce",
+              "reason": null,
+              "offlineGrace": false
+            }
+          }
+        },
+        "previousHash": "b862608306fadf34b1ba92a75ca95d82fea50decbe499b7bec75e20bc82981ab",
+        "entryHash": "4fa8af221f87f2a66be68e079a2768cb2202675fabb0b20837ce69924b857d0e",
+        "signature": "a9e323ede869c7147127b0fff09704e9e43fd8352a6e2b3158d9f04a175da1a2941621a5b0f5ff34b2f2d19452f87c4a5f13aa72e481a0c244f5f5d79265c004",
+        "signerFingerprint": "5d735a43cc041b5c",
+        "publicKeyHex": "cd85f813b40bd57b8c7fdbf1a1b078c8305e3e0ec6a133a1e1299445956c3b94"
+      },
+      {
+        "sequence": 7,
+        "decision": {
+          "decisionId": "51fc1380-700f-4552-b8b8-7045470e703e",
+          "timestamp": "2026-10-05T19:08:26.757Z",
+          "action": "allow",
+          "triggeredCap": null,
+          "triggeredScopeKey": null,
+          "projectedCents": 0,
+          "windowSpendBefore": 0,
+          "windowSpendAfter": 0,
+          "provider": "unknown",
+          "modelRequested": "outcome-runtime",
+          "modelResolved": "outcome-runtime",
+          "policyId": "agentguard-codex",
+          "policyVersion": 1,
+          "enforcementMode": "enforce",
+          "reasons": [
+            "Outcome runtime metadata receipt recorded locally"
+          ],
+          "entryType": "outcome",
+          "outcomeReceipt": {
+            "flow": "codex-tool",
+            "decisionId": "4142f056-2328-45f1-9cf3-4131601fe460",
+            "status": "unknown",
+            "durationMs": 170,
+            "outputBytes": 40,
+            "totalCostCents": 0
+          },
+          "originalDecisionId": "4142f056-2328-45f1-9cf3-4131601fe460",
+          "actor": {
+            "tenantId": "local",
+            "agentId": "01a10d77-9310-70b0-861a-fe6062aa6926",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "provider": "codex"
+          },
+          "plugin": {
+            "host": "codex",
+            "schema": "agentguard.codex.v1",
+            "requestId": "ece66e1c-07ca-4895-8bc2-74adff242f8a",
+            "gate": "receipt",
+            "toolName": "Bash",
+            "toolUseId": "exec-24cd5095-7114-44fb-b550-cf74fbef6ad7",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "agentId": "01a10d77-9310-70b0-861a-fe6062aa6926",
+            "inputSha256": "0ca503a3ab7aa4391b1eea12086538de0bcddfbdfd8979458717b1cbd2771d2a",
+            "inputBytes": 29,
+            "inputKeys": 1,
+            "startedAt": "2026-10-05T19:08:26.744Z",
+            "outputBytes": 40,
+            "success": null,
+            "event": "outcome",
+            "decisionId": "4142f056-2328-45f1-9cf3-4131601fe460",
+            "durationMs": 170,
+            "durationSource": "elapsed_since_decision",
+            "license": {
+              "paid": false,
+              "tier": "free",
+              "seatsUsed": null,
+              "seatLimit": 1,
+              "expiresAt": null,
+              "mode": "enforce",
+              "reason": null,
+              "offlineGrace": false
+            }
+          }
+        },
+        "previousHash": "4fa8af221f87f2a66be68e079a2768cb2202675fabb0b20837ce69924b857d0e",
+        "entryHash": "adb5d657c9ee7e6c835436d32fa9aa72c49e977fac053c4fdb7e96ebbbdcf8a3",
+        "signature": "6ce80d14e19e16ffb5f2c4b334555470a4e64f3834669c49676a067889035b2c01915a0cf88c006973f196b6a61a4b39320eb8d019e1a71d26a8eca1f34fec08",
+        "signerFingerprint": "5d735a43cc041b5c",
+        "publicKeyHex": "cd85f813b40bd57b8c7fdbf1a1b078c8305e3e0ec6a133a1e1299445956c3b94"
+      },
+      {
+        "sequence": 8,
+        "decision": {
+          "actor": {
+            "tenantId": "local",
+            "agentId": "01a10d77-9310-70b0-861a-fe6062aa6926",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "provider": "codex"
+          },
+          "decisionId": "c5dac531-d3a6-45e8-9951-ad164a6839d7",
+          "timestamp": "2026-10-05T19:08:28.271Z",
+          "action": "allow",
+          "triggeredCap": null,
+          "triggeredScopeKey": null,
+          "projectedCents": 0,
+          "windowSpendBefore": 0,
+          "windowSpendAfter": 0,
+          "provider": "codex",
+          "modelRequested": "collaborationsend_message",
+          "modelResolved": "collaborationsend_message",
+          "policyId": "agentguard-codex",
+          "policyVersion": 1,
+          "enforcementMode": "enforce",
+          "reasons": [
+            "tool_policy_allowed"
+          ],
+          "costBasis": {
+            "inputCentsPerKtok": 0,
+            "outputCentsPerKtok": 0,
+            "rateSource": "override:manual"
+          },
+          "plugin": {
+            "host": "codex",
+            "schema": "agentguard.codex.v1",
+            "requestId": "a7532707-f4a0-4b59-812c-76978813b682",
+            "gate": "spend",
+            "toolName": "collaborationsend_message",
+            "toolUseId": "call_Rk6Ggyy78VDk1YkDj4z61LAD",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "agentId": "01a10d77-9310-70b0-861a-fe6062aa6926",
+            "inputSha256": "70b5fb72ee30c293a4b876ec71ebb4b74dca9869025ae97a900024a7f6894d02",
+            "inputBytes": 195,
+            "inputKeys": 2,
+            "startedAt": "2026-10-05T19:08:28.266Z",
+            "event": "decision",
+            "capabilityTier": "read_only",
+            "unitCostCents": 0,
+            "chargedCents": 0,
+            "chargedWindows": [],
+            "license": {
+              "paid": false,
+              "tier": "free",
+              "seatsUsed": null,
+              "seatLimit": 1,
+              "expiresAt": null,
+              "mode": "enforce",
+              "reason": null,
+              "offlineGrace": false
+            }
+          }
+        },
+        "previousHash": "adb5d657c9ee7e6c835436d32fa9aa72c49e977fac053c4fdb7e96ebbbdcf8a3",
+        "entryHash": "be7538510ef247b9a9dd7e91336dcf26fcf0c42caf8e40737dc9ce53d607005a",
+        "signature": "c070127f3f1bae56e53e6a86f722405a61d3d3ddd223339d531c959cba6626d5307e5ac7910a06cc2d0f819a9af041b9f0f58de57b8a46bbda20343dac4fa90c",
+        "signerFingerprint": "5d735a43cc041b5c",
+        "publicKeyHex": "cd85f813b40bd57b8c7fdbf1a1b078c8305e3e0ec6a133a1e1299445956c3b94"
+      },
+      {
+        "sequence": 9,
+        "decision": {
+          "decisionId": "f9b3935e-abc4-4707-bdfd-d5fc6382e953",
+          "timestamp": "2026-10-05T19:08:28.423Z",
+          "action": "allow",
+          "triggeredCap": null,
+          "triggeredScopeKey": null,
+          "projectedCents": 0,
+          "windowSpendBefore": 0,
+          "windowSpendAfter": 0,
+          "provider": "unknown",
+          "modelRequested": "outcome-runtime",
+          "modelResolved": "outcome-runtime",
+          "policyId": "agentguard-codex",
+          "policyVersion": 1,
+          "enforcementMode": "enforce",
+          "reasons": [
+            "Outcome runtime metadata receipt recorded locally"
+          ],
+          "entryType": "outcome",
+          "outcomeReceipt": {
+            "flow": "codex-tool",
+            "decisionId": "11e0dcb6-55e2-4934-9e91-86d6bd71cc90",
+            "status": "completed",
+            "durationMs": 4163,
+            "outputBytes": 55,
+            "totalCostCents": 0
+          },
+          "originalDecisionId": "11e0dcb6-55e2-4934-9e91-86d6bd71cc90",
+          "actor": {
+            "tenantId": "local",
+            "agentId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "provider": "codex"
+          },
+          "plugin": {
+            "host": "codex",
+            "schema": "agentguard.codex.v1",
+            "requestId": "fa656b15-3ecb-47ad-abd1-c881de9afdbc",
+            "gate": "receipt",
+            "toolName": "collaborationwait_agent",
+            "toolUseId": "call_HLGTDvQ9qsF8psVSdq41PyaE",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "inputSha256": "7d04d57c16360ab72473962796ad05822bc069874d59d5edcc66fd72a377fbfb",
+            "inputBytes": 22,
+            "inputKeys": 1,
+            "startedAt": "2026-10-05T19:08:28.379Z",
+            "outputBytes": 55,
+            "success": true,
+            "event": "outcome",
+            "decisionId": "11e0dcb6-55e2-4934-9e91-86d6bd71cc90",
+            "durationMs": 4163,
+            "durationSource": "elapsed_since_decision",
+            "license": {
+              "paid": false,
+              "tier": "free",
+              "seatsUsed": null,
+              "seatLimit": 1,
+              "expiresAt": null,
+              "mode": "enforce",
+              "reason": null,
+              "offlineGrace": false
+            }
+          }
+        },
+        "previousHash": "be7538510ef247b9a9dd7e91336dcf26fcf0c42caf8e40737dc9ce53d607005a",
+        "entryHash": "955a3ceeb569571ff3c7583a505fc9071b92c4bfe417055930758b7d063e0576",
+        "signature": "5776d6eabd8ec6b7fb9a8bd4052c78915a7a2d65a4eee0d86d31bd68b41f073ba5a09ed7e96639514eebc1d028d4dec36c5293b7ad41b9589597eac89f239005",
+        "signerFingerprint": "5d735a43cc041b5c",
+        "publicKeyHex": "cd85f813b40bd57b8c7fdbf1a1b078c8305e3e0ec6a133a1e1299445956c3b94"
+      },
+      {
+        "sequence": 10,
+        "decision": {
+          "decisionId": "f58c9853-41b7-4bd0-943d-5c05c397cd58",
+          "timestamp": "2026-10-05T19:08:28.425Z",
+          "action": "allow",
+          "triggeredCap": null,
+          "triggeredScopeKey": null,
+          "projectedCents": 0,
+          "windowSpendBefore": 0,
+          "windowSpendAfter": 0,
+          "provider": "unknown",
+          "modelRequested": "outcome-runtime",
+          "modelResolved": "outcome-runtime",
+          "policyId": "agentguard-codex",
+          "policyVersion": 1,
+          "enforcementMode": "enforce",
+          "reasons": [
+            "Outcome runtime metadata receipt recorded locally"
+          ],
+          "entryType": "outcome",
+          "outcomeReceipt": {
+            "flow": "codex-tool",
+            "decisionId": "c5dac531-d3a6-45e8-9951-ad164a6839d7",
+            "status": "completed",
+            "durationMs": 154,
+            "outputBytes": 2,
+            "totalCostCents": 0
+          },
+          "originalDecisionId": "c5dac531-d3a6-45e8-9951-ad164a6839d7",
+          "actor": {
+            "tenantId": "local",
+            "agentId": "01a10d77-9310-70b0-861a-fe6062aa6926",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "provider": "codex"
+          },
+          "plugin": {
+            "host": "codex",
+            "schema": "agentguard.codex.v1",
+            "requestId": "135cff5c-4dcf-47fc-b2bf-3e0e9b294595",
+            "gate": "receipt",
+            "toolName": "collaborationsend_message",
+            "toolUseId": "call_Rk6Ggyy78VDk1YkDj4z61LAD",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "agentId": "01a10d77-9310-70b0-861a-fe6062aa6926",
+            "inputSha256": "70b5fb72ee30c293a4b876ec71ebb4b74dca9869025ae97a900024a7f6894d02",
+            "inputBytes": 195,
+            "inputKeys": 2,
+            "startedAt": "2026-10-05T19:08:28.382Z",
+            "outputBytes": 2,
+            "success": true,
+            "event": "outcome",
+            "decisionId": "c5dac531-d3a6-45e8-9951-ad164a6839d7",
+            "durationMs": 154,
+            "durationSource": "elapsed_since_decision",
+            "license": {
+              "paid": false,
+              "tier": "free",
+              "seatsUsed": null,
+              "seatLimit": 1,
+              "expiresAt": null,
+              "mode": "enforce",
+              "reason": null,
+              "offlineGrace": false
+            }
+          }
+        },
+        "previousHash": "955a3ceeb569571ff3c7583a505fc9071b92c4bfe417055930758b7d063e0576",
+        "entryHash": "e2b5221ac3c2debc0aef50ff28b3a1b8de60dcc892cc669e5d57c43c8aaa259a",
+        "signature": "921e9fffbafc5e11fae70ec51ff9f93e6dc6a578bd479bd22b4f446102c02bf9e26704e0fc8e7b59b07272b985d3876dfff4825c51d0f094648a650e957fd90b",
+        "signerFingerprint": "5d735a43cc041b5c",
+        "publicKeyHex": "cd85f813b40bd57b8c7fdbf1a1b078c8305e3e0ec6a133a1e1299445956c3b94"
+      },
+      {
+        "sequence": 11,
+        "decision": {
+          "decisionId": "fb767759-c1c3-4d66-8c4f-d2be80c8cc6f",
+          "timestamp": "2026-10-05T19:08:30.264Z",
+          "action": "allow",
+          "actor": {
+            "tenantId": "local",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "agentId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4"
+          },
+          "triggeredCap": null,
+          "triggeredScopeKey": null,
+          "projectedCents": 0,
+          "windowSpendBefore": 0,
+          "windowSpendAfter": 0,
+          "provider": "codex",
+          "modelRequested": "collaborationspawn_agent",
+          "modelResolved": "collaborationspawn_agent",
+          "policyId": "agentguard-codex",
+          "policyVersion": 1,
+          "enforcementMode": "enforce",
+          "reasons": [
+            "burn_ok"
+          ],
+          "plugin": {
+            "host": "codex",
+            "schema": "agentguard.codex.v1",
+            "requestId": "d3659e67-032a-4b49-86fc-69dffbfcbe99",
+            "gate": "burn",
+            "toolName": "collaborationspawn_agent",
+            "toolUseId": "call_IHoii8sloHQG2CaEYt5VEx4k",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "launch": {
+              "depth": null,
+              "source": "unavailable",
+              "callerId": null,
+              "parentAgentId": null,
+              "callerType": null,
+              "agentType": "default",
+              "fromModel": "gpt-6-luna",
+              "activeModel": "gpt-6-luna",
+              "resumed": false,
+              "modelRewriteSupported": false,
+              "maxDepth": 1,
+              "depthDecision": "lineage_unavailable",
+              "modelDecision": "unchanged",
+              "toModel": null,
+              "tokenBudget": 1,
+              "sessionTokens": 62906,
+              "reason": "helper_policy_unchanged"
+            },
+            "inputSha256": "d300fecd096136da435782336a8877548c2e82162d620122850c62a7b42a46bb",
+            "inputBytes": 268,
+            "inputKeys": 3,
+            "startedAt": "2026-10-05T19:08:30.221Z",
+            "permissionMode": "bypassPermissions",
+            "event": "decision",
+            "reasonCode": "burn_ok",
+            "burnReceiptId": "muvmhq5u-7puwwxq9",
+            "license": {
+              "paid": false,
+              "tier": "free",
+              "seatsUsed": null,
+              "seatLimit": 1,
+              "expiresAt": null,
+              "mode": "enforce",
+              "reason": null,
+              "offlineGrace": false
+            }
+          }
+        },
+        "previousHash": "e2b5221ac3c2debc0aef50ff28b3a1b8de60dcc892cc669e5d57c43c8aaa259a",
+        "entryHash": "f661373585f3ffc3de74eea770307b3ec0befd483747d4b0cde49857f53e72c3",
+        "signature": "ff05aa81ed2c58568656e6007f0cdb01e20eea714f647419c635577fc973cc25689b41ca713848466f0f201ad8f7473c2595353b417838826fd2ed27329a5501",
+        "signerFingerprint": "5d735a43cc041b5c",
+        "publicKeyHex": "cd85f813b40bd57b8c7fdbf1a1b078c8305e3e0ec6a133a1e1299445956c3b94"
+      },
+      {
+        "sequence": 12,
+        "decision": {
+          "decisionId": "edd5f113-6659-4652-9859-d75c9831a231",
+          "timestamp": "2026-10-05T19:08:30.354Z",
+          "action": "allow",
+          "triggeredCap": null,
+          "triggeredScopeKey": null,
+          "projectedCents": 0,
+          "windowSpendBefore": 0,
+          "windowSpendAfter": 0,
+          "provider": "unknown",
+          "modelRequested": "outcome-runtime",
+          "modelResolved": "outcome-runtime",
+          "policyId": "agentguard-codex",
+          "policyVersion": 1,
+          "enforcementMode": "enforce",
+          "reasons": [
+            "Outcome runtime metadata receipt recorded locally"
+          ],
+          "entryType": "outcome",
+          "outcomeReceipt": {
+            "flow": "codex-tool",
+            "decisionId": "fb767759-c1c3-4d66-8c4f-d2be80c8cc6f",
+            "status": "completed",
+            "durationMs": 90,
+            "outputBytes": 44,
+            "totalCostCents": 0
+          },
+          "originalDecisionId": "fb767759-c1c3-4d66-8c4f-d2be80c8cc6f",
+          "actor": {
+            "tenantId": "local",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "agentId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4"
+          },
+          "plugin": {
+            "host": "codex",
+            "schema": "agentguard.codex.v1",
+            "requestId": "75bd6704-32ff-404f-b9df-45597db9353a",
+            "gate": "receipt",
+            "toolName": "collaborationspawn_agent",
+            "toolUseId": "call_IHoii8sloHQG2CaEYt5VEx4k",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "launch": {
+              "depth": null,
+              "source": "unavailable",
+              "callerId": null,
+              "parentAgentId": null,
+              "callerType": null,
+              "agentType": "default",
+              "fromModel": "gpt-6-luna",
+              "activeModel": "gpt-6-luna",
+              "resumed": false,
+              "modelRewriteSupported": false
+            },
+            "inputSha256": "d300fecd096136da435782336a8877548c2e82162d620122850c62a7b42a46bb",
+            "inputBytes": 268,
+            "inputKeys": 3,
+            "startedAt": "2026-10-05T19:08:30.343Z",
+            "outputBytes": 44,
+            "success": true,
+            "event": "outcome",
+            "decisionId": "fb767759-c1c3-4d66-8c4f-d2be80c8cc6f",
+            "durationMs": 90,
+            "durationSource": "elapsed_since_decision",
+            "license": {
+              "paid": false,
+              "tier": "free",
+              "seatsUsed": null,
+              "seatLimit": 1,
+              "expiresAt": null,
+              "mode": "enforce",
+              "reason": null,
+              "offlineGrace": false
+            }
+          }
+        },
+        "previousHash": "f661373585f3ffc3de74eea770307b3ec0befd483747d4b0cde49857f53e72c3",
+        "entryHash": "cf8156881a19b587425cf0d3ed4f6f394c3f050ab67c5b18098236e69760a855",
+        "signature": "8f4ec823cb4328d917120b83ad68ad9735967f8e8ab3d8eb72640d67d4f2f0edd732b72418f8fc59edfd4ebb0458c969b76a49d3ffba75367c9cb64c1478bd00",
+        "signerFingerprint": "5d735a43cc041b5c",
+        "publicKeyHex": "cd85f813b40bd57b8c7fdbf1a1b078c8305e3e0ec6a133a1e1299445956c3b94"
+      },
+      {
+        "sequence": 13,
+        "decision": {
+          "actor": {
+            "tenantId": "local",
+            "agentId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "provider": "codex"
+          },
+          "decisionId": "2bb9b57f-1fc0-43f6-a44d-55dd1d9ea38e",
+          "timestamp": "2026-10-05T19:08:31.882Z",
+          "action": "allow",
+          "triggeredCap": null,
+          "triggeredScopeKey": null,
+          "projectedCents": 0,
+          "windowSpendBefore": 0,
+          "windowSpendAfter": 0,
+          "provider": "codex",
+          "modelRequested": "collaborationwait_agent",
+          "modelResolved": "collaborationwait_agent",
+          "policyId": "agentguard-codex",
+          "policyVersion": 1,
+          "enforcementMode": "enforce",
+          "reasons": [
+            "tool_policy_allowed"
+          ],
+          "costBasis": {
+            "inputCentsPerKtok": 0,
+            "outputCentsPerKtok": 0,
+            "rateSource": "override:manual"
+          },
+          "plugin": {
+            "host": "codex",
+            "schema": "agentguard.codex.v1",
+            "requestId": "5779fbf9-630f-49dd-b911-0ed5752167a5",
+            "gate": "spend",
+            "toolName": "collaborationwait_agent",
+            "toolUseId": "call_v9FXyx5XpiRzAeIh1oqCU3dc",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "inputSha256": "7d04d57c16360ab72473962796ad05822bc069874d59d5edcc66fd72a377fbfb",
+            "inputBytes": 22,
+            "inputKeys": 1,
+            "startedAt": "2026-10-05T19:08:31.869Z",
+            "event": "decision",
+            "capabilityTier": "read_only",
+            "unitCostCents": 0,
+            "chargedCents": 0,
+            "chargedWindows": [],
+            "license": {
+              "paid": false,
+              "tier": "free",
+              "seatsUsed": null,
+              "seatLimit": 1,
+              "expiresAt": null,
+              "mode": "enforce",
+              "reason": null,
+              "offlineGrace": false
+            }
+          }
+        },
+        "previousHash": "cf8156881a19b587425cf0d3ed4f6f394c3f050ab67c5b18098236e69760a855",
+        "entryHash": "a7282a4ae5894be47e54b0c1d55cfbb1cd2d75c0d393162d287232696e3043e6",
+        "signature": "698ac1ee52fe8272603695bee177f1bfa17d1513ddb7be3875d76876d45e557e02e949558bfb8d695967a1ef6bb99c9a54a0300db783e99606e8d7d147534304",
+        "signerFingerprint": "5d735a43cc041b5c",
+        "publicKeyHex": "cd85f813b40bd57b8c7fdbf1a1b078c8305e3e0ec6a133a1e1299445956c3b94"
+      },
+      {
+        "sequence": 14,
+        "decision": {
+          "decisionId": "0060d1a3-83d2-4dd5-9b8c-c739b86cade2",
+          "timestamp": "2026-10-05T19:08:32.035Z",
+          "action": "allow",
+          "triggeredCap": null,
+          "triggeredScopeKey": null,
+          "projectedCents": 0,
+          "windowSpendBefore": 0,
+          "windowSpendAfter": 0,
+          "provider": "unknown",
+          "modelRequested": "outcome-runtime",
+          "modelResolved": "outcome-runtime",
+          "policyId": "agentguard-codex",
+          "policyVersion": 1,
+          "enforcementMode": "enforce",
+          "reasons": [
+            "Outcome runtime metadata receipt recorded locally"
+          ],
+          "entryType": "outcome",
+          "outcomeReceipt": {
+            "flow": "codex-tool",
+            "decisionId": "2bb9b57f-1fc0-43f6-a44d-55dd1d9ea38e",
+            "status": "completed",
+            "durationMs": 153,
+            "outputBytes": 55,
+            "totalCostCents": 0
+          },
+          "originalDecisionId": "2bb9b57f-1fc0-43f6-a44d-55dd1d9ea38e",
+          "actor": {
+            "tenantId": "local",
+            "agentId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "provider": "codex"
+          },
+          "plugin": {
+            "host": "codex",
+            "schema": "agentguard.codex.v1",
+            "requestId": "b907cba5-1cac-4115-ac13-8d48d3437cfd",
+            "gate": "receipt",
+            "toolName": "collaborationwait_agent",
+            "toolUseId": "call_v9FXyx5XpiRzAeIh1oqCU3dc",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "inputSha256": "7d04d57c16360ab72473962796ad05822bc069874d59d5edcc66fd72a377fbfb",
+            "inputBytes": 22,
+            "inputKeys": 1,
+            "startedAt": "2026-10-05T19:08:31.988Z",
+            "outputBytes": 55,
+            "success": true,
+            "event": "outcome",
+            "decisionId": "2bb9b57f-1fc0-43f6-a44d-55dd1d9ea38e",
+            "durationMs": 153,
+            "durationSource": "elapsed_since_decision",
+            "license": {
+              "paid": false,
+              "tier": "free",
+              "seatsUsed": null,
+              "seatLimit": 1,
+              "expiresAt": null,
+              "mode": "enforce",
+              "reason": null,
+              "offlineGrace": false
+            }
+          }
+        },
+        "previousHash": "a7282a4ae5894be47e54b0c1d55cfbb1cd2d75c0d393162d287232696e3043e6",
+        "entryHash": "ad3d0adf3cf044a24000ea609548c7653f97cad449d8eb8b7f03098ef87d7da7",
+        "signature": "6d26e4e196e02275eb16e811bd52a0234bed95281dec89afcb27ddccc86057ff94410f72604d791a204d8c5513e87c912420a0ace06bb279b5f94d9907f31a06",
+        "signerFingerprint": "5d735a43cc041b5c",
+        "publicKeyHex": "cd85f813b40bd57b8c7fdbf1a1b078c8305e3e0ec6a133a1e1299445956c3b94"
+      },
+      {
+        "sequence": 15,
+        "decision": {
+          "decisionId": "35ae4e16-e116-4bf3-bb50-8afd04062081",
+          "timestamp": "2026-10-05T19:08:33.502Z",
+          "action": "allow",
+          "actor": {
+            "tenantId": "local",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "agentId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4"
+          },
+          "triggeredCap": null,
+          "triggeredScopeKey": null,
+          "projectedCents": 0,
+          "windowSpendBefore": 0,
+          "windowSpendAfter": 0,
+          "provider": "codex",
+          "modelRequested": "session_receipt",
+          "modelResolved": "session_receipt",
+          "policyId": "agentguard-codex",
+          "policyVersion": 1,
+          "enforcementMode": "enforce",
+          "reasons": [
+            "session_receipt"
+          ],
+          "plugin": {
+            "host": "codex",
+            "toolName": "session_receipt",
+            "sessionId": "01a10d77-70c3-79e2-bcc0-afe3928aeba4",
+            "toolUseId": "58dfd099-839e-4687-9cd2-84aac6a15f34",
+            "gate": "control",
+            "event": "session_receipt",
+            "reasonCode": "session_receipt",
+            "receipt": {
+              "version": 1,
+              "firstActivityAt": "2026-10-05T19:08:20.543Z",
+              "lastActivityAt": "2026-10-05T19:08:32.035Z",
+              "decisions": {
+                "allowed": 7,
+                "asked": 0,
+                "saidYes": 0,
+                "saidNo": 0,
+                "stopped": 0
+              },
+              "burnPolicyMode": "enforce",
+              "pluginVersion": "0.3.18"
+            }
+          }
+        },
+        "previousHash": "ad3d0adf3cf044a24000ea609548c7653f97cad449d8eb8b7f03098ef87d7da7",
+        "entryHash": "c7a6618779b275eb6da2aba36c28d9ff73f4504ababc7557f2a720cae09b2e1b",
+        "signature": "584f2404862ac30dddf5b604c4c44645afcd0ab5379f2916ff88019b6a294c013952ee81b4d0975b19ffc362f3e2a940c8e182653d0e25bb9de3e3ad69f34403",
+        "signerFingerprint": "5d735a43cc041b5c",
+        "publicKeyHex": "cd85f813b40bd57b8c7fdbf1a1b078c8305e3e0ec6a133a1e1299445956c3b94"
+      }
+    ],
+    "actualHelperModels": [
+      "gpt-6-luna"
+    ],
+    "checks": {
+      "hostExited": true,
+      "boundedLaunches": true,
+      "modelRewrite": true,
+      "depth": true
+    }
+  }
+}

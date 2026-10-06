@@ -23,7 +23,7 @@ function stats(values) {
 }
 function check(value, message) { if (!value) throw new Error(message); }
 
-function preloadText(data, home, diskDelayMs) {
+function preloadText(data, home, diskDelayMs, watchEvents) {
   // The only injected synchronous delay is Burn's two NDJSON appends. Worker
   // fdatasync completion is asynchronous. IPC and policy metadata are untouched.
   return `'use strict';
@@ -35,6 +35,7 @@ const counters = ${JSON.stringify(path.join(data, 'probe-disk-events.ndjson'))};
 const sockets = ${JSON.stringify(path.join(data, 'probe-socket-attempts.ndjson'))};
 const targets = new Set(${JSON.stringify([path.join(home, 'receipts.ndjson'), path.join(home, 'decisions.ndjson')])});
 const delay = ${diskDelayMs};
+if (!${watchEvents}) fs.watch = () => Object.assign(new (require('node:events').EventEmitter)(), {close() {}});
 const sleeper = new Int32Array(new SharedArrayBuffer(4));
 function note(kind) { append(counters, JSON.stringify({kind}) + '\\n'); }
 fs.appendFileSync = function(file, ...args) {
@@ -60,7 +61,7 @@ global.fetch = forbidden;
 `;
 }
 
-async function runProbe({callsPerGate = 12, diskDelayMs = 0} = {}) {
+async function runProbe({callsPerGate = 12, diskDelayMs = 0, watchEvents = true} = {}) {
   check(Number.isSafeInteger(callsPerGate) && callsPerGate >= 1 && callsPerGate <= 1000, 'Probe count must be an integer from 1 to 1000.');
   check(Number.isSafeInteger(diskDelayMs) && diskDelayMs >= 0 && diskDelayMs <= 1000, 'Disk delay must be an integer from 0 to 1000 ms.');
   const data = fs.mkdtempSync(path.join(os.tmpdir(), 'agentguard-latency-probe-'));
@@ -74,7 +75,7 @@ async function runProbe({callsPerGate = 12, diskDelayMs = 0} = {}) {
   env.NODE_OPTIONS = `--require ${JSON.stringify(preload)}`;
   const report = {timestamp: new Date().toISOString(), node: process.version, arch: process.arch,
     os: `${os.platform()} ${os.release()}`, loadAverage: os.loadavg().map(round),
-    callsPerGate, warmupsExcluded: 2, diskDelayMs, hookBudgetMs: 250,
+    callsPerGate, warmupsExcluded: 2, diskDelayMs, watchEvents, hookBudgetMs: 250,
     timing: 'Hook subprocess wall time includes Node startup; one warmup per gate is excluded.',
     injection: diskDelayMs ? `${diskDelayMs} ms per Burn receipts/decisions append and asynchronous fdatasync callback; no IPC or metadata write delay.` : 'none',
     gates: {}, signedEntries: 0, signedFailOpenEvents: 0, pendingFailOpenEvents: 0, socketAttempts: 0,
@@ -100,7 +101,7 @@ async function runProbe({callsPerGate = 12, diskDelayMs = 0} = {}) {
     fs.writeFileSync(path.join(home, 'burn-policy.json'), JSON.stringify(policy), {mode: 0o600});
     const transcript = path.join(data, 'synthetic-transcript.jsonl');
     fs.writeFileSync(transcript, JSON.stringify({timestamp: new Date().toISOString(), usage: {input_tokens: 10, output_tokens: 1}}) + '\n', {mode: 0o600});
-    fs.writeFileSync(preload, preloadText(data, home, diskDelayMs), {mode: 0o600});
+    fs.writeFileSync(preload, preloadText(data, home, diskDelayMs, watchEvents), {mode: 0o600});
 
     async function invoke(gate, index, warmup = false) {
       const deny = gate === 'spend' && !warmup && index % 4 === 0;
@@ -114,7 +115,14 @@ async function runProbe({callsPerGate = 12, diskDelayMs = 0} = {}) {
       const elapsed = performance.now() - started;
       check(child.status === 0, `${gate} call ${index} exited unsuccessfully: ${child.stderr || child.error?.message || child.status}`);
       const output = JSON.parse(child.stdout);
-      check(child.stderr === '', `${gate} call ${index} emitted a warning: ${child.stderr.trim()}`);
+      if (child.stderr) {
+        const pending = ['fail-open-pending.ndjson', 'fail-open-pending.ndjson.recovering'].flatMap(file => readRows(path.join(data, file)));
+        const own = readRows(ledgerFile).filter(row => row.decision.plugin?.toolUseId === toolUseId);
+        const detail = {elapsedMs: round(elapsed), node: process.version, arch: process.arch, loadAverage: os.loadavg().map(round),
+          reasons: pending.filter(row => row.toolUseId === toolUseId).map(row => row.reasonCode),
+          signedEvents: own.map(row => row.decision.plugin.event), diskEvents: readRows(path.join(data, 'probe-disk-events.ndjson')).slice(-8)};
+        throw new Error(`${gate} call ${index} emitted a warning: ${child.stderr.trim()} ${JSON.stringify(detail)}`);
+      }
       check(output.hookSpecificOutput?.permissionDecision === (deny ? 'deny' : 'allow'), `${gate} call ${index} returned the wrong decision.`);
       const rows = readRows(ledgerFile);
       const own = rows.filter(row => row.decision.plugin?.toolUseId === toolUseId);

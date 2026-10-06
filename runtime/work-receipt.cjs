@@ -30,7 +30,7 @@ const SUBAGENT_FILE = /^agent-([A-Za-z0-9][A-Za-z0-9_-]{0,63})\.jsonl$/;
 const UNREAD_LIMIT_BYTES = 8 * 1024 * 1024;
 const SUBAGENT_KEYS = ['started', 'finished', 'endedWithoutFinishing'];
 const DECISION_KEYS = ['allowed', 'asked', 'saidYes', 'saidNo', 'stopped'];
-const FIELDS = new Set(['version', 'firstActivityAt', 'lastActivityAt', 'tokens', 'subagents', 'decisions', 'burnPolicyMode', 'pluginVersion']);
+const FIELDS = new Set(['version', 'firstActivityAt', 'lastActivityAt', 'tokens', 'tokenCoverage', 'subagents', 'decisions', 'burnPolicyMode', 'pluginVersion']);
 
 const plain = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const count = value => Number.isSafeInteger(value) && value >= 0;
@@ -50,6 +50,7 @@ function validateReceipt(receipt) {
   if ((first === undefined) !== (last === undefined)) fail();
   if (first !== undefined && (!instant(first) || !instant(last) || Date.parse(first) > Date.parse(last))) fail();
   if (receipt.tokens !== undefined && !count(receipt.tokens)) fail();
+  if (receipt.tokenCoverage !== undefined && !['authoritative', 'estimated'].includes(receipt.tokenCoverage)) fail();
   if (receipt.burnPolicyMode !== undefined && receipt.burnPolicyMode !== 'enforce' && receipt.burnPolicyMode !== 'shadow') fail();
   const subagents = receipt.subagents;
   if (subagents !== undefined) {
@@ -72,14 +73,16 @@ function validateReceipt(receipt) {
 // is its latest row from the gate that decides it: Burn for sub-agent
 // launches, the spend gate for every other tool.
 class SessionTally {
-  constructor() { this.sessions = new Map(); this.receipted = new Set(); }
+  constructor() { this.sessions = new Map(); this.receipted = new Set(); this.receipts = new Map(); }
   observe(decision) {
     const meta = decision?.plugin;
     if (!plain(meta) || typeof meta.sessionId !== 'string') return;
     const id = meta.sessionId;
-    if (meta.event === RECEIPT_EVENT) { this.receipted.add(id); this.sessions.delete(id); return; }
-    // A session has one receipt; rows after it (a resumed session) change nothing.
-    if (this.receipted.has(id) || !GATES.has(meta.gate)) return;
+    if (meta.event === RECEIPT_EVENT) { this.receipted.add(id); this.receipts.set(id, decision); return; }
+    if (!GATES.has(meta.gate)) return;
+    // New activity invalidates the old ending, while cumulative call identities
+    // remain available for a fresh linked receipt after resume or worker restart.
+    this.receipted.delete(id);
     let session = this.sessions.get(id);
     if (!session) { session = {first: null, last: null, calls: new Map(), ran: new Set()}; this.sessions.set(id, session); }
     const at = typeof decision.timestamp === 'string' ? Date.parse(decision.timestamp) : NaN;
@@ -136,7 +139,7 @@ function subagentCounts(cursor) {
 // when every usage it recorded is authoritative (read from the transcripts).
 function recordedTokens(view) {
   const usage = view?.usage, total = view?.state?.totalTokens;
-  if (!plain(usage) || !(usage.authoritative > 0) || usage.estimated || usage.missing || !count(total)) return undefined;
+  if (!plain(usage) || !(usage.authoritative > 0 || usage.estimated > 0) || usage.missing || !count(total)) return undefined;
   return total;
 }
 
@@ -152,7 +155,7 @@ function buildReceipt({counts, cursor, view, burnPolicyMode, pluginVersion} = {}
   }
   if (first !== null && last !== null) { receipt.firstActivityAt = iso(first); receipt.lastActivityAt = iso(last); }
   const tokens = recordedTokens(view);
-  if (tokens !== undefined) receipt.tokens = tokens;
+  if (tokens !== undefined) { receipt.tokens = tokens; if (view.usage.estimated > 0) receipt.tokenCoverage = 'estimated'; }
   const subagents = subagentCounts(cursor);
   if (subagents) receipt.subagents = subagents;
   const decisions = counts?.decisions;

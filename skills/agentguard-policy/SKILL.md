@@ -82,6 +82,10 @@ Claude session ID. Replace only `runtime/activate.cjs` with
 - Usual defaults: `preset solo-dev`.
 - Careful destructive work: `preset careful`.
 - Ask before network, deploy or publish: `preset strict`.
+- Copies ask before launching copies: `preset copies-ask`.
+- Allow launches through depth 2: `set-depth 2`. Disable with `set-depth off`.
+- After 100000 session tokens, route search and logs to haiku while keeping logs: `helper-model 100000 haiku search,logs logs`.
+- Disable helper routing: `helper-model off`.
 - Limit to 15 dollars a day: `set-cap 15 per_day`.
 - Limit each session to 5 dollars: `set-cap 5 per_session`.
 - Block git push to main: `block '\bgit\s+push\b[^;\n]*\bmain\b'`.
@@ -92,6 +96,16 @@ Claude session ID. Replace only `runtime/activate.cjs` with
 
 Presets replace mode, caps, command rules and guard settings. They preserve
 other fields, including configured tool prices, sessions and licensing.
+The copies-ask preset changes only launch depth. Launch depth and helper model
+settings stay local and are not uploaded by policy sync. A depth of 1 allows
+the main session to launch, with a permission request for deeper Claude Code
+launches. Codex holds supported policy denials until the operator allows them.
+Missing reliable lineage retains the count limit. Helper type names match
+exactly; the keep list wins. On the observed Codex collaboration path, untyped
+helpers use the explicit `default` type, never a role inferred from task names.
+Do not enable that type when the operator intended only named helper roles.
+See [launch policy limits](../../docs/LAUNCH_POLICY.md) before claiming host
+support. A new budget does not switch an agent already running.
 The careful preset blocks force pushes, recognized deploy commands and rm
 outside the workspace, with a $15 daily cap. Strict sets a $5 daily cap and
 asks for network, deploy and package publish. Because a shell or connector

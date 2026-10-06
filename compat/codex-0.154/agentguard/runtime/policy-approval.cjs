@@ -7,7 +7,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {randomBytes} = require('node:crypto');
 const {hashPolicy} = require('./org-policy-contract.cjs');
-const binding = (meta, config) => hashPolicy({sessionId: meta.sessionId, toolName: meta.toolName, inputSha256: meta.inputSha256, policy: config});
+const binding = (meta, config) => hashPolicy({sessionId: meta.sessionId, toolName: meta.toolName, inputSha256: meta.inputSha256,
+  ...(meta.launch ? {callerId: meta.launch.callerId, depth: meta.launch.depth} : {}), policy: config});
 function directory(data) { return path.join(data, 'policy-approvals'); }
 function ticketFile(data, token) {
   if (!/^[a-f0-9]{32}$/.test(token ?? '')) throw new Error('Invalid approval token.');

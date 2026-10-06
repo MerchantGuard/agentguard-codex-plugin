@@ -17,8 +17,15 @@ function fixture(t) {
   const ipc = path.join('/tmp', `ag-plugin-${process.getuid?.() ?? 'local'}-${tag}`);
   const blocker = path.join(data, 'no-network.cjs');
   const attempts = path.join(data, 'network-attempts');
+  const children = path.join(data, 'background-children.ndjson');
   fs.writeFileSync(blocker, `
     const fs = require('node:fs');
+    const cp = require('node:child_process'), spawn = cp.spawn;
+    cp.spawn = function(command, args, options) {
+      const child = spawn.call(this, command, args, options);
+      if (child.pid && (args || []).some(arg => /runtime[/\\\\]session-(?:start|tip)\\.cjs$/.test(arg))) fs.appendFileSync(${JSON.stringify(children)}, child.pid + '\\n');
+      return child;
+    };
     const blocked = () => { fs.appendFileSync(${JSON.stringify(attempts)}, 'attempt\\n'); throw new Error('socket_forbidden'); };
     const net = require('node:net');
     net.connect = blocked; net.createConnection = blocked; net.createServer = blocked;
@@ -42,8 +49,22 @@ function fixture(t) {
     NODE_OPTIONS: `--require=${blocker}` };
   matrix.environment(env, data);
   fs.writeFileSync(env.AGENTGUARD_PLUGIN_POLICY, JSON.stringify({ version: 1, mode: 'enforce', tenantId: 'synthetic-tenant', maxCapability: 'payment_execute', toolRules: [], caps: [] }), { mode: 0o600 });
-  t.after(() => {
-    spawnSync(process.execPath, ['runtime/control.cjs', 'stop'], { cwd: root, env, timeout: 3000 });
+  t.after(async () => {
+    // SessionEnd can return while the detached tip is still writing. The
+    // startup helper must also finish before the worker is stopped.
+    const waitForExit = async pids => {
+      const alive = pid => { try { process.kill(pid, 0); return true; } catch { return false; } };
+      const deadline = Date.now() + 10000;
+      while (pids.some(alive) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 20));
+      assert.equal(pids.some(alive), false, 'background processes must exit before deleting their data');
+    };
+    const pids = fs.existsSync(children) ? fs.readFileSync(children, 'utf8').trim().split('\n').filter(Boolean).map(Number) : [];
+    await waitForExit(pids);
+    const lock = path.join(ipc, 'worker.lock');
+    const worker = fs.existsSync(lock) ? Number(fs.readFileSync(lock, 'utf8')) : null;
+    const stopped = spawnSync(process.execPath, ['runtime/control.cjs', 'stop'], { cwd: root, env, timeout: 3000 });
+    assert.equal(stopped.status, 0, 'the worker stops before teardown');
+    if (Number.isSafeInteger(worker) && worker > 0) await waitForExit([worker]);
     fs.rmSync(ipc, { recursive: true, force: true });
     fs.rmSync(data, { recursive: true, force: true });
   });

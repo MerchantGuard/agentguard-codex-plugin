@@ -7,7 +7,8 @@ const {locations, hostContext} = require('./common.cjs');
 const {validatePolicy} = require('./policy-schema.cjs');
 const {validateOrgPolicy, ROOT_FIELDS} = require('./org-policy-contract.cjs');
 const UPSELL = 'Policy sync is part of Solo: your policy on up to three machines. agentguard.run/pricing';
-const PRESETS = ['solo-dev', 'careful', 'strict'];
+const PRESETS = ['solo-dev', 'careful', 'strict', 'copies-ask'];
+const LOCAL_FIELDS = [...ROOT_FIELDS, 'max_depth', 'helper_models'];
 function localPolicy(data) {
   try { return require('./policy-file.cjs').stripMergeFields(JSON.parse(fs.readFileSync(path.join(data, 'policy.json'), 'utf8'))); }
   catch (error) { if (error.code !== 'ENOENT') throw new Error('Local policy is not readable JSON.'); return JSON.parse(fs.readFileSync(path.join(__dirname, '../config/default-policy.json'), 'utf8')); }
@@ -15,6 +16,10 @@ function localPolicy(data) {
 function policyConfig(value) {
   validatePolicy(value);
   const policy = Object.fromEntries(ROOT_FIELDS.filter(key => Object.hasOwn(value, key)).map(key => [key, value[key]]));
+  // Launch settings are local at both scopes until the shared contract grows
+  // these fields. Project copies so an upload never alters the local policy.
+  if (policy.sessions) policy.sessions = Object.fromEntries(Object.entries(policy.sessions).map(([id, session]) =>
+    [id, Object.fromEntries(Object.entries(session).filter(([key]) => !['max_depth', 'helper_models'].includes(key)))]));
   const error = validateOrgPolicy(policy)[0];
   if (error) throw new Error(error);
   if (Buffer.byteLength(JSON.stringify({policy})) > 65536) throw new Error('Policy exceeds 64 KB.');
@@ -26,7 +31,7 @@ function writePolicy(data, before, after) {
   const file = path.join(data, 'policy.json'), temporary = file + '.' + randomUUID();
   try { fs.writeFileSync(temporary, JSON.stringify(after, null, 2) + '\n', {flag: 'wx', mode: 0o600}); fs.renameSync(temporary, file); }
   finally { try { fs.unlinkSync(temporary); } catch {} }
-  const diff = ROOT_FIELDS.filter(key => JSON.stringify(before[key]) !== JSON.stringify(after[key]))
+  const diff = LOCAL_FIELDS.filter(key => JSON.stringify(before[key]) !== JSON.stringify(after[key]))
     .flatMap(key => [`Before ${key}: ${JSON.stringify(before[key] ?? null)}`, `After ${key}: ${JSON.stringify(after[key] ?? null)}`]);
   return diff.length ? diff.join('\n') : 'Policy unchanged.';
 }
@@ -41,12 +46,17 @@ function describe(state) {
   for (const [id, mode] of Object.entries(config.guardPack?.rules ?? {})) lines.push(`${id}: ${mode}. ${require('./guard-pack.cjs').RULES.find(rule => rule.id === id)?.reason ?? ''}`);
   for (const field of ['allowedTools', 'deniedTools', 'ethicalWall']) if (config[field]?.length) lines.push(`${field}: ${config[field].join(', ')}.`);
   if (config.maxCapability) lines.push(`Maximum capability: ${config.maxCapability.replaceAll('_', ' ')}.`);
+  lines.push(config.max_depth == null ? 'Launch depth limit: off.' : `Launch depth limit: ${config.max_depth}. Main-session launches are depth 1. Missing lineage uses the existing count limit.`);
+  lines.push(config.helper_models?.enabled ? `Helper model: ${config.helper_models.model} after ${config.helper_models.token_budget} session tokens. Helper types: ${config.helper_models.helper_types.join(', ')}. Keep types: ${config.helper_models.keep_types.join(', ') || 'none'}.` : 'Helper model routing: off.');
+  if ([config, ...Object.values(config.sessions ?? {})].some(scope => scope.max_depth != null || scope.helper_models?.enabled)) lines.push('Launch depth and helper model settings apply only on this machine. Policy sync does not include them.');
   for (const rule of config.toolRules ?? []) lines.push(`Tools matching ${JSON.stringify(rule.pattern)}: ${rule.unitCostCents === undefined ? 'price unchanged' : '$' + (rule.unitCostCents / 100).toFixed(2) + ' per call'}${rule.capability ? ', capability ' + rule.capability.replaceAll('_', ' ') : ''}.`);
   for (const [id, session] of Object.entries(config.sessions ?? {})) {
     lines.push(`Session ${id}:`);
     for (const cap of session.caps ?? []) lines.push(`  Cap $${(cap.amountCents / 100).toFixed(2)} ${cap.window.replaceAll('_', ' ')}; ${cap.action ?? 'block'}.`);
     for (const field of ['allowedTools', 'deniedTools', 'ethicalWall']) if (session[field]) lines.push(`  ${field}: ${session[field].join(', ') || 'empty list'}.`);
     if (session.maxCapability) lines.push(`  Maximum capability: ${session.maxCapability.replaceAll('_', ' ')}.`);
+    if (session.max_depth != null) lines.push(`  Launch depth limit: ${session.max_depth}; a stricter global depth still applies.`);
+    if (session.helper_models) lines.push(session.helper_models.enabled ? `  Helper model: ${session.helper_models.model} after ${session.helper_models.token_budget} tokens. Helper types: ${session.helper_models.helper_types.join(', ')}. Keep types: ${session.helper_models.keep_types.join(', ') || 'none'}; global keep types still apply.` : '  Helper model routing: off for this session.');
   }
   if ((config.commandRuleGroups ?? [config.commandRules ?? []]).flat().some(rule => rule.match === 'network')) lines.push('Strict approval includes every shell and connector call because those tools can open network connections.');
   if (state.syncReason) lines.push(license.mode === 'shadow' ? 'Team policy unavailable. Enforcement is in shadow until it can be read again.' : 'Policy sync unavailable. Local policy applies.');
@@ -101,8 +111,16 @@ async function run(argv, options = {}) {
   }
   let after = {...before};
   if (command === 'preset' && args.length === 1) {
-    if (!PRESETS.includes(args[0])) throw new Error('Choose solo-dev, careful or strict.');
+    if (!PRESETS.includes(args[0])) throw new Error('Choose solo-dev, careful, strict or copies-ask (Copies ask before launching copies).');
     after = {...before, ...JSON.parse(fs.readFileSync(path.join(__dirname, 'presets', args[0] + '.json'), 'utf8'))};
+  } else if (command === 'set-depth' && args.length === 1) {
+    if (args[0] !== 'off' && !/^[1-9][0-9]*$/.test(args[0])) throw new Error('Use a positive depth or off.');
+    after.max_depth = args[0] === 'off' ? null : Number(args[0]);
+  } else if (command === 'helper-model' && args.length === 1 && args[0] === 'off') {
+    after.helper_models = {enabled: false};
+  } else if (command === 'helper-model' && args.length === 4) {
+    if (!/^(0|[1-9][0-9]*)$/.test(args[0])) throw new Error('Use a nonnegative whole token budget.');
+    after.helper_models = {enabled: true, token_budget: Number(args[0]), model: args[1], helper_types: args[2].split(','), keep_types: args[3] === 'none' ? [] : args[3].split(',')};
   } else if (command === 'set-cap' && args.length === 2) {
     if (!/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?$/.test(args[0]) || !['per_day', 'per_session'].includes(args[1])) throw new Error('Use a nonnegative dollar amount with at most two decimals and per_day or per_session.');
     const amountCents = Math.round(Number(args[0]) * 100);
@@ -111,9 +129,9 @@ async function run(argv, options = {}) {
   } else if (['block', 'allow'].includes(command) && args.length === 1) {
     const pattern = args[0], id = 'command-' + createHash('sha256').update(pattern).digest('hex').slice(0, 16);
     after.commandRules = [...(before.commandRules ?? []).filter(rule => rule.id !== id), {id, pattern, action: command}];
-  } else throw new Error('Use show, preset <name>, set-cap <dollars> <per_day|per_session>, block <pattern>, allow <pattern>, explain <rule-id>, push, pending, approve <token>, benchmark on|off <run-id> or quiet on.');
+  } else throw new Error('Use show, preset <name>, set-depth <number|off>, helper-model <tokens> <model> <types> <keep-types|none>, helper-model off, set-cap <dollars> <per_day|per_session>, block <pattern>, allow <pattern>, explain <rule-id>, push, pending, approve <token>, benchmark on|off <run-id> or quiet on.');
   const diff = writePolicy(data, before, after);
-  return diff + (require('./license.cjs').configuredKey(before) ? '\nLocal policy updated. Run policy-cli push to sync a Solo policy.' : '');
+  return diff + (['set-depth', 'helper-model'].includes(command) || (command === 'preset' && args[0] === 'copies-ask') ? '\nLaunch settings apply only on this machine.' : require('./license.cjs').configuredKey(before) ? '\nLocal policy updated. Run policy-cli push to sync a Solo policy.' : '');
 }
 if (require.main === module) run(process.argv.slice(2)).then(message => process.stdout.write(message + '\n')).catch(error => {
   process.stderr.write(String(error.message || 'Policy command failed.').replace(/[\r\n]+/g, ' ') + '\n'); process.exitCode = 1;

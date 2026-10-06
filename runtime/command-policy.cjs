@@ -13,7 +13,7 @@ const commandHash = config => hashPolicy(groups(config));
 // anything marks the scan incomplete; nothing here may throw into a fail-open.
 const MAX_SCAN_CHARS = 65536, LINE_CAP = 2048, WHOLE_CAP = 4096, MAX_LINES = 4096, MAX_WORDS = 512, MAX_COMPONENTS = 256, MAX_GLOB = 4096, MAX_BRACES = 64, MAX_WILDCARDS = 2;
 // Verbs that change policy or approvals are never the agent's to run, on any host.
-const POLICY_VERBS = new Set(['preset', 'set-cap', 'block', 'allow', 'push', 'approve', 'quiet', 'benchmark']);
+const POLICY_VERBS = new Set(['preset', 'set-cap', 'set-depth', 'helper-model', 'block', 'allow', 'push', 'approve', 'quiet', 'benchmark']);
 // A move, copy or rename writes its destination and unlinks its source, so
 // both count as write targets for the built-in plugin-state stop.
 const WRITE = /(?:^|[._])(?:write|edit|multiedit|apply_patch|notebookedit|write_file|edit_file|create_file|update_file|str_replace_editor|str_replace_based_edit_tool|move_file|copy_file|rename_file|move|copy|rename)$/i;

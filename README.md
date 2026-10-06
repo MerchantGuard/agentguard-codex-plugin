@@ -6,6 +6,13 @@ When a Claude Code session passes 15 sub-agents in 15 active minutes, 40 in 120 
 
 [Watch the AgentGuard Burn clip](https://agentguard.run/burn).
 
+You can also limit how deep copies may launch, separately from their total
+count. The preset **Copies ask before launching copies** sets `max_depth` to
+1. Opt-in helper model routing switches listed helper types to your chosen
+model after your session token budget. Kept types and the main session retain
+their models. Both additions default off. See [launch policies](docs/LAUNCH_POLICY.md)
+for configuration, host limits and the [recorded canaries](docs/LAUNCH_POLICY_CANARY.md).
+
 ## Install in Claude Code
 
 ```sh
@@ -34,7 +41,8 @@ Docs and pricing: [agentguard.run](https://agentguard.run) ([docs](https://agent
 - **AgentGuard Score, only when you ask and agree.** The `agent_score` MCP tool sends your five questionnaire answers to `https://agentguard.run` (or to the https origin in `AGENTGUARD_SCORE_URL`, if you set one). If you also ask for a report link, the service keeps your answers and score, and anyone with the link can see them.
 - **With a license key (Solo or Team).** The plugin's background worker, at session start and while a session is open, sends two requests to agentguard.run: `POST /api/license/validate` with the license key, and `POST /api/license/seats` with the license key, a machine fingerprint, an identifier derived from the session and a fingerprint of the shared policy in use, if any. `AGENTGUARD_LICENSE_ENDPOINT`, if you set it, sends the license check to that host instead.
 - **Paid shared policy.** The worker downloads it with `GET https://agentguard.run/api/org/policy`, sending the license key as a bearer token. `push`, only when you run it, uploads your policy settings with `PUT` to the same address.
-- **Never sent:** prompts, file names or paths, commands, tool input or output, transcripts and work receipts. Every signed ledger row, receipts included, stays in the plugin's data folder on your machine.
+- **Team daily counts, only when you turn them on (off by default).** With a valid Team license and registered seat, the `AGENTGUARD_TEAM_COUNTS=1` environment variable and `node runtime/counts-sync.cjs on` run in the plugin folder, the background worker sends one request per completed UTC day: `POST https://agentguard.run/api/team/counts`, with the license key as a bearer token. The body is a signed daily aggregate and nothing else: the date, a seat id (a SHA-256 hash of the license key and the machine fingerprint), the day's totals of launches, allowed, asked, said yes, stopped, shadow, unrecorded and unresolved asks, the day's token total, and the public key and signature of the receipt signer. It is sent after the session's closing receipt is written, never while a hook waits, and at most once a minute. `node runtime/counts-sync.cjs off` stops it. See "Optional Team daily counts".
+- **Never sent:** prompts, file names or paths, commands, tool input or output, transcripts, session ids and the work receipts themselves. Every signed ledger row, receipts included, stays in the plugin's data folder on your machine.
 
 The license key: in Claude Code, open `/plugin manage`, choose AgentGuard and set its `license_key` option. Claude Code keeps it in your system's credential store and hands it to the plugin's hooks and MCP server. Free needs no key. Codex, and installs that already set a key, keep using `AGENTGUARD_LICENSE_KEY` or the key saved by `activate license` (see "Free and paid features").
 
@@ -42,7 +50,8 @@ The license key: in Claude Code, open `/plugin manage`, choose AgentGuard and se
 
 Every program starts from a file inside the plugin, with plain arguments:
 
-- `node` runs the hook scripts in `hooks/` (named in `hooks/hooks.json`), the MCP server `runtime/mcp.cjs` (named in `.mcp.json`) and three background helpers the hooks start: `runtime/daemon.cjs`, the worker that checks each call against your policy and signs the ledger; `runtime/session-start.cjs`, which tells the worker that a session started; and `runtime/session-tip.cjs`, which reads the session that just ended with Burn to keep one tip for your next session.
+- `node` runs the hook scripts in `hooks/` (named in `hooks/hooks.json`), the MCP server `runtime/mcp.cjs` (named in `.mcp.json`) and three background helpers the hooks start: `runtime/daemon.cjs`, the worker that checks each call against your policy and signs the ledger; `runtime/session-start.cjs`, which tells the worker that a session started; and `runtime/session-tip.cjs`, which reads the session that just ended with Burn, and that session's signed receipts in the local ledger, to keep one tip and tally line for your next session.
+- `node runtime/counts-sync.cjs on`, `off` or `status`, only when you run it yourself, to turn Team daily counts on or off for this installation or show the setting.
 - `ps`, at session start, to find the Claude Code or Codex process the session belongs to, so the worker knows when it has ended.
 - On macOS, for STOP notifications only: `osascript`, and a small notifier app built once from the bundled Swift source with `xcrun swiftc`, `sips`, `iconutil`, `codesign` and `lsregister`. See "Local STOP notifications".
 - `open` on macOS, `xdg-open` on Linux or `cmd /c start` on Windows, only to open an AgentGuard Score report link you asked to open.
@@ -52,13 +61,15 @@ Every program starts from a file inside the plugin, with plain arguments:
 
 The hooks in `hooks/hooks.json` run on every tool call and at session start and end:
 
-- **PreToolUse** (`burn-gate.cjs`, then `spend-gate.cjs`): the only hooks that decide. They answer `ask` or `deny`, never `allow`: an ordinary call gets no answer from them, so Claude Code's own permission rules and prompts apply as usual.
+- **PreToolUse** (`burn-gate.cjs`, then `spend-gate.cjs`): the only hooks that decide. They answer `ask` or `deny`: an ordinary call gets no answer from them, so Claude Code's own permission rules and prompts apply as usual. They never answer `allow` in Claude Code. The one `allow` is in Codex, for a launch that opt-in helper model routing changes (below), because Codex applies a changed launch only together with `allow`.
   - The burn gate looks at sub-agent launches (Task and Agent). Over a limit (15 in 15 active minutes, 40 in 120, 5B tokens in a session, or more than two levels deep), it answers `ask` in default, accept edits, auto and plan mode, so Claude Code shows you its own prompt and you decide. Only where no prompt can show (bypass permissions, don't ask and print mode) does it answer `deny` with the STOP box. `"stopStyle": "deny"` in `burn-policy.json` makes it deny everywhere. In Codex, which has no prompt, a launch over a limit is refused until you allow it.
+  - Depth limit (opt-in, off by default). With `max_depth` set in your policy (the preset "Copies ask before launching copies" sets 1), a launch deeper than the limit is held the same way: `ask` in Claude Code's default, manual, accept edits, auto and plan modes, and elsewhere, and in Codex, `deny` until you approve that exact launch with `node runtime/policy-cli.cjs pending` in your own terminal. Where the host does not report a launch's depth, the gate adds a one-line notice and the count limits still apply.
+  - Helper model routing (opt-in, off by default). With `helper_models` enabled, once the session's recorded tokens pass your `token_budget`, a new launch of a listed helper type, not a kept type, gets the model you chose: the gate returns the launch's own input with only its `model` field changed (`updatedInput`). In Claude Code the permission decision stays as it was, including an outstanding ask. In Codex the change comes with `allow`, and only for default, worker and explorer launches when no custom agent roles are defined in `~/.codex` or the project's `.codex` folders, which the gate reads to check. Where a launch cannot be changed (a Claude Code fork, or another Codex launch), it holds the launch the same way as the depth limit and names the model to choose. The main session, kept types and resumed launches keep their models, and in shadow mode it only records what it would have chosen.
   - The spend gate answers `deny` when your policy refuses a call (a tool outside your allowlist, a spend cap reached or a built-in guard pack rule), and `ask` where a policy rule says to ask you. While Burn enforces, an agent's attempt to lift a STOP itself is denied.
-  - What they change: nothing in the call. They never rewrite tool input or output. They add one signed, content-free row to the ledger and can show a one-line notice.
+  - What they change: nothing in the call, except the `model` field of a launch that helper model routing changes. They never change any other tool input, and never any output. They add one signed, content-free row to the ledger (for a launch, with its depth, agent type and the requested and chosen model names) and can show a one-line notice.
 - **PostToolUse and PostToolUseFailure** (`receipt.cjs`): records whether the call succeeded, its output size and its duration, as a signed row. Decides and changes nothing.
 - **SessionStart** (`session-start.cjs`): shows AgentGuard's startup lines and starts the background helper. Decides nothing.
-- **SessionEnd** (`session-end.cjs`): asks the worker for the session's work receipt, waits at most one second, and always lets the session end.
+- **SessionEnd** (`session-end.cjs`): asks the worker for the session's work receipt, waits at most one second, and always lets the session end. With Team daily counts on, the worker can send that day's aggregate later, outside the hook.
 - **Fail open.** Each hook has two seconds. If it fails, times out or its dependencies are missing, it gives no answer, and the call goes through Claude Code's normal permission flow. The ledger records the call as failed open where it can.
 
 ### The mod: what it decides, changes, runs and sends
@@ -85,7 +96,7 @@ not observed model usage.
 
 The two `PreToolUse` gates and receipt hooks use matcher `.*`.
 In Codex, supported paths include Bash, `apply_patch`/Edit/Write, MCP tools,
-`update_plan`, and `spawn_agent`. Hosted tools such as WebSearch and web
+`update_plan`, `spawn_agent`, and the observed `collaborationspawn_agent` alias. Hosted tools such as WebSearch and web
 ChatGPT are outside this hook path. `write_stdin` does not receive another
 pre-tool decision for an already-approved shell session, and specialized tool
 paths can opt out. The plugin therefore cannot provide universal interception.
@@ -728,6 +739,12 @@ npm run check:compat
 npm test
 ```
 
+The test launcher always sets notification suppression and a fresh temporary
+AgentGuard home, including for spawned workers. It checks the real
+`~/.agentguard` before and after the suite and fails if files, contents or
+modification metadata changed. It removes its temporary home afterward.
+Both `npm test` and `npm run test:claude` use this launcher.
+
 Tests use synthetic tool contents and isolated data directories. Warm gate
 timing is measured against the already-running local worker; process startup,
 the first dependency load, and disk failures are distinct from a warm
@@ -826,7 +843,7 @@ A receipt holds:
 
 - the session id, on the row as on every other row of the session;
 - `firstActivityAt` and `lastActivityAt`: the first and last activity in the session, from AgentGuard's own rows and the model responses Burn read;
-- `tokens`: the tokens Burn recorded for the session, sub-agents included, when every usage Burn recorded was read from the transcripts;
+- `tokens`: the tokens Burn recorded for the session. Claude child transcripts are included. Codex totals cover the delivered session transcript and carry `tokenCoverage: estimated`; other child threads can be absent;
 - `subagents`: `started` (each sub-agent transcript of the session), `finished`, and `endedWithoutFinishing` (failed, killed or stopped, and never completed or resumed), as Burn reads them;
 - `decisions`: AgentGuard's decisions on the session's tool calls, one per call, by result: `allowed` (let through without asking), `asked` (held for your answer), `saidYes` (asked, and the call then ran), `saidNo`, and `stopped` (refused);
 - `burnPolicyMode`: the mode in Burn's policy file, `enforce` or `shadow`, when the file exists;
@@ -835,7 +852,7 @@ A receipt holds:
 It never holds a prompt, file path, file name, command, repository name, tool output or any other content. The worker builds it from counts it already keeps and from Burn's counts, and the reader refuses a receipt with any other field. A count AgentGuard cannot prove is left out, never guessed and never set to 0:
 
 - Claude Code does not tell hooks when you refuse a prompt, so `saidNo` appears only when every ask ran, and it is then 0. Otherwise `asked` minus `saidYes` is the number of asks that never ran: refused, or the session ended first.
-- In Codex, Burn reads token usage only as an estimate and does not see how sub-agents ended, so Codex receipts leave out `tokens` and `subagents` for now. Everything else is the same.
+- In Codex, recorded token totals carry estimated coverage. Missing usage and sub-agent completion counts remain absent. Tree can discover child usage outside the transcript delivered to hooks, so its total may be larger.
 - Without a readable transcript, or for a session this plugin never read that is too large to read in one short pause (over 8 MB), `tokens` and `subagents` are left out.
 
 Example, the row's `plugin.receipt`:
@@ -853,7 +870,7 @@ Example, the row's `plugin.receipt`:
 }
 ```
 
-The SessionEnd hook asks the running worker for the receipt as it ends the session, and the worker signs it before it answers. The hook waits at most one second for that answer, prints nothing, and always lets the session end. Each session gets one receipt: a later end of the same session, such as after a resume, adds none. If no worker is running when the session ends, the request waits in the plugin's data folder (the session id and the time it ended, never where the transcript is) and the next worker to start writes the receipt from the ledger alone, so `tokens` and `subagents` are left out.
+The SessionEnd hook asks the running worker for the receipt as it ends the session, and the worker signs it before it answers. The hook waits at most one second for that answer, prints nothing, and always lets the session end. Resumed activity adds a fresh cumulative summary with `previousReceiptId` linking to the last summary. Repeated ends without changed counts or activity add nothing, including after a worker restart. If no worker is running when the session ends, the request waits in the plugin's data folder (the session id and the time it ended, never where the transcript is) and the next worker to start writes the receipt from the ledger alone, so `tokens` and `subagents` are left out.
 
 Receipts stay on your computer, in the same ledger file as every other row (`ledger/decisions.ndjson` in the plugin's data folder). Nothing is sent anywhere.
 
@@ -863,3 +880,27 @@ To check one:
 - `verify_chain`, the v key in the `/agentguard` pane, or `node runtime/verify.cjs` in the plugin folder checks every signature and hash link, receipts included. Changing one count in a receipt makes its signature and the chain fail.
 - `list_decisions` lists receipts as `session_receipt` rows with their counts, and `export_receipts` (paid) exports them with the rest of the chain. `get_status` does not count them as decisions.
 - In Claude Code, the `/agentguard` pane shows the last finished session's receipt, for example "Work receipt, last finished session (17:05): 2.3K tokens · 1 sub-agent · 2 decisions · signed #6".
+
+
+## Optional Team daily counts
+
+Count sharing stays off by default. A valid Team license, registered seat,
+local `AGENTGUARD_TEAM_COUNTS=1` flag and `node runtime/counts-sync.cjs on`
+opt-in are required. The detached worker tries after the closing receipt is
+durable and retries at most once per minute. The hook reply does not wait for
+network access. The production Team view flag remains off.
+
+Each locally opted-in installation for the same license contributes its
+verified receipts, including separate Claude Code and Codex data directories.
+A shared machine lock and one pinned existing receipt signer prevent duplicate
+uploads. A resumed session contributes only the increment since an earlier
+completion day. Conflicting copies, missing receipts, missing usage and changed
+already-sent days stop that aggregate. Nothing is silently overwritten.
+
+Only the allowlisted signed daily aggregate leaves this machine, never prompts,
+code, files, session IDs or individual receipt rows. Read the exact fields and
+retention at [Team count sharing](https://agentguard.run/docs/team-counts/).
+
+Codex 0.160.0 `exec` suppressed both SessionStart output and the tested SessionEnd
+`systemMessage`. Run `agentguard-burn tally SESSION_ID` after `exec` to see the
+numeric tally. This does not depend on the model repeating a hook message.

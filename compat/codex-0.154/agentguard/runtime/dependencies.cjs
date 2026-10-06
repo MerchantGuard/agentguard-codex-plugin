@@ -82,7 +82,7 @@ function validateProvision(directory, info) {
 }
 
 function loadDependency(name) {
-  if (!allowed.has(name)) throw new Error('Unsupported AgentGuard dependency.');
+  if (!allowed.has(name) && name !== '@agentguard-run/burn/tool-names') throw new Error('Unsupported AgentGuard dependency.');
   if (cache.has(name)) return cache.get(name);
   const info = dependencyInfo();
   const local = path.join(info.root, 'node_modules');

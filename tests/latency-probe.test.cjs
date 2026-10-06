@@ -3,6 +3,15 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {runProbe, formatReport} = require('../scripts/probe-hooks.cjs');
 
+test('warm hooks survive lost filesystem watcher events without extending their deadline', async () => {
+  const report = await runProbe({callsPerGate: 3, diskDelayMs: 40, watchEvents: false});
+  assert.equal(report.signedEntries, 8);
+  assert.equal(report.signedFailOpenEvents, 0);
+  assert.equal(report.chainVerified, true);
+  assert.equal(report.burnChainVerified, true);
+  assert.equal(report.socketAttempts, 0);
+});
+
 test('twenty warm calls per gate survive 40ms disk delays with every decision signed and no fail-open', async t => {
   const report = await runProbe({callsPerGate: 20, diskDelayMs: 40});
   for (const gate of ['spend', 'burn']) {

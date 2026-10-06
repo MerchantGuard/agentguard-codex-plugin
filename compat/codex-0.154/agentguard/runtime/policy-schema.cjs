@@ -13,6 +13,7 @@ function validatePolicy(policy) {
   const configs = [policy, ...Object.values(policy.sessions ?? {})];
   for (const config of configs) {
     if (!config || typeof config !== 'object') throw new Error('policy_invalid');
+    require('./launch-policy.cjs').validate(config);
     if (config !== policy && config.guardPack !== undefined) throw new Error('guard_policy_invalid');
     if (config.maxCapability !== undefined && !tiers.includes(config.maxCapability)) throw new Error('policy_invalid');
     for (const group of config.allowedToolGroups ?? []) {

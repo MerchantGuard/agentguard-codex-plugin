@@ -46,7 +46,9 @@ function fixture(t) {
   const data = path.join(temporary, 'data');
   fs.mkdirSync(data, {recursive: true});
   fs.mkdirSync(path.join(legacy, 'hooks'), {recursive: true});
-  fs.cpSync(path.join(root, 'runtime'), path.join(legacy, 'runtime'), {recursive: true});
+  // Model an installed legacy package: the shared alias export is resolved
+  // from the same validated locked dependencies as the daemon.
+  for (const name of ['runtime', 'package.json', 'package-lock.json', 'node_modules']) fs.cpSync(path.join(root, name), path.join(legacy, name), {recursive: true});
   for (const [relative, bytes] of expectedFiles()) {
     if (relative.startsWith('hooks/')) fs.writeFileSync(path.join(legacy, relative), bytes);
   }

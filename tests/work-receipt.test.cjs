@@ -165,13 +165,14 @@ test('said no is left out while an ask is unaccounted for, and is 0 once every a
   assert.deepEqual(row.decisions, {allowed: 3, asked: 1, saidYes: 1, saidNo: 0, stopped: 1});
 });
 
-test('a Codex session gets a receipt without tokens or sub-agent counts, which Burn does not read there', async t => {
+test('Codex recorded usage is numeric with estimated coverage and unknown sub-agent counts', async t => {
   const {s} = await decidedSession(t, {host: 'codex'});
   const result = await s.engine().sessionReceipt({sessionId: SESSION, transcriptPath: s.transcript});
   assert.equal(result.receipt, 'appended');
   const view = (await createReader({dataDir: s.data}).call('get_work_receipt', {})).receipt;
   assert.equal(view.host, 'codex');
-  assert.equal(view.tokens, undefined);
+  assert.equal(view.tokens, 40);
+  assert.equal(view.tokenCoverage, 'estimated');
   assert.equal(view.subagents, undefined);
   assert.deepEqual(view.decisions, {allowed: 3, asked: 0, saidYes: 0, saidNo: 0, stopped: 1});
   assert.equal(view.burnPolicyMode, 'enforce');
@@ -209,8 +210,8 @@ test('the builder copies counts by name, so content-shaped input never reaches t
   const unknown = receipts.buildReceipt({counts: {first: 'yesterday', last: null, decisions: {allowed: '3', asked: 0, saidYes: 0, stopped: 0}},
     view: {usage: {authoritative: 1}, state: {totalTokens: 'SYNTHETIC_PROMPT_MUST_NOT_APPEAR'}}, burnPolicyMode: 'rm -rf /', pluginVersion: VERSION});
   assert.deepEqual(unknown, {version: 1, pluginVersion: VERSION});
-  // Estimated usage (a Codex reading) is not a recorded count; nor is a session with sub-agent lines inline.
-  assert.equal(receipts.recordedTokens({usage: {authoritative: 2, estimated: 1, missing: 0}, state: {totalTokens: 10}}), undefined);
+  // Codex recorded totals retain estimated coverage; missing usage stays unknown.
+  assert.equal(receipts.recordedTokens({usage: {authoritative: 2, estimated: 1, missing: 0}, state: {totalTokens: 10}}), 10);
   assert.equal(receipts.subagentCounts({...cursor, depthByUuid: new Map([['u', 1]])}), undefined);
   assert.equal(receipts.subagentCounts(null), undefined);
 });
@@ -257,11 +258,12 @@ test('the tally counts each call once by its deciding gate and ignores what is n
   tally.observe({timestamp: iso(T0)});
   assert.deepEqual(tally.counts('s'), {first: T0 + 1_000, last: T0 + 14_000, decisions: {allowed: 4, asked: 3, saidYes: 2, stopped: 2}});
   assert.deepEqual(tally.counts('never-seen'), {first: null, last: null, decisions: {allowed: 0, asked: 0, saidYes: 0, saidNo: 0, stopped: 0}});
-  // Once a session has its receipt, later rows change nothing.
+  // Resumed activity invalidates the ending and retains cumulative decisions.
   tally.observe(row('control', 'session_receipt', 'session_receipt', 'z'));
   assert.equal(tally.receipted.has('s'), true);
   tally.observe(row('spend', 'decision', 'Read', 'r9'));
-  assert.equal(tally.sessions.has('s'), false);
+  assert.equal(tally.receipted.has('s'), false);
+  assert.equal(tally.counts('s').decisions.allowed, 5);
 });
 
 test('the reader lists, verifies, exports and returns receipts, and still refuses anything off their schema', async t => {
@@ -366,7 +368,9 @@ test('a request that waited for a worker gets its receipt when the worker starts
   assert.deepEqual(listed[0].receipt.decisions, {allowed: 3, asked: 0, saidYes: 0, saidNo: 0, stopped: 1});
   assert.equal(listed[0].receipt.tokens, undefined, 'no transcript is kept, so Burn\'s counts are left out');
   assert.equal(listed[0].receipt.subagents, undefined);
-  assert.deepEqual(await engine.sessionReceipt({sessionId: SESSION, transcriptPath: s.transcript}), {receipt: 'duplicate'});
+  assert.equal((await engine.sessionReceipt({sessionId: SESSION, transcriptPath: s.transcript})).receipt, 'appended');
+  const latest = (await reader.call('get_work_receipt', {})).receipt;
+  assert.equal(latest.tokens, 40);
 });
 
 test('SessionEnd\'s request asks for a receipt, and keeps it for later when no worker answers', async t => {
@@ -430,4 +434,79 @@ test('the Live pane\'s status carries the last finished session\'s receipt, and 
   await engine.flush();
   const busy = await ledgerStatus('busy-session', s.data, false);
   assert.deepEqual(busy.receipt, out.ledger.receipt);
+});
+
+
+test('resumed activity signs linked cumulative summaries after restart on both hosts', async t => {
+  for (const host of ['claude-code', 'codex']) await t.test(host, async t => {
+    const s = await session(t, {host});
+    const tool = host === 'codex' ? 'functions.collaboration.spawn_agent' : 'Agent';
+    const first = s.raw(tool); await s.launch(first); await s.ran(first);
+    await s.engine().sessionReceipt({sessionId: SESSION, transcriptPath: s.transcript}); await s.engine().flush();
+    const old = (await createReader({dataDir: s.data}).call('get_work_receipt', {})).signature;
+    const engine = await s.restart();
+    const second = s.raw(tool); await s.launch(second); await s.ran(second);
+    assert.equal((await burn.sessionTally(SESSION, {data: s.data})).status, 'missing');
+    assert.equal((await engine.sessionReceipt({sessionId: SESSION, transcriptPath: s.transcript})).receipt, 'appended');
+    await engine.flush();
+    const rows = fs.readFileSync(path.join(s.data, 'ledger/decisions.ndjson'), 'utf8').trim().split('\n').map(JSON.parse);
+    const ends = rows.filter(row => row.decision.plugin.event === 'session_receipt');
+    assert.equal(ends.length, 2); assert.equal(ends[1].decision.plugin.previousReceiptId, ends[0].decision.decisionId);
+    assert.notEqual(ends[1].entryHash, old.entryHash); assert.equal(ends[1].decision.plugin.receipt.decisions.allowed, 2);
+    assert.equal((await createReader({dataDir: s.data}).call('verify_chain', {})).ok, true);
+    const tally = await burn.sessionTally(SESSION, {data: s.data});
+    assert.equal(tally.status, 'verified'); assert.equal(tally.counts.launches, 2); assert.equal(tally.counts.allowed, 2);
+    assert.equal((await engine.sessionReceipt({sessionId: SESSION, transcriptPath: s.transcript})).receipt, 'duplicate');
+  });
+});
+
+test('external standalone Burn owns admission while signed verdicts and host outcomes make a complete tally', async t => {
+  const s = await session(t);
+  fs.mkdirSync(process.env.CLAUDE_CONFIG_DIR, {recursive: true});
+  fs.writeFileSync(path.join(process.env.CLAUDE_CONFIG_DIR, 'settings.json'), JSON.stringify({hooks: {PreToolUse: [{matcher: 'Agent', hooks: [{type: 'command', command: 'agentguard-burn hook'}]}]}}));
+  const first = s.raw('Agent');
+  await s.launch(first);
+  assert.equal(s.engine().gateway, undefined, 'the plugin did not reserve the launch');
+  assert.equal(burn.handlePreToolUse(first, s.home).hookSpecificOutput, undefined);
+  await s.ran(first);
+  fs.appendFileSync(s.transcript, line(response(T0 + 60000, 100)));
+  const yes = s.raw('Agent'), no = s.raw('Agent');
+  // Exercise both hook orders. Claude waits for both before invoking a tool.
+  assert.equal(burn.handlePreToolUse(yes, s.home).hookSpecificOutput.permissionDecision, 'ask');
+  await s.launch(yes); await s.ran(yes);
+  await s.launch(no);
+  assert.equal(burn.handlePreToolUse(no, s.home).hookSpecificOutput.permissionDecision, 'ask');
+  await s.engine().sessionReceipt({sessionId: SESSION, transcriptPath: s.transcript}); await s.engine().flush();
+  const tally = await burn.sessionTally(SESSION, {data: s.data});
+  assert.equal(tally.status, 'verified');
+  assert.deepEqual(tally.counts, {launches: 3, allowed: 1, asked: 2, saidYes: 1, stopped: 0, shadow: 0, unrecorded: 0, unresolvedAsked: 1});
+  const rows = fs.readFileSync(path.join(s.data, 'ledger/decisions.ndjson'), 'utf8').trim().split('\n').map(JSON.parse);
+  const imported = rows.filter(row => row.decision.plugin.externalReceiptHash);
+  assert.equal(imported.length, 3);
+  for (const row of imported) {
+    const external = burn.readSpawnAdmission(s.home, SESSION, row.decision.plugin.toolUseId);
+    assert.equal(row.decision.plugin.externalReceiptHash, burn.receiptDigest(external));
+  }
+  const outcome = rows.find(row => row.decision.plugin.event === 'outcome' && row.decision.plugin.toolUseId === yes.tool_use_id);
+  assert.equal(outcome.decision.originalDecisionId, imported.find(row => row.decision.plugin.toolUseId === yes.tool_use_id).decision.decisionId);
+  assert.equal((await createReader({dataDir: s.data}).call('verify_chain', {})).ok, true);
+});
+
+test('old, wrong-call, tampered and truncated external receipts stay missing instead of becoming an allow', async t => {
+  const s = await session(t);
+  fs.mkdirSync(process.env.CLAUDE_CONFIG_DIR, {recursive: true});
+  fs.writeFileSync(path.join(process.env.CLAUDE_CONFIG_DIR, 'settings.json'), JSON.stringify({hooks: {PreToolUse: [{matcher: 'Agent', hooks: [{type: 'command', command: 'agentguard-burn hook'}]}]}}));
+  const raw = s.raw('Agent'); await s.launch(raw);
+  burn.handlePreToolUse({...raw, tool_use_id: 'different-call'}, s.home);
+  const file = path.join(s.home, 'receipts.ndjson');
+  const wrongCall = fs.readFileSync(file, 'utf8');
+  const check = async () => {
+    await s.engine().sessionReceipt({sessionId: SESSION, transcriptPath: s.transcript}); await s.engine().flush();
+    assert.equal((await burn.sessionTally(SESSION, {data: s.data})).status, 'missing');
+  };
+  await check();
+  const forged = JSON.parse(wrongCall.trim()); forged.payload.toolUseId = raw.tool_use_id;
+  fs.writeFileSync(file, line(forged)); await check();
+  fs.writeFileSync(file, wrongCall); burn.handlePreToolUse(raw, s.home);
+  fs.writeFileSync(file, wrongCall); await check(); // durable head still names the removed last row
 });

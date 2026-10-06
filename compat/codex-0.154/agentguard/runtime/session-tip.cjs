@@ -35,8 +35,9 @@ const digest = text => crypto.createHash('sha256').update(text).digest('hex');
 const sleep = ms => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 // Burn renders the line from counts; it is still bounded and kept to one line.
 const usableTip = value => typeof value === 'string' && value.length <= 1000 && /^Next: \S/.test(value) && !/[\u0000-\u001f\u007f-\u009f]/.test(value) ? value : null;
+const usableTally = value => typeof value === 'string' && value.length <= 1000 && !/[\u0000-\u001f\u007f-\u009f]/.test(value) ? value : null;
 const sameJob = (last, sessionId, endedAt) => last?.sessionId === sessionId && last.endedAt === endedAt && last.state === 'computing';
-const showable = (last, sessionId) => last?.state === 'ready' && usableTip(last.tip) !== null && last.sessionId !== sessionId;
+const showable = (last, sessionId) => last?.state === 'ready' && (usableTip(last.tip) !== null || usableTally(last.tally) !== null) && last.sessionId !== sessionId;
 
 function read(data) {
   let value = null;
@@ -80,20 +81,20 @@ function locked(data, change, waitMs) {
 
 // SessionEnd: record the session that ended, which supersedes any earlier
 // session's tip, and start the detached process that reads its transcript.
-// With quiet on, or without a transcript file, nothing is read. Checking that
-// the file exists is one stat; the hook opens nothing.
+// With quiet on, or without a transcript or ledger, nothing is read. Checking
+// for the files is bounded metadata I/O; the hook opens no transcript or ledger.
 function ended({sessionId, transcriptPath, data = dataDirectory(), home, now = Date.now(), spawnImpl = spawn} = {}) {
   if (typeof sessionId !== 'string' || !sessionId || sessionId.length > 512) return false;
   let readable = typeof transcriptPath === 'string' && transcriptPath.length <= 4096 && path.isAbsolute(transcriptPath) && transcriptPath.endsWith('.jsonl');
   try { readable &&= fs.statSync(transcriptPath).isFile(); } catch { readable = false; }
-  const computing = readable && !quiet(home);
+  const computing = (readable || fs.existsSync(path.join(data, 'ledger', 'decisions.ndjson'))) && !quiet(home);
   fs.mkdirSync(data, {recursive: true, mode: 0o700});
   const recorded = locked(data, () => {
     write(data, {...read(data), last: {sessionId, endedAt: now, state: computing ? 'computing' : 'none'}}, now);
     return true;
   }, 50);
   if (!recorded || !computing) return false;
-  const child = spawnImpl(process.execPath, [__filename, sessionId, String(now), transcriptPath], {detached: true, stdio: 'ignore', env: process.env});
+  const child = spawnImpl(process.execPath, [__filename, sessionId, String(now), readable ? transcriptPath : ''], {detached: true, stdio: 'ignore', env: process.env});
   child.on('error', () => {});
   child.unref();
   return true;
@@ -103,7 +104,7 @@ function ended({sessionId, transcriptPath, data = dataDirectory(), home, now = D
 // unless a later session has ended since. Burn 0.3.20 has no sessionTip, so
 // its sessions have no tip. A failure leaves the record computing, which
 // shows nothing.
-function compute({sessionId, endedAt, transcriptPath, data = dataDirectory(), home = burnHome(), sessionTip, now} = {}) {
+function compute({sessionId, endedAt, transcriptPath, data = dataDirectory(), home = burnHome(), sessionTip, tallyLine, now} = {}) {
   if (!sameJob(read(data).last, sessionId, endedAt)) return null;
   if (!sessionTip) {
     const burn = require('./dependencies.cjs').loadDependency('@agentguard-run/burn');
@@ -113,7 +114,7 @@ function compute({sessionId, endedAt, transcriptPath, data = dataDirectory(), ho
   const tip = usableTip(sessionTip(transcriptPath, {home, context: 'plugin'}));
   locked(data, () => {
     const state = read(data), computedAt = now ?? Date.now();
-    if (sameJob(state.last, sessionId, endedAt)) write(data, {...state, last: {sessionId, endedAt, state: 'ready', tip, computedAt}}, computedAt);
+    if (sameJob(state.last, sessionId, endedAt)) write(data, {...state, last: {sessionId, endedAt, state: 'ready', tip, ...(usableTally(tallyLine) ? {tally: tallyLine} : {}), computedAt}}, computedAt);
   }, 2000);
   return tip;
 }
@@ -127,19 +128,51 @@ function take({sessionId, source, data = dataDirectory(), home, now = Date.now()
   return locked(data, () => {
     const state = read(data), {last} = state;
     if (!showable(last, sessionId)) return null;
-    const sha256 = digest(last.tip);
+    const tally = usableTally(last.tally);
+    const sha256 = digest(tally ? last.sessionId + tally + (last.tip || '') : last.tip);
     if (state.shown.some(entry => entry.sha256 === sha256 && now - entry.at < DAY && entry.at <= now)) return null;
     write(data, {last: {...last, state: 'shown', shownAt: now}, shown: [...state.shown, {sha256, at: now}]}, now);
-    return LEAD + last.tip.slice('Next: '.length);
+    const tip = usableTip(last.tip)?.slice('Next: '.length);
+    return LEAD + (tally && tip ? tally.replace(/\.$/, '') + '. ' + tip : tally || tip);
   }, 0) ?? null;
 }
 
-module.exports = {FILE, SCHEMA, LEAD, DAY, NEW_SESSION, ended, compute, take, read};
+async function computeWithTally(options) {
+  if (!sameJob(read(options.data || dataDirectory()).last, options.sessionId, options.endedAt)) return null;
+  const burn = options.burn || require('./dependencies.cjs').loadDependency('@agentguard-run/burn');
+  let tallyLine;
+  if (typeof burn.sessionTally === 'function') {
+    try {
+      // SessionEnd starts this detached task before the worker acknowledges
+      // its signed summary. Give that bounded write time to finish off-hook.
+      const deadline = Date.now() + 5000;
+      let tally;
+      do {
+        tally = await burn.sessionTally(options.sessionId, {data: options.data || dataDirectory()});
+        if (tally.status !== 'missing' || Date.now() >= deadline) break;
+        await new Promise(resolve => setTimeout(resolve, 200));
+        if (!sameJob(read(options.data || dataDirectory()).last, options.sessionId, options.endedAt)) return null;
+      } while (true);
+      // Older or transcript-only sessions can have a coaching tip without a
+      // receipt ledger. Preserve that tip, and stay silent on a read failure.
+      // Once a ledger exists, missing or invalid receipts must remain explicit.
+      if (tally.status !== 'missing' || fs.existsSync(path.join(options.data || dataDirectory(), 'ledger', 'decisions.ndjson')))
+        tallyLine = burn.renderSessionTally(tally);
+    }
+    catch { tallyLine = 'Receipt verification failed.'; }
+  }
+  const sessionTip = (...args) => {
+    if (!options.transcriptPath || typeof burn.sessionTip !== 'function') return null;
+    try { return burn.sessionTip(...args); } catch { return null; }
+  };
+  return compute({...options, sessionTip, tallyLine});
+}
+module.exports = {FILE, SCHEMA, LEAD, DAY, NEW_SESSION, ended, compute, computeWithTally, take, read};
 
 if (require.main === module) {
   // Started by SessionEnd with the session id, the time it ended and its
   // transcript path. It runs below normal priority and exits when done.
   try { os.setPriority(0, 10); } catch {}
   const [sessionId, endedAt, transcriptPath] = process.argv.slice(2);
-  try { compute({sessionId, endedAt: Number(endedAt), transcriptPath}); } catch { /* Silent: the next session shows nothing. */ }
+  computeWithTally({sessionId, endedAt: Number(endedAt), transcriptPath}).catch(() => {});
 }

@@ -1,3 +1,51 @@
+# Changelog
+
+## 0.4.0 - 2026-10-06
+
+New in 0.4.0:
+
+- Add opt-in launch depth with the Copies ask before launching copies preset,
+  host lineage, native Claude Code permission requests and signed depth records.
+- Route selected helper launches through Spend's token budget downgrade policy,
+  preserving keep types and recording the requested and selected models.
+- Recognize Codex 0.160 collaboration launch hooks and its cumulative usage
+  record through Burn as the sole usage owner. Document missing lineage and role limitations.
+- Sign fresh linked summaries after resumed activity and ingest standalone Burn
+  admissions only after checking their signatures, call IDs, chain and head.
+- Run optional Team daily count sync in the detached worker after durable
+  receipts, combining opted-in host directories under one machine lock.
+- The session tip after a finished session can lead with that session's verified tally.
+- `npm test` and `npm run test:claude` run through a launcher that gives every
+  test and spawned worker a fresh temporary AgentGuard home with notifications
+  suppressed, and fails the run if the real `~/.agentguard` changed.
+- Depend on Spend 0.21.0 and Burn 0.4.0.
+
+Also in 0.4.0, the changes made for the review by Anthropic's plugin directory
+in 0.3.20 and 0.3.21 (details under those versions below):
+
+- The mod (AgentGuard Live) lives in its own folder, `live/agentguard-live.mjs`,
+  named by `live/agentguard-live.json`, which `.claude-plugin/plugin.json` loads
+  with its `hooks` field. `hooks/hooks.json` holds only command hooks, and
+  nothing else in the plugin points at the `live` folder. The mod is unchanged
+  by the 0.4.0 features: depth limits and helper routing live in the hooks.
+- The mod's one permission hook (`tool.check` on Task and Agent launches)
+  refreshes the counts and then returns `next(e)`; it and `classic.SessionStart`
+  pass the event on unchanged if anything in them fails. A launch's stamp comes
+  only from the gate's signed ledger row.
+- In Claude Code, a paid license key can be set as the sensitive plugin option
+  `license_key`, which comes before `AGENTGUARD_LICENSE_KEY` and the key saved by
+  activation. It is also the key the optional Team counts upload uses.
+- `assets/logo.svg` is a plain SVG and is the manifest icon.
+- The public plugin does not ship `scripts/sync-public.sh`, nor the two 0.4.0
+  maintainer scripts `scripts/canary-launch-policy.cjs` (it drives the `claude`
+  and `codex` command lines) and `scripts/stage-branch-spend.cjs` (it works only
+  inside the source repository). Nothing in the plugin runs them; they stay in
+  the source repository.
+- README: "What this plugin runs, sends and decides" now also covers the 0.4.0
+  additions: the optional Team daily counts upload behind its flag, the depth
+  limit's ask or deny, and helper model routing, which changes only the `model`
+  field of a launch it routes.
+
 ## 0.3.21 - 2026-10-06
 
 Changes for the review by Anthropic's plugin directory.

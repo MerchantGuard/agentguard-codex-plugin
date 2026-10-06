@@ -62,4 +62,27 @@ function run(method, file, args, options) {
 const spawn = (file, args, options) => run('spawn', file, args, options);
 const spawnSync = (file, args, options) => run('spawnSync', file, args, options);
 const execFileSync = (file, args, options) => run('execFileSync', file, args, options);
+
+// A test file or fixture that calls child_process directly, and the detached
+// workers it starts, still never notify and never reach the real AgentGuard
+// home: every child_process call gets suppression and this process's temporary
+// AGENTGUARD_HOME when its env omits one. osascript is answered in process.
+for (const method of ['spawn', 'spawnSync', 'execFile', 'execFileSync', 'fork', 'exec', 'execSync']) {
+  const original = child[method];
+  child[method] = function (file, ...args) {
+    if (method === 'execFile' && file === '/usr/bin/osascript') {
+      const callback = args.at(-1); if (typeof callback === 'function') callback(null, '', ''); return {};
+    }
+    const index = Array.isArray(args[0]) ? 1 : 0;
+    const options = args[index] && typeof args[index] === 'object' ? args[index] : {};
+    const env = {...(options.env ?? process.env), AGENTGUARD_NOTIFY_SUPPRESS: '1'};
+    if (!env.AGENTGUARD_HOME) env.AGENTGUARD_HOME = agentguard;
+    const isolated = {...options, env};
+    if (index < args.length && typeof args[index] !== 'function') args[index] = isolated;
+    else args.splice(index, 0, isolated);
+    return original.call(this, file, ...args);
+  };
+}
+require('node:module').syncBuiltinESMExports();
+
 module.exports = {temporary, testEnv, isTemporary, spawn, spawnSync, execFileSync};

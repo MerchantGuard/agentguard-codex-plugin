@@ -40,6 +40,8 @@ async function main() {
   health = new HealthTracker({data: loc.data});
   health.recordPending();
   engine = new Engine(); await engine.init();
+  const counts = new (require('./counts-sync.cjs').DailyCountsScheduler)({data: loc.data, flush: () => engine.flush()});
+  for (const sessionId of engine.tally.receipts.keys()) counts.completed(sessionId);
   live = new (require('./live-sessions.cjs').LiveSessions)({data: loc.data});
   const starts = new Map();
   function loadOrg(sessionId) { engine.clearSessionFailure(sessionId, 'org'); try { engine.context({sessionId}); } catch { engine.orgPolicyDigests?.delete(sessionId); } }
@@ -78,7 +80,7 @@ async function main() {
       const policy = require('./policy-file.cjs').readPolicy(loc.data).policy;
       for (const id of live.ids()) heartbeats.observe(id, policy);
     } catch {}
-    void heartbeats.tick().catch(() => {}); void live.persist().catch(() => {});
+    void heartbeats.tick().catch(() => {}); void live.persist().catch(() => {}); void counts.tick();
   }, 1000);
   async function drain() {
     if (draining || stopped) return;
@@ -123,15 +125,18 @@ async function main() {
           if (message.control === 'session-end') {
             for (const tag of starts.keys()) { if (JSON.parse(tag)[0] === message.sessionId) starts.delete(tag); }
             live.forget(message.sessionId); heartbeats.forget(message.sessionId); engine.orgPolicyDigests?.delete(message.sessionId);
-            // The session's work receipt, when the hook asks for one: one
-            // signed row, written before the reply, at most once per session.
+            // Sign a fresh closing summary after new session activity, before
+            // the reply. An unchanged repeated ending stays idempotent.
             let receipt = null;
             if (message.receipt && typeof message.receipt === 'object') {
               try { receipt = await engine.sessionReceipt({sessionId: message.sessionId, transcriptPath: message.receipt.transcriptPath}); }
               catch { receipt = {receipt: 'failed'}; }
             }
             writeMessage(output, receipt ?? {});
-            if (receipt) engine.afterReply();
+            if (receipt) {
+              engine.afterReply();
+              if (['appended', 'duplicate'].includes(receipt.receipt)) { counts.completed(message.sessionId); void counts.tick(); }
+            }
           }
           else {
             observe(message.sessionId, message.ownerPid, message.ownerIdentity);
@@ -177,20 +182,25 @@ async function main() {
     }
   }
   cleanup();
-  function pollingFallback() {
-    watcher?.close(); watcher = undefined; clearInterval(rescan);
+  function scheduleRescan(intervalMs) {
+    clearInterval(rescan);
     let cleanedAt = Date.now();
     rescan = setInterval(() => {
       if (Date.now() - cleanedAt >= 1000) { cleanup(); cleanedAt = Date.now(); }
       void drain();
-    }, 4);
+    }, intervalMs);
+  }
+  function pollingFallback() {
+    watcher?.close(); watcher = undefined; scheduleRescan(4);
   }
   // Watching provides the fast path. Sandboxed hosts may disallow filesystem
   // watchers, so bounded local polling remains available without a socket.
   try {
     watcher = fs.watch(loc.ipc, () => { void drain(); });
     watcher.on('error', pollingFallback);
-    rescan = setInterval(() => { cleanup(); void drain(); }, 1000);
+    // A watcher can coalesce or omit an event without reporting an error.
+    // Its backup must run inside the warm hook deadline, even on a quiet host.
+    scheduleRescan(25);
   } catch { pollingFallback(); }
   writeMessage(loc.ready, { pid: process.pid, transport: 'files-v1' });
   touch(); engine.afterReply(); void health.persist().catch(() => {}); void drain();

@@ -70,6 +70,15 @@ for (const key of ['commandPolicyHash', 'commandRuleIds', 'commandScanFailed', '
 // asked launch, the Burn policy the first enforced launch seeded, an agent's
 // attempt to lift a Burn STOP, and a benchmark run's consent.
 const RECORDED_FIELDS = {
+  agent_id: value => value === null || typeof value === 'string' && /^[A-Za-z0-9_.:@/-]{1,256}$/.test(value),
+  agent_type: value => value === null || typeof value === 'string' && /^[A-Za-z0-9_.:@/-]{1,128}$/.test(value),
+  depth: value => value === null || Number.isSafeInteger(value) && value >= 0,
+  parent_agent_id: value => value === null || typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value),
+  spawned_agent_id: value => typeof value === 'string' && /^[A-Za-z0-9_.:@/-]{1,256}$/.test(value),
+  previousReceiptId: value => typeof value === 'string' && /^[A-Za-z0-9-]{1,128}$/.test(value),
+  externalReceiptHash: value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value),
+  externalDecisionId: value => typeof value === 'string' && /^[A-Za-z0-9-]{1,128}$/.test(value),
+  launch: value => require('./launch-policy.cjs').receiptValid(value),
   permissionMode: value => typeof value === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(value),
   asked: value => value === true,
   burnPolicyMode: value => value === 'enforce' || value === 'shadow',
@@ -244,7 +253,7 @@ async function agentScore(args, options) {
 function summary(entry) {
   const d = entry.decision;
   const metadata = d.plugin || d.outcomeReceipt?.plugin || {};
-  return { sequence: entry.sequence, entryHash: entry.entryHash, decisionId: d.decisionId, timestamp: d.timestamp, action: d.action, entryType: d.entryType || 'decision', provider: d.provider, model: d.modelRequested, actor: d.actor, projectedCents: d.projectedCents, reasons: d.reasons, originalDecisionId: d.originalDecisionId, toolName: metadata.toolName, event: metadata.event, gate: metadata.gate, host: metadata.host || 'unknown', asked: metadata.asked === true, toolUseId: metadata.toolUseId, ...(metadata.receipt ? {receipt: metadata.receipt} : {}) };
+  return { sequence: entry.sequence, entryHash: entry.entryHash, decisionId: d.decisionId, timestamp: d.timestamp, action: d.action, entryType: d.entryType || 'decision', provider: d.provider, model: d.modelRequested, actor: d.actor, projectedCents: d.projectedCents, reasons: d.reasons, originalDecisionId: d.originalDecisionId, toolName: metadata.toolName, event: metadata.event, gate: metadata.gate, host: metadata.host || 'unknown', asked: metadata.asked === true, toolUseId: metadata.toolUseId, ...(metadata.launch ? {launch: metadata.launch} : {}), ...(metadata.receipt ? {receipt: metadata.receipt} : {}) };
 }
 
 function failOpen(decision) {

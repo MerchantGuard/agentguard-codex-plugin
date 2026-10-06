@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
-const SPAWN = new Set(['spawn_agent', 'Agent', 'Task']);
+const SPAWN = {has: name => require('./dependencies.cjs').loadDependency('@agentguard-run/burn/tool-names').isLaunchTool(name)};
 function hostContext(env = process.env) {
   // Host identity comes from the launch environment, never tool input. Explicit
   // Codex paths win when a Codex process inherits a parent Claude environment.
@@ -54,6 +54,7 @@ function outcomeSuccess(raw, toolName) {
   return true;
 }
 function metadata(raw, gate) {
+  const caller = require('./launch-policy.cjs').lineage(raw, hostContext().host);
   const input = JSON.stringify(raw.tool_input ?? {});
   const response = raw.tool_response;
   // A failure's error text is counted in memory, never retained in metadata.
@@ -72,14 +73,24 @@ function metadata(raw, gate) {
   return { ...commands, schema: 'agentguard.codex.v1', host: hostContext().host, requestId: crypto.randomUUID(), gate, toolName,
     toolUseId: identifier(raw.tool_use_id, crypto.randomUUID()), sessionId: identifier(raw.session_id, hostContext().sessionId ?? 'unknown'),
     ...(raw.agent_id ? { agentId: identifier(raw.agent_id) } : {}),
+    agent_id: caller.callerId, agent_type: caller.callerType, depth: caller.depth === null ? null : caller.depth - 1,
+    parent_agent_id: caller.parentAgentId,
+    ...(SPAWN.has(toolName) ? require('./launch-policy.cjs').metadata(raw, hostContext().host) : {}),
     inputSha256: crypto.createHash('sha256').update(input).digest('hex'),
     inputBytes: Buffer.byteLength(input), inputKeys: raw.tool_input && typeof raw.tool_input === 'object' ? Object.keys(raw.tool_input).length : 0,
     ...(guard.ruleIds.length ? {guardRuleIds: guard.ruleIds} : {}),
     ...(guard.reason ? {guardScanReason: guard.reason} : {}),
     startedAt: new Date().toISOString(),
     ...(gate === 'receipt' ? { outputBytes: Buffer.byteLength(output),
+      ...(SPAWN.has(toolName) && spawnedAgentId(response) ? {spawned_agent_id: spawnedAgentId(response)} : {}),
       success: outcomeSuccess(raw, toolName),
       ...(Number.isFinite(raw.duration_ms) && raw.duration_ms >= 0 ? { durationMs: raw.duration_ms, durationSource: 'host' } : {}) } : {}) };
+}
+function spawnedAgentId(response) {
+  if (typeof response === 'string' && Buffer.byteLength(response) <= 16384) {
+    try { response = JSON.parse(response); } catch { return null; }
+  }
+  return identifier(response?.agent_id ?? response?.agentId, null);
 }
 function spoolFailure(meta, reasonCode) {
   const { data, spool } = locations();

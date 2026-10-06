@@ -6,7 +6,9 @@ const os = require('node:os');
 const path = require('node:path');
 const {once} = require('node:events');
 const {spawn, spawnSync, execFileSync, testEnv, isTemporary} = require('./helper-test-env.cjs');
+const {snapshot, assertUnchanged} = require('../scripts/test-isolation.cjs');
 const root = path.resolve(__dirname, '..');
+const runner = path.join(root, 'scripts/run-tests.cjs');
 const keys = ['AGENTGUARD_NOTIFY_SUPPRESS', 'AGENTGUARD_HOME', 'PLUGIN_DATA', 'CLAUDE_PLUGIN_DATA', 'HOME'];
 const printEnv = `process.stdout.write(JSON.stringify(Object.fromEntries(${JSON.stringify(keys)}.map(key => [key, process.env[key]]))))`;
 
@@ -33,7 +35,9 @@ test('every npm test entry point suppresses notifications before starting Node',
   for (const name of ['test', 'test:claude', 'test:hosts']) {
     for (const command of scripts[name].split('&&')) assert.match(command.trim(), /^AGENTGUARD_NOTIFY_SUPPRESS=1\s/, name);
   }
-  for (const name of ['test', 'test:claude']) assert.match(scripts[name], /--require \.\/tests\/helper-notifications\.cjs/);
+  // Both suites go through the runner, which preloads the isolation helper.
+  for (const name of ['test', 'test:claude']) assert.match(scripts[name], /\snode scripts\/run-tests\.cjs$/);
+  assert.match(fs.readFileSync(runner, 'utf8'), /'--require', path\.join\(root, 'tests\/helper-notifications\.cjs'\)/);
 });
 
 function assertIsolated(env) {
@@ -176,4 +180,67 @@ for (const host of ['codex', 'claude-code']) test(`${host}: a spawned worker enf
   assert.equal(JSON.parse(fs.readFileSync(path.join(home, 'plugin-ledgers', pointers[0]), 'utf8')).data, path.resolve(data));
   assert.equal(fs.existsSync(attempts), false, 'suppression must prevent even an attempted notification');
   assert.equal(fs.existsSync(calls), false, 'the fake osascript must never run for the STOP');
+});
+
+function scratch(t) {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'agentguard-isolation-check-'));
+  t.after(() => fs.rmSync(directory, {recursive: true, force: true}));
+  return directory;
+}
+
+test('the npm test launcher overrides unsafe env and isolates workers through two generations', t => {
+  const directory = scratch(t), fixture = path.join(directory, 'child.test.cjs'), output = path.join(directory, 'environment.json');
+  fs.writeFileSync(fixture, `const {test} = require('node:test');
+test('worker environment', () => {
+  const child = require('node:child_process').execFileSync(process.execPath, ['-e',
+    "process.stdout.write(require('node:child_process').execFileSync(process.execPath, ['-e', 'process.stdout.write(JSON.stringify({home:process.env.AGENTGUARD_HOME,suppress:process.env.AGENTGUARD_NOTIFY_SUPPRESS}))']))"
+  ], {encoding:'utf8', env:{PATH:process.env.PATH}});
+  require('node:fs').writeFileSync(${JSON.stringify(output)}, JSON.stringify({home:process.env.AGENTGUARD_HOME,suppress:process.env.AGENTGUARD_NOTIFY_SUPPRESS,descendant:JSON.parse(child)}));
+});\n`);
+  const homes = [];
+  for (let i = 0; i < 2; i++) {
+    const unsafe = `process.env.AGENTGUARD_NOTIFY_SUPPRESS='0';process.env.AGENTGUARD_HOME=${JSON.stringify(directory)};require(${JSON.stringify(runner)}).runTests([${JSON.stringify(fixture)}]).then(code=>{process.exitCode=code;});`;
+    const result = spawnSync(process.execPath, i === 0 ? ['-e', unsafe] : [runner, fixture], {encoding: 'utf8', timeout: 20000,
+      env: {...process.env, AGENTGUARD_HOME: directory, AGENTGUARD_NOTIFY_SUPPRESS: '0'}});
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    const row = JSON.parse(fs.readFileSync(output));
+    assert.notEqual(row.home, directory);
+    assert.notEqual(row.home, path.join(os.userInfo().homedir, '.agentguard'));
+    assert.equal(row.suppress, '1');
+    assert.deepEqual(row.descendant, {home: row.home, suppress: '1'});
+    assert.equal(fs.existsSync(row.home), false, 'the launcher removes its temporary home');
+    homes.push(row.home);
+  }
+  assert.notEqual(homes[0], homes[1], 'every invocation uses a fresh home');
+  const scripts = require('../package.json').scripts;
+  assert.match(scripts.test, /node scripts\/run-tests\.cjs$/);
+  assert.match(scripts['test:claude'], /node scripts\/run-tests\.cjs$/);
+});
+
+test('the whole test run fails when a passing test writes into the protected home', t => {
+  const directory = scratch(t), protectedHome = path.join(directory, 'protected'), fixture = path.join(directory, 'leak.test.cjs');
+  fs.mkdirSync(protectedHome);
+  fs.writeFileSync(fixture, `require('node:test').test('otherwise passes', () => require('node:fs').writeFileSync(${JSON.stringify(path.join(protectedHome, 'leak'))}, 'synthetic'));\n`);
+  const code = `require(${JSON.stringify(runner)}).runTests([${JSON.stringify(fixture)}], {protectedHome:${JSON.stringify(protectedHome)}}).then(code => {process.exitCode=code;}).catch(error => {console.error(error.message);process.exitCode=1;});`;
+  const result = spawnSync(process.execPath, ['-e', code], {encoding: 'utf8', timeout: 20000});
+  assert.equal(result.status, 1);
+  assert.match(result.stdout, /ok 1 - otherwise passes/);
+  assert.match(result.stderr, /Test isolation failed: protected AgentGuard home changed/);
+});
+
+test('the home check catches edits, deletion, permission changes and writes through symlinks', t => {
+  const directory = scratch(t);
+  for (const change of [file => fs.writeFileSync(file, 'modified'), file => fs.unlinkSync(file), file => fs.chmodSync(file, 0o600)]) {
+    const file = path.join(directory, 'existing');
+    fs.writeFileSync(file, 'original'); fs.chmodSync(file, 0o644);
+    const before = snapshot(directory);
+    change(file);
+    assert.throws(() => assertUnchanged(directory, before), /Test isolation failed/);
+  }
+  const target = path.join(scratch(t), 'target'); fs.writeFileSync(target, 'original');
+  fs.symlinkSync(target, path.join(directory, 'alias'));
+  const before = snapshot(directory);
+  fs.writeFileSync(target, 'modified');
+  assert.throws(() => assertUnchanged(directory, before), /Test isolation failed/);
+  assertUnchanged(directory, snapshot(directory));
 });
