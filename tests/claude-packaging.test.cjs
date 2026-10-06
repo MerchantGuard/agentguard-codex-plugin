@@ -15,7 +15,11 @@ test('Claude marketplace installs the shared root without renaming the public pa
   assert.ok(manifest.description.length <= 160, manifest.description);
   assert.doesNotMatch(manifest.description, /[–—]|--/);
   assert.equal(manifest.author.name, 'AgentGuard');
-  assert.equal(manifest.hooks, undefined, 'default hooks must not also be declared as an additional source');
+  // The mod's hooks file is the one additional source; hooks/hooks.json loads by default and is never named again.
+  assert.equal(manifest.hooks, './live/agentguard-live.json');
+  assert.equal(manifest.icon, './assets/logo.svg');
+  assert.deepEqual(manifest.userConfig.license_key, {type: 'string', title: 'AgentGuard license key',
+    description: manifest.userConfig.license_key.description, sensitive: true, default: ''});
   const market = json('.claude-plugin/marketplace.json');
   assert.equal(market.name, 'agentguard');
   assert.equal(market.owner.name, 'AgentGuard');
@@ -25,7 +29,19 @@ test('Claude marketplace installs the shared root without renaming the public pa
   for (const field of ['description', 'author']) assert.deepEqual(market.plugins[0][field], manifest[field]);
   assert.equal(json('package.json').name, '@agentguard-run/codex-plugin');
   for (const file of ['.claude-plugin', '.mcp.json']) assert.ok(json('package.json').files.includes(file));
-  assert.deepEqual(json('.mcp.json').mcpServers.agentguard, {command: 'node', args: ['${CLAUDE_PLUGIN_ROOT}/runtime/mcp.cjs']});
+  assert.deepEqual(json('.mcp.json').mcpServers.agentguard, {command: 'node', args: ['${CLAUDE_PLUGIN_ROOT}/runtime/mcp.cjs'],
+    env: {CLAUDE_PLUGIN_OPTION_LICENSE_KEY: '${user_config.license_key}'}});
+});
+
+test('the mod and the hooks file naming it sit in a folder nothing else in the plugin points at', () => {
+  assert.deepEqual(json('live/agentguard-live.json'), {modules: ['./agentguard-live.mjs']});
+  assert.deepEqual(fs.readdirSync(path.join(root, 'live')).sort(), ['agentguard-live.json', 'agentguard-live.mjs']);
+  assert.equal(json('hooks/hooks.json').modules, undefined);
+  const configs = ['hooks/hooks.json', 'hooks/codex-hooks.json', '.mcp.json', 'mcp.json', 'plugin.json', '.claude/settings.json', 'package.json',
+    ...fs.readdirSync(path.join(root, 'skills')).map(name => `skills/${name}/SKILL.md`),
+    ...fs.readdirSync(path.join(root, 'hooks')).filter(name => name.endsWith('.cjs')).map(name => `hooks/${name}`),
+    ...fs.readdirSync(path.join(root, 'runtime')).filter(name => name.endsWith('.cjs')).map(name => `runtime/${name}`)];
+  for (const name of configs) assert.doesNotMatch(read(name), /(^|[^a-z-])live\/|agentguard-live\.(mjs|json)/, name);
 });
 
 test('Claude failure receipts and Codex hooks use the same scripts with host-native roots', () => {

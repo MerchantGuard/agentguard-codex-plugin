@@ -6,8 +6,12 @@
 // its signed ledger row. The pane lists each launch, ask and stop, and the
 // work receipt of the last finished session.
 // Nothing here decides or blocks. The plugin's settings hooks enforce, the
-// same way in Codex and in Claude Code without mods; this module only reads,
-// through runtime/mod-status.cjs, and draws.
+// same way in Codex and in Claude Code without mods; this module only reads
+// and draws. Every permission decision passes through unchanged: the one
+// permission hook below returns next(e). The only program it runs is
+// `node <plugin>/runtime/mod-status.cjs --session <id>` (plus `--verify` when
+// the person asks for the signature check), which reads local files and
+// prints JSON. The module opens no network connection and sends nothing.
 
 const PANE = 'agentguard'
 const REFRESH_MS = 20000
@@ -26,7 +30,7 @@ let againVerify = false
 let stale = false            // a model request finished since the last refresh
 let usage = null             // $.session.usage(), for plan limits
 const live = { main: 0, sub: 0 }  // tokens per request since this session opened
-const stamps = new Map()     // tool_use_id -> Claude Code's decision and the count when it was made
+const stamps = new Map()     // tool_use_id -> the sub-agent count when it launched
 
 function compact(n) {
   if (typeof n !== 'number' || !isFinite(n)) return '0'
@@ -149,15 +153,13 @@ const RESULT_PILL = {
   'flagged': ['FLAGGED', 'yellow'],
 }
 
-// AgentGuard's word on one launch row: the signed ledger row when there is
-// one, else Claude Code's decision as tool.check saw it, read with the row's
-// own state for an asked launch (refused at the dialog, or running).
+// AgentGuard's word on one launch row: its signed ledger row, read with the
+// row's own state for an asked launch (refused at the dialog, or running).
 function stampFor(row) {
   const id = row.tool_use_id
   const signed = status && status.ledger && status.ledger.launches && status.ledger.launches[id]
   const seen = stamps.get(id)
-  let result = signed ? signed.result : null
-  if (!result && seen) result = seen.decision === 'deny' ? 'stopped' : seen.decision === 'ask' ? 'asked you' : seen.decision === 'allow' ? 'started' : null
+  const result = signed ? signed.result : null
   if (!result) return null
   if (result === 'asked you') {
     if (row.isErrored || row.isInterrupted) return { label: ['YOU SAID NO', 'red'], seen, signed }
@@ -239,9 +241,11 @@ async function refresh($, verify) {
   }
   busy = true
   try {
-    const argv = ['node', $.plugin.root + '/runtime/mod-status.cjs', '--session', sessionId]
-    if (verify) argv.push('--verify')
-    const run = await $.process.run(argv, { timeoutMs: 15000 })
+    // The whole command, written out: node runs the plugin's own read-only
+    // status script for this session. Nothing else is ever run.
+    const run = verify
+      ? await $.process.run(['node', $.plugin.root + '/runtime/mod-status.cjs', '--session', sessionId, '--verify'], { timeoutMs: 15000 })
+      : await $.process.run(['node', $.plugin.root + '/runtime/mod-status.cjs', '--session', sessionId], { timeoutMs: 15000 })
     const answer = JSON.parse(run.stdout)
     if (answer && answer.ok) {
       status = answer
@@ -263,6 +267,27 @@ async function refresh($, verify) {
   }
 }
 
+function newSession(id) {
+  if (typeof id !== 'string' || id === sessionId) return
+  sessionId = id
+  live.main = 0
+  live.sub = 0
+  status = null
+  verified = null
+  stamps.clear()
+}
+
+// The counts and the gate's signed row for a launch, and the count at launch
+// for its stamp. The stamp's word comes from the signed row alone.
+async function launched($, id) {
+  await refresh($, false)
+  if (!active || typeof id !== 'string') return
+  const burn = status && status.burn
+  const window = burn ? leading(burn) : null
+  stamps.set(id, { count: window ? window.count : null, limit: window ? window.limit : null })
+  $.ui.invalidate('ui.render')
+}
+
 export function register(on) {
   on('session.start', async ($, e, next) => {
     // AGENTGUARD_LIVE=0 turns the band and pane off; the gates enforce either way
@@ -281,33 +306,23 @@ export function register(on) {
     return next(e)
   })
 
-  // A new session id after /clear, /resume or /branch; the counts start over
+  // A new session id after /clear, /resume or /branch; the counts start over.
+  // The event passes on unchanged; on any error in this hook, it passes on.
   on('classic.SessionStart', async ($, e, next) => {
-    if (typeof e.session_id === 'string' && e.session_id !== sessionId) {
-      sessionId = e.session_id
-      live.main = 0
-      live.sub = 0
-      status = null
-      verified = null
-      stamps.clear()
-    }
+    newSession(e.session_id)
     await refresh($, false)
     return next(e)
-  })
+  }).catch(($, e, next) => next(e))
 
-  // After Claude Code decides a launch: the band is current before any prompt
-  // shows, and the launch's row remembers the decision and the count then.
+  // A sub-agent launch, after the plugin's PreToolUse gates have written their
+  // signed row and before Claude Code settles the permission: the band and the
+  // launch's row are brought up to date, then Claude Code's own permission
+  // decision is returned exactly as it is. This hook never answers allow, ask
+  // or deny itself; on any error in it, the decision still passes on.
   on('tool.check', { tool: ['Task', 'Agent'] }, async ($, e, next) => {
-    const decision = await next(e)
-    await refresh($, false)
-    if (active && typeof e.tool_use_id === 'string') {
-      const burn = status && status.burn
-      const window = burn ? leading(burn) : null
-      stamps.set(e.tool_use_id, { decision: decision && decision.decision, count: window ? window.count : null, limit: window ? window.limit : null })
-      $.ui.invalidate('ui.render')
-    }
-    return decision
-  })
+    await launched($, e.tool_use_id)
+    return next(e)
+  }).catch(($, e, next) => next(e))
 
   // Each request's tokens, split between the main conversation and sub-agents
   on('turn.step', async function* ($, e, next) {

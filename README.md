@@ -24,11 +24,51 @@ codex plugin add agentguard@agentguard
 npm ci
 ```
 
-## What it sends
+## What this plugin runs, sends and decides
 
-The hooks run on your machine and never open a network connection. Free use sends nothing unless you ask for AgentGuard Score, which sends your five answers to agentguard.run only after you agree. If you also ask for a report link, the service keeps your answers and score, and anyone with the link can see them.
+Docs and pricing: [agentguard.run](https://agentguard.run) ([docs](https://agentguard.run/docs), [pricing](https://agentguard.run/pricing)).
 
-With a license key, AgentGuard checks the license and renews your seat with agentguard.run while a session is open. Those requests carry the license key, a machine fingerprint, an identifier derived from the session and a fingerprint of any shared policy in use. Paid plans also download that shared policy, and `push` uploads your policy settings when you run it. None of these requests includes your prompts, files, tool calls or their output.
+### What it sends, and where
+
+- **Free use sends nothing.** With no license key, the hooks, the mod (AgentGuard Live) and the MCP server's local tools open no network connection. There is no telemetry: the Spend library's optional usage beacon is switched off in the only process that could send it.
+- **AgentGuard Score, only when you ask and agree.** The `agent_score` MCP tool sends your five questionnaire answers to `https://agentguard.run` (or to the https origin in `AGENTGUARD_SCORE_URL`, if you set one). If you also ask for a report link, the service keeps your answers and score, and anyone with the link can see them.
+- **With a license key (Solo or Team).** The plugin's background worker, at session start and while a session is open, sends two requests to agentguard.run: `POST /api/license/validate` with the license key, and `POST /api/license/seats` with the license key, a machine fingerprint, an identifier derived from the session and a fingerprint of the shared policy in use, if any. `AGENTGUARD_LICENSE_ENDPOINT`, if you set it, sends the license check to that host instead.
+- **Paid shared policy.** The worker downloads it with `GET https://agentguard.run/api/org/policy`, sending the license key as a bearer token. `push`, only when you run it, uploads your policy settings with `PUT` to the same address.
+- **Never sent:** prompts, file names or paths, commands, tool input or output, transcripts and work receipts. Every signed ledger row, receipts included, stays in the plugin's data folder on your machine.
+
+The license key: in Claude Code, open `/plugin manage`, choose AgentGuard and set its `license_key` option. Claude Code keeps it in your system's credential store and hands it to the plugin's hooks and MCP server. Free needs no key. Codex, and installs that already set a key, keep using `AGENTGUARD_LICENSE_KEY` or the key saved by `activate license` (see "Free and paid features").
+
+### What it runs
+
+Every program starts from a file inside the plugin, with plain arguments:
+
+- `node` runs the hook scripts in `hooks/` (named in `hooks/hooks.json`), the MCP server `runtime/mcp.cjs` (named in `.mcp.json`) and three background helpers the hooks start: `runtime/daemon.cjs`, the worker that checks each call against your policy and signs the ledger; `runtime/session-start.cjs`, which tells the worker that a session started; and `runtime/session-tip.cjs`, which reads the session that just ended with Burn to keep one tip for your next session.
+- `ps`, at session start, to find the Claude Code or Codex process the session belongs to, so the worker knows when it has ended.
+- On macOS, for STOP notifications only: `osascript`, and a small notifier app built once from the bundled Swift source with `xcrun swiftc`, `sips`, `iconutil`, `codesign` and `lsregister`. See "Local STOP notifications".
+- `open` on macOS, `xdg-open` on Linux or `cmd /c start` on Windows, only to open an AgentGuard Score report link you asked to open.
+- Nothing else. The plugin never runs `npx`, `npm` or another package launcher. Claude Code installs the two locked dependencies, `@agentguard-run/burn` and `@agentguard-run/spend`, from `package-lock.json` when you install the plugin. A STOP tells you to type `! npx agentguard-burn resume` yourself: that is a command for you, and while Burn enforces, the plugin refuses it when the agent tries to run it.
+
+### What the hooks decide, and when
+
+The hooks in `hooks/hooks.json` run on every tool call and at session start and end:
+
+- **PreToolUse** (`burn-gate.cjs`, then `spend-gate.cjs`): the only hooks that decide. They answer `ask` or `deny`, never `allow`: an ordinary call gets no answer from them, so Claude Code's own permission rules and prompts apply as usual.
+  - The burn gate looks at sub-agent launches (Task and Agent). Over a limit (15 in 15 active minutes, 40 in 120, 5B tokens in a session, or more than two levels deep), it answers `ask` in default, accept edits, auto and plan mode, so Claude Code shows you its own prompt and you decide. Only where no prompt can show (bypass permissions, don't ask and print mode) does it answer `deny` with the STOP box. `"stopStyle": "deny"` in `burn-policy.json` makes it deny everywhere. In Codex, which has no prompt, a launch over a limit is refused until you allow it.
+  - The spend gate answers `deny` when your policy refuses a call (a tool outside your allowlist, a spend cap reached or a built-in guard pack rule), and `ask` where a policy rule says to ask you. While Burn enforces, an agent's attempt to lift a STOP itself is denied.
+  - What they change: nothing in the call. They never rewrite tool input or output. They add one signed, content-free row to the ledger and can show a one-line notice.
+- **PostToolUse and PostToolUseFailure** (`receipt.cjs`): records whether the call succeeded, its output size and its duration, as a signed row. Decides and changes nothing.
+- **SessionStart** (`session-start.cjs`): shows AgentGuard's startup lines and starts the background helper. Decides nothing.
+- **SessionEnd** (`session-end.cjs`): asks the worker for the session's work receipt, waits at most one second, and always lets the session end.
+- **Fail open.** Each hook has two seconds. If it fails, times out or its dependencies are missing, it gives no answer, and the call goes through Claude Code's normal permission flow. The ledger records the call as failed open where it can.
+
+### The mod: what it decides, changes, runs and sends
+
+In Claude Code 2.1.287 and later the plugin also loads a mod, AgentGuard Live. `.claude-plugin/plugin.json` names its hooks file, `live/agentguard-live.json`, which names the module `live/agentguard-live.mjs`. Nothing else in the plugin points at the `live` folder.
+
+- **What it decides: nothing.** Its one permission hook, `tool.check` on Task and Agent launches, runs after the PreToolUse gates and before Claude Code settles the permission. It refreshes the counts, then returns Claude Code's own decision unchanged with `return next(e)`. If anything in that hook fails, the decision still passes on unchanged. On `classic.SessionStart` it notes the new session id and passes the event on unchanged.
+- **What it changes:** only what Claude Code draws. It adds a band above the prompt, a stamp under each sub-agent launch row and the sub-agent count to the spinner, and opens the `/agentguard` pane when you type that command. It never changes a prompt, a tool call, a message, a permission or a setting.
+- **What it runs:** one program, <code>node &lt;plugin folder&gt;/runtime/mod-status.cjs &#45;&#45;session &lt;session id&gt;</code>, with <code>&#45;&#45;verify</code> added when you press v in the pane. That script reads Burn's session state and the plugin's ledger, changes no file and prints the counts as JSON. It runs at session start, at each sub-agent launch, after each turn, at most every 20 seconds while tokens are being used, and when you press a key in the pane.
+- **What it sends: nothing.** It opens no network connection. Its other calls go to Claude Code itself: drawing, registering `/agentguard`, reading the session id and the plan usage Claude Code reports, and a 20 second timer. It reads one environment variable, `AGENTGUARD_LIVE`; `0` turns it off.
 
 ## Details
 
@@ -768,15 +808,15 @@ Free upgrade moments are local display only. After an enforced STOP, one Solo li
 
 ## AgentGuard Live in Claude Code
 
-In Claude Code 2.1.287 and later, the plugin also loads a Claude Code mod, `hooks/agentguard-live.mjs`, with nothing more to install. A band above the prompt shows how close the session is to its limits, for example:
+In Claude Code 2.1.287 and later, the plugin also loads a Claude Code mod, `live/agentguard-live.mjs`, with nothing more to install. A band above the prompt shows how close the session is to its limits, for example:
 
 ```text
 AgentGuard  sub-agents 12 of 15 · tokens 1.2B of 5B · weekly 76% · /agentguard
 ```
 
-The band leads with the sub-agent window closer to its limit (15 in 15 active minutes, or 40 in 120), then the session's tokens against the 5B limit, the share of tokens that went to sub-agents once one has run, and the highest plan limit Claude Code reports. A count turns into a yellow pill at 70% of its limit and a red one at the limit. Under each sub-agent launch in the conversation, AgentGuard stamps its word on Claude Code's own row: ALLOWED, ASKED YOU, YOU SAID YES or YOU SAID NO, or STOPPED, with the count at launch and the number of its signed ledger row, and while Claude works the spinner carries the sub-agent count. `/agentguard` opens a pane with both windows, this session's sub-agent launches, asks and stops, newest first, each one a row in the signed ledger, and a key that verifies every signature in the ledger on this machine.
+The band leads with the sub-agent window closer to its limit (15 in 15 active minutes, or 40 in 120), then the session's tokens against the 5B limit, the share of tokens that went to sub-agents once one has run, and the highest plan limit Claude Code reports. A count turns into a yellow pill at 70% of its limit and a red one at the limit. Under each sub-agent launch in the conversation, AgentGuard stamps its word on Claude Code's own row from the gate's signed ledger row: ALLOWED, ASKED YOU, YOU SAID YES or YOU SAID NO, or STOPPED, with the count at launch and the row's number, and while Claude works the spinner carries the sub-agent count. `/agentguard` opens a pane with both windows, this session's sub-agent launches, asks and stops, newest first, each one a row in the signed ledger, and a key that verifies every signature in the ledger on this machine.
 
-The mod reads and draws; it decides nothing. The numbers come from `runtime/mod-status.cjs`, which reads Burn's own session state with Burn's own window sums and this plugin's ledger through the read-only reader, and changes no file. Enforcement stays in the hooks above, so Codex, older Claude Code and `claude -p` behave exactly as without the mod. Where nothing is drawn (`claude -p`, the VS Code chat panel) the mod does no work. To turn the band and pane off, set `AGENTGUARD_LIVE=0`; the limits still apply. Anthropic can also turn installed mods off remotely; while it does, Claude Code skips the mod, and the hooks keep enforcing the same limits. `claude plugin validate` lists every event the mod hooks and every call it makes, and `claude plugin test` runs its tests.
+The mod reads and draws; it decides nothing (see "The mod: what it decides, changes, runs and sends" above). The numbers come from `runtime/mod-status.cjs`, which reads Burn's own session state with Burn's own window sums and this plugin's ledger through the read-only reader, and changes no file. Enforcement stays in the hooks above, so Codex, older Claude Code and `claude -p` behave exactly as without the mod. Where nothing is drawn (`claude -p`, the VS Code chat panel) the mod does no work. To turn the band and pane off, set `AGENTGUARD_LIVE=0`; the limits still apply. Anthropic can also turn installed mods off remotely; while it does, Claude Code skips the mod, and the hooks keep enforcing the same limits. `claude plugin validate` lists every event the mod hooks and every call it makes, and `claude plugin test` runs its tests.
 
 ## Work receipts
 

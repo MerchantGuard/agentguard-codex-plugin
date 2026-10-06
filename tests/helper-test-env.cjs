@@ -15,7 +15,9 @@ for (const directory of [home, agentguard, data]) fs.mkdirSync(directory, {mode:
 Object.assign(process.env, {HOME: home, AGENTGUARD_HOME: agentguard,
   PLUGIN_DATA: data, AGENTGUARD_NOTIFY_SUPPRESS: '1'});
 if (process.platform === 'win32') process.env.USERPROFILE = home;
-for (const key of ['PLUGIN_ROOT', 'CLAUDE_PLUGIN_ROOT', 'CLAUDE_PLUGIN_DATA']) delete process.env[key];
+for (const key of ['PLUGIN_ROOT', 'CLAUDE_PLUGIN_ROOT', 'CLAUDE_PLUGIN_DATA',
+  // A license key set as the plugin option in the session running the tests
+  'CLAUDE_PLUGIN_OPTION_LICENSE_KEY']) delete process.env[key];
 process.once('exit', () => fs.rmSync(temporary, {recursive: true, force: true}));
 
 const temporaryRoots = [...new Set([os.tmpdir(), '/tmp'].filter(fs.existsSync).map(directory => fs.realpathSync(directory)))];

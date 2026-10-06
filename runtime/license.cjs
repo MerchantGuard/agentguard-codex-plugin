@@ -17,8 +17,13 @@ const digest = value => crypto.createHash('sha256').update(value).digest('hex');
 const nowOf = now => typeof now === 'function' ? now() : (now ?? Date.now());
 const home = () => path.resolve(process.env.AGENTGUARD_HOME || path.join(os.homedir(), '.agentguard'));
 
+// In Claude Code the key comes first from the plugin option license_key, which
+// Claude Code asks for, keeps in the system credential store and hands to the
+// hooks and the MCP server as CLAUDE_PLUGIN_OPTION_LICENSE_KEY. Codex, and
+// installs that set a key before the option existed, use AGENTGUARD_LICENSE_KEY
+// or the key saved by activation in the plugin policy.
 function configuredKey(policy = {}) {
-  const value = process.env.AGENTGUARD_LICENSE_KEY?.trim() || policy.licenseKey;
+  const value = process.env.CLAUDE_PLUGIN_OPTION_LICENSE_KEY?.trim() || process.env.AGENTGUARD_LICENSE_KEY?.trim() || policy.licenseKey;
   return typeof value === 'string' ? value.trim() : '';
 }
 function identity({data, sessionId, policy}) {

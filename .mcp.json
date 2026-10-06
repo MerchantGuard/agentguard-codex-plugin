@@ -4,7 +4,10 @@
       "command": "node",
       "args": [
         "${CLAUDE_PLUGIN_ROOT}/runtime/mcp.cjs"
-      ]
+      ],
+      "env": {
+        "CLAUDE_PLUGIN_OPTION_LICENSE_KEY": "${user_config.license_key}"
+      }
     }
   }
 }

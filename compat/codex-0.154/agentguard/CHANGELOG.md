@@ -1,3 +1,14 @@
+## 0.3.20 - 2026-10-06
+
+Changes for the review by Anthropic's plugin directory.
+
+- The mod's one permission hook (`tool.check` on Task and Agent launches) now refreshes the counts first and then returns Claude Code's decision with `return next(e)`, so its code shows that the permission decision always stays with Claude Code and you. Its `classic.SessionStart` hook and this one also pass the event on unchanged if anything in them fails.
+- The stamp under a sub-agent launch now comes only from the gate's signed ledger row. A launch with no signed row (for example while the ledger cannot be read) gets no stamp, where before it showed Claude Code's own decision.
+- The mod moved from `hooks/agentguard-live.mjs` to its own folder, `live/agentguard-live.mjs`, named by `live/agentguard-live.json`, which `.claude-plugin/plugin.json` loads with its `hooks` field. `hooks/hooks.json` now holds only the settings hooks. Nothing else in the plugin points at the `live` folder. Codex is unchanged.
+- In Claude Code, a paid license key can now be set as the plugin option `license_key`, which Claude Code keeps in the system credential store and hands to the hooks and the MCP server. It comes before `AGENTGUARD_LICENSE_KEY` and the key saved by activation, which keep working as before.
+- `assets/logo.svg` is now a plain SVG (the fill is written on the shape, with no style block), and `.claude-plugin/plugin.json` names it as the directory icon.
+- README: a new section, "What this plugin runs, sends and decides", lists every network request with its destination, every program the plugin runs and why, what each hook decides and changes, and what the mod runs and sends (nothing). It links to agentguard.run for docs and pricing.
+
 ## 0.3.19 - 2026-10-05
 
 - macOS STOP notifications now name what was stopped: a sub-agent launch for a recognized Burn limit, or a tool call for a spend cap or policy rule. Burn limits and known spend windows have reasons in plain words; policy stops use the engine's summary, which can still contain technical reason codes. The body gives the next step: the person types Burn's resume command for one launch with a reason, raises a spend cap or waits for its reset, or changes the policy rule if the action was intended.

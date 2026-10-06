@@ -200,6 +200,20 @@ test('environment key takes precedence and key changes resolve separately from t
   assert.equal(f.calls[2].body.license_key, KEY);
 });
 
+test('the Claude Code plugin option license_key comes before the environment and the policy key', async t => {
+  const f = fixture(t);
+  t.after(() => { delete process.env.CLAUDE_PLUGIN_OPTION_LICENSE_KEY; });
+  process.env.AGENTGUARD_LICENSE_KEY = 'ag_ENVIRONMENT_SYNTHETIC';
+  process.env.CLAUDE_PLUGIN_OPTION_LICENSE_KEY = ' ag_PLUGIN_OPTION_SYNTHETIC ';
+  await resolveSessionLicense(f.options);
+  assert.equal(f.calls[0].body.license_key, 'ag_PLUGIN_OPTION_SYNTHETIC');
+  // An unset option reaches the MCP server as an empty string: the next source applies.
+  process.env.CLAUDE_PLUGIN_OPTION_LICENSE_KEY = '';
+  delete process.env.AGENTGUARD_LICENSE_KEY;
+  await resolveSessionLicense(f.options);
+  assert.equal(f.calls.at(-1).body.license_key, KEY);
+});
+
 test('session snapshots never persist a license key or host session identifier', async t => {
   const f = fixture(t);
   await resolveSessionLicense(f.options);

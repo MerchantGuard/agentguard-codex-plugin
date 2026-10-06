@@ -1,6 +1,6 @@
 {
   "name": "agentguard",
-  "version": "0.3.19",
+  "version": "0.3.20",
   "description": "Stops a runaway burst of sub-agents until you allow it and shows where your Claude Code or Codex tokens went. Runs on your machine.",
   "author": {
     "name": "AgentGuard",
@@ -8,5 +8,16 @@
   },
   "homepage": "https://agentguard.run",
   "repository": "https://github.com/MerchantGuard/agentguard-codex-plugin",
-  "license": "SEE LICENSE IN LICENSE"
+  "license": "SEE LICENSE IN LICENSE",
+  "icon": "./assets/logo.svg",
+  "hooks": "./live/agentguard-live.json",
+  "userConfig": {
+    "license_key": {
+      "type": "string",
+      "title": "AgentGuard license key",
+      "description": "Only for a paid plan (Solo or Team). Leave empty for Free, which needs no key. Stored in your system credential store and sent only to agentguard.run to check the license.",
+      "sensitive": true,
+      "default": ""
+    }
+  }
 }

@@ -1,7 +1,4 @@
 {
-  "modules": [
-    "./agentguard-live.mjs"
-  ],
   "hooks": {
     "PreToolUse": [
       {

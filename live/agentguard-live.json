@@ -1,0 +1,5 @@
+{
+  "modules": [
+    "./agentguard-live.mjs"
+  ]
+}

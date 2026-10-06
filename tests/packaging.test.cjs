@@ -55,7 +55,9 @@ test('policy examples parse and validate against the current runtime schema', ()
 });
 
 test('raster assets retain the packaged logo and have their documented dimensions', () => {
-  assert.equal(createHash('sha256').update(read('assets/logo.svg')).digest('hex'), 'be0153c16a160238393e804d7430886bbf296816268ef7acdb286e5e52e7f7fe');
+  assert.equal(createHash('sha256').update(read('assets/logo.svg')).digest('hex'), '4508badfe7e3a32bc0792ce7a1796efc16a6035f74d8044deea9594e28952bce');
+  // The directory listing icon is a plain SVG: no DOCTYPE, script, style or external reference.
+  assert.doesNotMatch(read('assets/logo.svg'), /<!DOCTYPE|<script|<style|style=|href=|url\(/i);
   for (const [name, size] of [['icon-32.png', 32], ['icon-128.png', 128], ['logo-256.png', 256], ['logo-512.png', 512]]) {
     const bytes = fs.readFileSync(path.join(root, 'assets', name));
     assert.equal(bytes.subarray(1, 4).toString(), 'PNG');

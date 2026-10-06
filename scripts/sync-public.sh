@@ -112,7 +112,8 @@ hooks/session-end.cjs
 hooks/burn-gate.cjs
 hooks/spend-gate.cjs
 hooks/receipt.cjs
-hooks/agentguard-live.mjs
+live/agentguard-live.json
+live/agentguard-live.mjs
 config/default-policy.json
 skills/agentguard-policy/SKILL.md
 skills/agentguard-score/SKILL.md
@@ -243,7 +244,7 @@ rsync -a --files-from="$sync_tmp/files.txt" "$source_root/" "$sync_tmp/package/"
 
 # Only these package-owned directories are replaced. The repository .git,
 # root node_modules, and unrelated root files are outside every deletion scope.
-for directory in runtime hooks config skills assets scripts tests compat docs .claude-plugin; do
+for directory in runtime hooks live config skills assets scripts tests compat docs .claude-plugin; do
   mkdir -p -- "$destination/$directory"
   rsync -a --delete "$sync_tmp/package/$directory/" "$destination/$directory/"
 done

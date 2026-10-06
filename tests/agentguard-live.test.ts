@@ -161,8 +161,10 @@ test('requests by sub-agents count toward their share of the tokens', async ($, 
   await ui.unmount()
 })
 
-test('a launch Claude Code allowed is stamped ALLOWED under its own row, with the count at launch', async ($, on) => {
-  withStatus(on, STATUS)
+test('a launch the gate signed as started is stamped ALLOWED under its own row, with the count at launch', async ($, on) => {
+  const status: any = structuredClone(STATUS)
+  status.ledger.launches['tu-new'] = { sequence: 1052, result: 'started' }
+  withStatus(on, status)
   on('tool.check', () => ({ decision: 'allow' }))
   await start($)
   const decision = await $.tool.check({ tool: 'Agent', input: {}, tool_use_id: 'tu-new' })
@@ -170,7 +172,18 @@ test('a launch Claude Code allowed is stamped ALLOWED under its own row, with th
   const ui = await $.ui.mount(row('Agent', 'tu-new'))
   expect(await ui.find({ type: 'Text', text: 'drawn by Claude Code' })).toBeDefined()
   expect((await ui.find({ type: 'Text', text: ' ALLOWED ' }))?.props.backgroundColor).toBe('green')
-  expect(await ui.find({ type: 'Text', text: /sub-agents 9 of 15 at launch/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /sub-agents 9 of 15 at launch · signed #1052/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('a launch with no signed row gets no stamp, whatever Claude Code decided', async ($, on) => {
+  withStatus(on, STATUS)
+  on('tool.check', () => ({ decision: 'allow' }))
+  await start($)
+  await $.tool.check({ tool: 'Agent', input: {}, tool_use_id: 'tu-unsigned' })
+  const ui = await $.ui.mount(row('Agent', 'tu-unsigned'))
+  expect(await ui.find({ type: 'Text', text: 'drawn by Claude Code' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /AgentGuard/ })).toBeUndefined()
   await ui.unmount()
 })
 
@@ -233,14 +246,29 @@ test('/agentguard opens the pane with the signed rows as pills and verifies the 
   expect(closed.length).toBe(2)
 })
 
-test('a sub-agent launch refreshes the counts once Claude Code has decided it, and the decision passes through unchanged', async ($, on) => {
+test('a sub-agent launch refreshes the counts, and Claude Code\'s decision passes through unchanged', async ($, on) => {
   const runs = withStatus(on, STATUS)
-  on('tool.check', () => ({ decision: 'ask' }))
+  let answer: any = { decision: 'ask', reason: 'AgentGuard: the sub-agent limit was reached' }
+  on('tool.check', () => answer)
   await start($)
   const before = runs.length
-  const decision = await $.tool.check({ tool: 'Agent', input: {}, tool_use_id: 'tu-x' })
-  expect(decision).toMatchObject({ decision: 'ask' })
+  expect(await $.tool.check({ tool: 'Agent', input: {}, tool_use_id: 'tu-x' })).toEqual(answer)
   expect(runs.length).toBe(before + 1)
+  for (answer of [{ decision: 'deny', reason: 'stopped' }, { decision: 'allow' }]) {
+    expect(await $.tool.check({ tool: 'Task', input: {}, tool_use_id: 'tu-y' })).toEqual(answer)
+  }
+})
+
+test('when the status script cannot run, a launch\'s decision still passes through unchanged', async ($, on) => {
+  mock.clock(on)
+  on('command.register', () => ({ value: undefined }))
+  on('session.start', () => ({ cwd: '/work' }))
+  on('session.id', () => ({ value: 'abc123' }))
+  on('session.usage', () => ({ value: { startedAt: 0, context: { tokens: 0, window: 200000, percent: 0 }, rateLimits: [], cost: 0 } }))
+  on('process.run', () => { throw new Error('node is missing') })
+  on('tool.check', () => ({ decision: 'ask' }))
+  await start($)
+  expect(await $.tool.check({ tool: 'Agent', input: {}, tool_use_id: 'tu-z' })).toEqual({ decision: 'ask' })
 })
 
 test('the pane shows the work receipt of the last finished session, and no line when there is none', async ($, on) => {
